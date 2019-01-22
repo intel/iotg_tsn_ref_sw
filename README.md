@@ -48,6 +48,9 @@ Apart from that, each application has a slightly different set of dependencies.
 For example, some require specialized hardware. Please check the individual
 READMEs for more information.
 
+## Documentation
+A comprehensive User Guide can be found in the [doc folder](doc/README.md).
+
 ## How to contribute
 To create and submit a pull request:
 - Create a GitHub account

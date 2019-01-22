@@ -64,11 +64,11 @@
 #include <pthread.h>
 
 /* Typically equal to a cycle time. Used to calculate the server starttime for UA_ENABLE_PUBSUB_SOTXTIME */
-#define PUBLISHING_INTERVAL_MS 0.250     //milliseconds, decimal cause of backwards compatibility
+#define PUBLISHING_INTERVAL_MS 0.125     //milliseconds, decimal cause of backwards compatibility
 #define PUBLISHING_INTERVAL_NS (UA_UInt64) (PUBLISHING_INTERVAL_MS * 1000000) //nanoseconds
 
 #ifdef UA_ENABLE_PUBSUB_SOTXTIME
-    /* Socket priority is used when mapping to MQPRIO/TAPRIO qdiscs */
+    /* Socket priority is used when mapping to user-defined MQPRIO/TAPRIO qdiscs */
     #define SOCKET_PRIORITY 3
 
     /* SO_TXTIME-specific additional socket config */
@@ -76,20 +76,40 @@
     #define SOTXTIME_RECEIVE_ERRORS 0
     #define SOTXTIME_CLOCKID CLOCK_TAI
 
-    /* SAMPLING_OFFSET is the point of time within a publishingInterval,
-     * at which the timer needs to wake up and start collecting data, and
-     * calling the respective publish/transmit functions so that packets can
-     * go out exactly at publishingOffset, before or at least close to it.
-     * This value MUST be less than publishing offset.
+    /* TODO: samplingOffset not implemented in open62541 code.
+     * OPC UA defines SAMPLING OFFSET as the point of time within a
+     * publishingInterval, at which the timer needs to wake up and start
+     * collecting data, and calling the respective publish/transmit functions
+     * so that packets can go out exactly at publishingOffset, before or at
+     * least close to it. This value MUST be less than publishing offset.
      */
     #define SAMPLING_OFFSET 0               //in nanoseconds
+
+    /* In cases where the publishingInterval is very small, SAMPLING_OFFSET
+     * might be too short to allow a program to sample the data and send it out
+     * at a specific time in the future. EARLY_SAMPLING_OFFSET allows specifying
+     * a packet to be transmitted (> publishingInterval) further into the future.
+     * It represents the amount of time before a publishingInterval when a
+     * sample should be obtained.
+     *
+     * X = 1st option, point in time where app/ua_server could start sampling data
+     * Y = 2nd option, point in time where app/ua_server could start sampling data
+     * Z = point in time where a packet should be transmitted.
+     *
+     *          |<--N x publishingInterval-->|<----publishingInterval---->|
+     *    X <-----EARLY_SAMPLING_OFFSET----->|                            |
+     *          |                            |<-SAMPLING_OFFSET-> Y       |
+     *          |                            |<--PUBLISHING_OFFSET---> Z  |
+     *          |                            |                            |
+     */
+    #define EARLY_SAMPLING_OFFSET 500000         //in nanoseconds
 
     /* PUBLISHING_OFFSET is the internal target to send out the packets
      * When used with SOTXTIME, packet WILL get transmitted exactly at this
      * point of time. Without SOTXTIME, this is merely the target and
      * transmits roughly at that time.
      */
-    #define PUBLISHING_OFFSET 800000        //in nanoseconds
+    #define PUBLISHING_OFFSET 50000   //in nanoseconds
 
     /* Set the thread's priority for scheduling prioritization and run on
      * a fixed CPU core to avoid context switching.
@@ -195,6 +215,7 @@ addWriterGroup(UA_Server *server) {
     writerGroupConfig.samplingTime.tv_nsec = (UA_Int64) (t_sampl_ns % 1000000000);
 
     writerGroupConfig.publishingOffset = PUBLISHING_OFFSET;
+    writerGroupConfig.earlySamplingOffset = EARLY_SAMPLING_OFFSET;
 #endif
 
     /* The configuration flags for the messages are encapsulated inside the

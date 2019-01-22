@@ -888,9 +888,16 @@ int main(int argc, char *argv[])
 			transport = strtoul(optarg, NULL, 10);
 			break;
 		case 'q':
-			set_qdisc = (int) strtoul(optarg, NULL, 10);
-			if (set_qdisc == 2)
-				use_etf = 1;
+			if ((strcmp(optarg,"0") == 0) |
+			    (strcmp(optarg,"1") == 0) |
+			    (strcmp(optarg,"2") == 0) ) {
+				set_qdisc = (int) strtoul(optarg, NULL, 10);
+				if (set_qdisc == 2)
+					use_etf = 1;
+			}
+			else{
+				set_qdisc = -1;
+			}
 			break;
 		}
 	}

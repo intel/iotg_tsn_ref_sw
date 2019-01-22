@@ -60,7 +60,7 @@ if [ -z $EXP_IFDELAY ]; then
 fi
 
 #Other defaults
-NUM_PACKETS=480000	#480000 packets at 250us intervals, represent 2 min of traffic
+NUM_PACKETS=960000	#960000 packets at 125us intervals, represent 2 min of traffic
 
 TX_IP_ADDR="169.254.121.111"
 RX_IP_ADDR="169.254.121.222"

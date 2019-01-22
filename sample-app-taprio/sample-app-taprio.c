@@ -276,7 +276,7 @@ msg_buff data_rcv;
 #define CYCLE_TIME_DEFAULT (1000000)		/* TSN cycle time */
 #define CYCLE_OFFSET (5) /* Base time if no base time provided */
 #define TX_DELAY_DEFAULT (1000000) /* Delay before Launchtime */
-#define TX_WINDOW_OFFSET (40000) /* Offset delay in window before Launchtime */
+#define TX_WINDOW_OFFSET (50000) /* Offset delay in window before Launchtime */
 
 /* TSN packet default values */
 #define VLAN_PRIO_TSN_DEFAULT ((uint16_t)5)	/* TSN packet VLAN priority */
@@ -287,7 +287,7 @@ msg_buff data_rcv;
 
 /* CPU thread default values */
 #define CPU_NUM_DEFAULT (1)			 /* Run on CPU second core */
-#define PTHREAD_PRIORITY_DEFAULT ((uint16_t)90)  /* pthread highest priority */
+#define PTHREAD_PRIORITY_DEFAULT ((uint16_t)90)	 /* pthread priority default */
 
 /* Mode and packet default parameters */
 char *default_file = "zrx.log";
@@ -1375,7 +1375,7 @@ void *processGraphData(void *arg)
 	uint32_t count = 0;
 	double time_x = 0.0;
 	uint64_t graph_cycle = cycle_time / 2000; /* Sample 2x rate */
-	double duration_x = ((double)graph_cycle / 1000); /* X-axis in ms */
+	double period_x = ((double)graph_cycle / 1000); /* X-axis in ms */
 
 	memset(&trans_data, 0, sizeof(trans_data));
 	memset(&tsn_data, 0, sizeof(tsn_data));
@@ -1437,7 +1437,7 @@ void *processGraphData(void *arg)
 			fflush(flat);
 		}
 
-		time_x += duration_x;
+		time_x += period_x;
 	}
 
 	pthread_exit(NULL);
@@ -1819,8 +1819,7 @@ static void send_no_so_txtime(tx_window *window, int sockfd,
 	uint64_t closing_time;
 
 	ts_timer.tv_sec = ts->tv_sec;
-	ts_timer.tv_nsec = ts->tv_nsec + window->duration
-;
+	ts_timer.tv_nsec = ts->tv_nsec + window->duration;
 	normalize(&ts_timer);
 	closing_time = ts_timer.tv_sec * ONE_SEC +
 		       ts_timer.tv_nsec;
@@ -2515,7 +2514,9 @@ int main(int argc, char *argv[])
 		pthread_join(t2, NULL);
 	}
 
-	pr_info("Waiting for incoming packet data...");
+	if ((rxtxType & 0x02) == 0x02)
+		pr_info("Waiting for incoming packet data...");
+
 	if (((rxDisplay & 0x02) == 0x02) && ((rxtxType & 0x02) == 0x02)) {
 		pterr[2] = pthread_create(&t3, NULL, processGraphData, NULL);
 		if (pterr[2]) {
