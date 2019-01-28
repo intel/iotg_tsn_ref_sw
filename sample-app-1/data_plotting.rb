@@ -130,6 +130,9 @@ max_servers = ARGV[0].to_i
 source_file = ARGV[1]
 max_samples = ARGV[2].to_i
 
+# delete temporary file
+File.delete("plot_time_error.dat") if File.exist?("plot_time_error.dat")
+
 half_max_samples = max_samples / 2
 pipe = IO.popen('gnuplot -p', 'r+')
 pipe.puts "set xlabel 'Time (sec)'"
