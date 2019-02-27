@@ -8,6 +8,6 @@ To view this documentation:
 1. Download and unzip the zip file.
 2. Open TSN_UG_index.htm with Google Chrome or Internet Explorer.
 
-Tip: You can also download a PDF verion for your convenience by going to the
-     Download PDF topic in the left navigation bar.
+Tip: You can also download a PDF version for your convenience by going to the
+     Download PDF topic located in the left navigation bar of TSN_UG_index.htm.
 
