@@ -106,8 +106,8 @@ def set_mqprio(iface, maps, config):
     # Final mqprio command to run
     set_mqprio_cmd = "tc qdisc add dev {} ".format(iface)
     set_mqprio_cmd += "parent root handle {} ".format(handle)
-    set_mqprio_cmd +="mqprio num_tc {} ".format(num_tc)
-    set_mqprio_cmd +="map {} queues {} hw 0".format(maps,queues)
+    set_mqprio_cmd += "mqprio num_tc {} ".format(num_tc)
+    set_mqprio_cmd += "map {} queues {} hw 0".format(maps,queues)
     output = h.sh_run(set_mqprio_cmd)
 
 def set_etf(iface, clkid, config, show_cmd, use_taprio):

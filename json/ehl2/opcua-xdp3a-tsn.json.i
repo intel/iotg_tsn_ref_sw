@@ -62,28 +62,19 @@
     },
     {
       "interface": "_PREPROCESS_STR_2nd_interface",
-      "taprio": {
+      "mqprio": {
         "handle": 100,
-        "num_tc": 4,
-        "queues": "1@0 1@1 1@2 1@3",
-        "time_elapsed": 3,
+        "num_tc": 7,
+        "queues": "1@0 1@1 1@2 1@3 1@4 1@5 1@6",
         "mapping": {
           "default": 0,
           "p1": 1,
           "p2": 2,
-          "p3": 3
-        },
-        "schedule": [
-          {
-            "gate_mask": "43",
-            "duration": 200000
-          },
-          {
-            "gate_mask": "42",
-            "duration": 200000
-          }
-        ],
-        "offload": false
+          "p3": 3,
+          "p4": 4,
+          "p5": 5,
+          "p6": 6
+        }
       },
       "vlanrx": [
         {
