@@ -11,6 +11,17 @@
   "tc_group": [
     {
       "interface": "_PREPROCESS_STR_interface",
+      "mqprio": {
+        "handle": 100,
+        "num_tc": 4,
+        "queues": "1@0 1@1 1@2 1@3",
+        "mapping": {
+          "default": 0,
+          "p1": 1,
+          "p2": 2,
+          "p3": 3
+        }
+      },
       "vlanrx": [
         {
           "vlan_priority": 1,
