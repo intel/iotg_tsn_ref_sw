@@ -1,7 +1,7 @@
 CC?=gcc
 
 OPT=-O2 -g
-EXTRA_CFLAGS += -fstack-protector-strong -fPIE -fPIC -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security
+EXTRA_CFLAGS += -fstack-protector-strong -fPIE -fPIC -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Wformat-overflow
 CFLAGS=$(OPT) $(EXTRA_CFLAGS) -Wall -Wextra -Wno-parentheses -Wno-missing-field-initializers
 
 LDFLAGS += -z noexecstack -z relro -z now -pie
