@@ -3,4 +3,6 @@ rx-0,01,general
 tx-2,02,ptp-tx
 rx-2,02,ptp-rx
 tx-3,04,afpkt-p3/afxdp-q1
-rx-3,04,afpkt-p3/afxdp-q1
+rx-3,04,afpkt-p3
+rx-1,04,afxdp-q1
+tx-1,01,not-used
