@@ -105,7 +105,6 @@ case "$MODE" in
                 ;;
             opcua-*b)
                 setup_sp1b $IFACE
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_8tx_8rx-multi.map
                 if [[ ! -z "$IFACE2" ]];then
                     setup_sp2b $IFACE2
                     #Overwrite IFACE1 previous map to use multi-stream map
