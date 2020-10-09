@@ -134,7 +134,7 @@ each other via a single-ethernet connection.
 
 ### Dual-port example
 
-In this example, 2 platforms are required to be connected to each other via
+In this example type, 2 platforms are required to be connected to each other via
 **two** ethernet connections. Meaning there is a total of four
 ethernet interfaces (as opposed to the usual two).
 
