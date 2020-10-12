@@ -1,0 +1,230 @@
+/******************************************************************************
+ *
+ * Copyright (c) 2020, Intel Corporation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  1. Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ *
+ *  2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  3. Neither the name of the copyright holder nor the names of its
+ *     contributors may be used to endorse or promote products derived from
+ *     this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ *****************************************************************************/
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <open62541/plugin/log_stdout.h>
+#include <open62541/plugin/pubsub_ethernet_etf.h>
+#include <open62541/plugin/pubsub_ethernet_xdp.h>
+#include <open62541/plugin/pubsub_udp.h>
+#include <open62541/server.h>
+#include <open62541/server_config_default.h>
+
+#include <fcntl.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/prctl.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
+
+#include "opcua_common.h"
+#include "opcua_publish.h"
+#include "opcua_subscribe.h"
+#include "opcua_custom.h"
+#include "opcua_datasource.h"
+
+#define VERBOSE 0
+
+/* Globals */
+struct threadParams *g_thread;
+UA_UInt16 g_threadRun;
+UA_Boolean g_running = true;
+UA_NodeId g_writerGroupIdent;
+struct ServerData *g_sData;
+int verbose = VERBOSE;
+
+static void stopHandler(int sign)
+{
+    (void) sign;
+    UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "received ctrl-c");
+    g_running = false;
+}
+
+int configureServer(struct ServerData *sdata)
+{
+    struct timespec ts;
+
+    int ret = clock_gettime(CLOCK_TAI, &ts);
+    catch_err(ret == -1, "Failed to get current time");
+
+    /* Initialize server start time to +3 secs from now */
+    sdata->startTime = (UA_UInt64) ((ts.tv_sec + 3) * 1E9L);
+
+    sdata->transportProfile =
+        UA_STRING("http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp");
+
+    for (int i = 0; i < sdata->pubCount; i++) {
+        struct PublisherData *pub = &sdata->pubData[i];
+        pub->writeFunc = &dummyDSWrite;
+        if( pub->twoWayData == false)
+            pub->readFunc = &pubGetDataToTransmit;
+        else
+            pub->readFunc = &pubReturnGetDataToTransmit;
+    }
+
+    for (int i = 0; i < sdata->subCount; i++) {
+        struct SubscriberData *sub = &sdata->subData[i];
+        sub->readFunc = &dummyDSRead;
+        if ( sub->twoWayData == false)
+            sub->writeFunc = &subStoreDataReceived;
+        else
+            sub->writeFunc = &subReturnStoreDataReceived;
+    }
+
+    return 0;
+
+error:
+    return -1;
+}
+
+static UA_Server *setupOpcuaServer(struct ServerData *sdata)
+{
+    UA_NodeId connId = {};
+    UA_Server *server = UA_Server_new();
+    UA_ServerConfig *config = UA_Server_getConfig(server);
+    struct PublisherData *pub = NULL;
+    struct SubscriberData *sub = NULL;
+    int ret = 0;
+
+    UA_ServerConfig_setMinimal(config, getpid(), NULL);
+
+    /* Setup transport layers through UDPMP and Ethernet */
+    config->pubsubTransportLayersSize = 0;
+    config->pubsubTransportLayers =
+        (UA_PubSubTransportLayer *) UA_calloc(2, sizeof(UA_PubSubTransportLayer));
+    catch_err(config->pubsubTransportLayers == NULL, "Out of memory");
+
+    if (sdata->useXDP)
+        config->pubsubTransportLayers[0] = UA_PubSubTransportLayerEthernetXDP();
+    else
+        config->pubsubTransportLayers[0] = UA_PubSubTransportLayerEthernetETF();
+
+    config->pubsubTransportLayersSize++;
+
+    for (int i = 0; i < sdata->pubCount; i++) {
+        pub = &sdata->pubData[i];
+        addPubSubConnection(server, &connId, sdata, pub);
+        ret = createPublisher(server, sdata, pub, &connId);
+        catch_err(ret == -1, "createPublisher() returned -1");
+    }
+
+    for (int i = 0; i < sdata->subCount; i++) {
+        sub = &sdata->subData[i];
+
+        /* Skip adding a new socket (PubSubConnection)
+         * using XDP and already have a publisher on the same interface's queue.
+         * This is because XDP sockets are bi-directional, so both
+         * TX/RX queue is bound together to a single socket.
+         * Uni direction sockets are available in 5.5+ kernels only and
+         * requires a different bpf program.
+         */
+        if (sdata->pubCount && sdata->useXDP && sub->xdpQueue == pub->xdpQueue &&
+                strcmp(sdata->pubInterface, sdata->subInterface) == 0) {
+            log("Round trip AF_XDP same queue, same interface, sharing layer");
+        } else if (sdata->pubCount && sdata->useXDP) {
+            log("Round trip AF_XDP different queue use new layer");
+            config->pubsubTransportLayers[1] = UA_PubSubTransportLayerEthernetXDP();
+            config->pubsubTransportLayersSize++;
+            addSubConnection(server, &connId, sdata, sub);
+        } else if (sdata->pubCount) {
+            log("Round trip AF_PACKET use new layer");
+            config->pubsubTransportLayers[1] = UA_PubSubTransportLayerEthernetETF();
+            config->pubsubTransportLayersSize++;
+            addSubConnection(server, &connId, sdata, sub);
+        } else {
+            log("Single trip AF_XDP or AF_PACKET addSubConnection only");
+            addSubConnection(server, &connId, sdata, sub);
+        }
+
+        ret = createSubscriber(server, sdata, sub, &connId);
+        catch_err(ret == -1, "createSubscriber() returned -1");
+    }
+
+    return server;
+
+error:
+    UA_Server_delete(server);
+    return NULL;
+}
+
+int main(int argc, char **argv)
+{
+    (void) argc;
+
+    int i, ret = 0;
+    UA_UInt16 threadCount = 0;
+    signal(SIGINT, stopHandler);
+    signal(SIGTERM, stopHandler);
+
+    struct ServerData *sdata = parseArgs(argv);
+    catch_err(sdata == NULL, "parseArgs() returned NULL");
+
+    ret = configureServer(sdata);
+    catch_err(ret == -1, "configureServer() returned -1");
+
+    threadCount = sdata->pubCount + sdata->subCount;
+    g_threadRun = 0;
+    g_thread = calloc(threadCount, sizeof(struct threadParams));
+    g_sData = sdata;
+
+    /* Pub/sub threads will be started by the WG/RG addRepeatedCallback() */
+    UA_Server *server = setupOpcuaServer(sdata);
+    catch_err(server == NULL, "setupOpcuaServer() returned NULL");
+
+    UA_StatusCode servrun = UA_Server_run(server, &g_running);
+
+    /* Pub/sub threads are started by the server. Wait till they finish. */
+    for (i = 0; i < g_threadRun; i++) {
+        ret = pthread_join(g_thread[i].id, NULL);
+        if (ret != 0)
+            UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
+                        "\nPthread Join Failed:%ld\n", g_thread[i].id);
+    }
+
+    /* Teardown and free any malloc-ed memory (incl those by strndup) */
+    UA_Server_delete(server);
+
+    free_resources(sdata);
+
+    free(g_thread);
+
+    return servrun == UA_STATUSCODE_GOOD ? EXIT_SUCCESS : EXIT_FAILURE;
+
+error:
+    exit(-1);
+}

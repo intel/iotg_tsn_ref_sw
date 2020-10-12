@@ -1,0 +1,33 @@
+# Editing and running artifacts
+*.plot
+*.eps
+*.log
+*.o
+*.a
+tags
+*.vim
+*.swp
+*.un
+*~
+*.pcap
+
+# Build artifacts
+tsq
+txrx-tsn
+
+# Skip result files
+results-*/
+*.txt
+*.png
+
+# Ignore convenience symlink
+a5
+a6
+
+# We only save json.i
+*.json
+
+opcua-server
+src/build-opcua/
+iperf3-gen-cmd.sh
+json/__pycache__/

@@ -1,0 +1,6 @@
+tx-0,01,general
+rx-0,01,general
+tx-2,02,ptp-tx
+rx-2,02,ptp-rx
+tx-3,04,afpkt-p3/afxdp-q1
+rx-3,04,afpkt-p3/afxdp-q1
