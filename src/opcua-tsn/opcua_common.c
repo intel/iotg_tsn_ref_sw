@@ -282,9 +282,9 @@ struct ServerData *parseJson(struct json_object *json)
         sd->cpuAffinity = cpuAff;
 
         sd->subscriberOutputFileName = getString(subJson, "subscriber_output_file");
-        sd->fpSubscriberOutput = fopen(sd->subscriberOutputFileName, "w" );
-        if (sd->fpSubscriberOutput)
-            fflush(sd->fpSubscriberOutput);
+        sd->fpSubscriberOutput = fopen(sd->subscriberOutputFileName, "w");
+        catch_err(sd->fpSubscriberOutput == NULL,
+                  "Error in opening output file");
 
         log("Subscriber: %s %s CPU%ld",
             sd->url, s->useXDP ? "AF_XDP" : "AF_PACKET", sd->cpuAffinity);

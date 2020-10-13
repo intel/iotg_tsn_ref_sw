@@ -180,6 +180,13 @@ else
     echo "Not running iperf3."
 fi
 
+# Create soft link to output file in /tmp
+OUTPUT_FILE=$(grep -s subscriber_output_file $NEW_JSON | awk '{print $2}' | sed 's/,//' | sed 's/\"//g')
+if [[ ! -z $OUTPUT_FILE ]]; then
+    rm -f ./$OUTPUT_FILE
+    ln -sfv /tmp/$OUTPUT_FILE .
+fi
+
 ./opcua-server "$NEW_JSON"
 
 RETVAL_OPCUA=$?
