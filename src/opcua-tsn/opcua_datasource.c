@@ -57,7 +57,7 @@
 #include "opcua_common.h"
 #include "json_helper.h"
 
-UA_UInt64 tx_sequence = -2;
+UA_Int64 tx_sequence = -2;
 extern struct ServerData *g_sData;
 extern UA_Boolean g_running;
 UA_UInt64 rx_sequence;
@@ -94,6 +94,7 @@ pubReturnGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
     else {
         tx_sequence++;
     }
+
     clock_gettime(CLOCK_TAI, &current_time_timespec);
     currentTime = as_nanoseconds(&current_time_timespec);
 
@@ -112,7 +113,7 @@ pubReturnGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
 
     prev_rx_sequence = rx_sequence;
 
-    if (tx_sequence == packetCount) {
+    if (tx_sequence == (UA_Int64)packetCount) {
         g_running = UA_FALSE;
         /* debug("\n[PUB] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n", tx_sequence); */
     }
@@ -157,7 +158,7 @@ pubGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
     data->hasValue = true;
     data->value.storageType = UA_VARIANT_DATA_NODELETE;
 
-    if (tx_sequence == packetCount) {
+    if (tx_sequence == (UA_Int64)packetCount) {
         g_running = UA_FALSE;
         /* debug("\n[PUB] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n", tx_sequence); */
     }
