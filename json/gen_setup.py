@@ -18,7 +18,7 @@ def get_show_qdisc_cmd(interface):
 
 def delete_qdiscs(iface):
     #print('Deleting existing qdiscs')
-    cmd = 'tc qdisc del dev {} root'.format(iface)
+    cmd = 'tc qdisc del dev {} parent root'.format(iface)
     proc = h.sh_run(cmd)
     h.sh_run('sleep 5')
 
@@ -183,7 +183,7 @@ def set_cbs(iface, scenario_config):
 
 def process_tc_data(data):
     # If file is empty then we do nothing
-    if len(data) is 0:
+    if len(data) == 0:
         return
 
     if not 'interface' in data:
