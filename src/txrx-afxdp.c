@@ -70,7 +70,6 @@
 
 #include "txrx-afxdp.h"
 
-struct xsk_info *glob_xskinfo_ptr;
 uint32_t glob_xdp_flags;
 int glob_ifindex;
 int verbose;
@@ -90,16 +89,19 @@ void remove_xdp_program(void)
 	uint32_t curr_prog_id = 0;
 
 	if (bpf_get_link_xdp_id(glob_ifindex, &curr_prog_id, glob_xdp_flags)) {
-		fprintf(stderr, "bpf_get_link_xdp_id failed\n");
+		fprintf(stderr, "exit: bpf_get_link_xdp_id failed\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if (glob_xskinfo_ptr->bpf_prog_id == curr_prog_id)
+	if (glob_xskinfo_ptr && glob_xskinfo_ptr->bpf_prog_id == curr_prog_id)
 		bpf_set_link_xdp_fd(glob_ifindex, -1, glob_xdp_flags);
+	else if (!glob_xskinfo_ptr)
+		fprintf(stderr, "exit: socket creation incomplete. " \
+				"Possibly due toincompatible queue.\n");
 	else if (!curr_prog_id)
-		fprintf(stderr, "couldn't find a prog id on a given interface\n");
+		fprintf(stderr, "exit: couldn't find a prog id on a given interface\n");
 	else
-		fprintf(stderr, "program on interface changed, not removing\n");
+		fprintf(stderr, "exit: program on interface changed, not removing\n");
 }
 
 void xdpsock_cleanup(void)
