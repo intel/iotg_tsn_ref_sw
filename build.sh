@@ -31,6 +31,7 @@
 # *****************************************************************************/
 
 make -C src/ clean
+rm -f txrx-tsn tsq opcua-server
 
 make -C src/
 
@@ -44,15 +45,7 @@ if [ $? -ne 0 ]; then
         echo "tsq build failed" && exit
 fi
 
-mkdir -p src/build-opcua
-rm -rf src/build-opcua/*
-
-cd src/build-opcua/
-cmake ../opcua-tsn
-make -j$(nproc)
-
-test -e opcua-server
+mv src/opcua-server .
 if [ $? -ne 0 ]; then
         echo "opcua-server build failed" && exit
 fi
-mv opcua-server ../../
