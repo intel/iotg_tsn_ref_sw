@@ -188,6 +188,7 @@ get_XDPTXQ_NUM(){
                 XDPTXQ_NUM=1 #TGL-HWTXq3
         else
                 echo "get_XDPTXQ_NUM()- invalid TX queue count"
+                exit
         fi
 }
 
@@ -202,6 +203,7 @@ get_TXQ_NUM(){
                 TXQ_NUM=3 #TGL-HWTXq3, XDPTXq1
         else
                 echo "get_TXQ_NUM()- invalid TX queue count"
+                exit
         fi
 }
 

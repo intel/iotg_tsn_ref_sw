@@ -46,7 +46,7 @@
 
 #define VLAN_ID 3
 #define DEFAULT_NUM_FRAMES 1000
-#define DEFAULT_TX_PERIOD 0
+#define DEFAULT_TX_PERIOD 100000
 #define DEFAULT_PACKETS 10
 #define DEFAULT_SOCKET_PRIORITY 0
 #define DEFAULT_PACKET_SIZE 64
@@ -138,15 +138,15 @@ static struct argp_option options[] = {
 	{"cycle-time",	'y',	"NSEC",	0, "tx period/interval/cycle-time\n"
 					   "	Def: 100000ns | Min: 25000ns | Max: 50000000ns"},
 	{"frames-to-send", 'n', "NUM",	0, "number of packets to transmit\n"
-					   "	Def: 10 | Min: 1 | Max: 10000000"},
+					   "	Def: 1000 | Min: 1 | Max: 10000000"},
 	{"dst-mac-addr",   'd', "MAC_ADDR",	0, "destination mac address\n"
 						   "	Def: 22:bb:22:bb:22:bb"},
 
 	{0,0,0,0, "LaunchTime/TBS-specific:\n(where base is the 0th ns of current second)" },
 	{"transmit-offset",'o', "NSEC",	0, "packet txtime positive offset\n"
-					   "	Def: 0ns | Min: 1ns | Max: 100000000ns"},
+					   "	Def: 0ns | Min: 0ns | Max: 100000000ns"},
 	{"early-offset",   'e', "NSEC",	0, "early execution negative offset\n"
-					   "	Def: 0ns | Min: 0ns | Max: 10000000ns"},
+					   "	Def: 100000ns | Min: 0ns | Max: 10000000ns"},
 
 	{0,0,0,0, "Misc:" },
 	{"hw-timestamps",	'h',	0,	0, "retrieve per-packet hardware timestamps (AF_PACKET)"},
@@ -160,6 +160,10 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 	/* know is a pointer to our user_opt structure. */
 	struct user_opt *opt = state->input;
 	int ret;
+	int len = 0;
+	char *str_end = NULL;
+	errno = 0;
+	long res = 0;
 
 	switch (key) {
 	case 'v':
@@ -172,9 +176,11 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		opt->ifname = strdup(arg);
 		break;
 	case 'q':
-		opt->x_opt.queue = opt->socket_prio = atoi(arg);
-		if (atoi(arg) < 0 || opt->socket_prio >= 7)
-			exit_with_error("Invalid queue number. Check --help");
+		len = strlen(arg);
+		res = strtol((const char *)arg, &str_end, 10);
+		if (errno || res < 0 || res >= 7 || str_end != &arg[len])
+			exit_with_error("Invalid queue number/socket priority. Check --help");
+		opt->x_opt.queue = opt->socket_prio = (uint32_t)res;
 		opt->vlan_prio = opt->socket_prio * 32;
 		break;
 	case 'X':
@@ -214,29 +220,39 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		opt->need_wakeup = 1;
 		break;
 	case 'l':
-		opt->packet_size = atoi(arg);
-		if (opt->packet_size < 64 || opt->packet_size > 1500)
+		len = strlen(arg);
+		res = strtol((const char *)arg, &str_end, 10);
+		if (errno || res < 64 || res > 1500 || str_end != &arg[len])
 			exit_with_error("Invalid packet size. Check --help");
+		opt->packet_size = (uint32_t)res;
 		break;
 	case 'y':
-		opt->interval_ns = atoi(arg);
-		if (opt->interval_ns < 25000 || opt->interval_ns > 50000000)
+		len = strlen(arg);
+		res = strtol((const char *)arg, &str_end, 10);
+		if (errno || res < 25000 || res > 50000000 || str_end != &arg[len])
 			exit_with_error("Invalid cycle time. Check --help");
+		opt->interval_ns = (uint32_t)res;
 		break;
 	case 'n':
-		opt->frames_to_send = atoi(arg);
-		if (opt->frames_to_send < 1 || opt->frames_to_send > 10000000)
+		len = strlen(arg);
+		res = strtol((const char *)arg, &str_end, 10);
+		if (errno || res < 1 || res > 10000000 || str_end != &arg[len])
 			exit_with_error("Invalid number of frames to send. Check --help");
+		opt->frames_to_send = (uint32_t)res;
 		break;
 	case 'o':
-		opt->offset_ns = atoi(arg);
-		if (atoi(arg) < 0 || opt->offset_ns > 100000000)
+		len = strlen(arg);
+		res = strtol((const char *)arg, &str_end, 10);
+		if (errno || res < 0 || res > 100000000 || str_end != &arg[len])
 			exit_with_error("Invalid offset. Check --help");
+		opt->offset_ns = (uint32_t)res;
 		break;
 	case 'e':
-		opt->early_offset_ns = atoi(arg);
-		if (atoi(arg) < 0 || opt->early_offset_ns > 10000000)
+		len = strlen(arg);
+		res = strtol((const char *)arg, &str_end, 10);
+		if (errno || res  < 0 || res > 10000000 || str_end != &arg[len])
 			exit_with_error("Invalid early offset. Check --help");
+		opt->early_offset_ns = (uint32_t)res;
 		break;
 	case 'd':
 		ret = sscanf(arg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",

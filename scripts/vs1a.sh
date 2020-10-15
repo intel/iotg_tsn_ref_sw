@@ -66,17 +66,24 @@ sleep 5
 get_TXQ_NUM $IFACE
 
 ./txrx-tsn -i $IFACE -PtTq $TXQ_NUM -n $NUMPKTS -l $SIZE -y $INTERVAL \
-                -e $EARLY_OFFSET -o $TXTIME_OFFSET > /dev/shm/afpkt-txtstamps.txt &
+                -e $EARLY_OFFSET -o $TXTIME_OFFSET > /tmp/afpkt-txtstamps.txt &
 TXRX_PID=$!
+
+if ! ps -p $TXRX_PID > /dev/null; then
+	echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
+	kill -9 $( pgrep -x iperf3 ) > /dev/null
+	exit 1
+fi
+
+# Assign to CPU2
 taskset -p 4 $TXRX_PID
 chrt --fifo -p 90 $TXRX_PID
-ps -o psr,pri,pid,cmd $TXRX_PID
 
 sleep $SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
-cp /dev/shm/afpkt-txtstamps.txt . &
+cp /tmp/afpkt-txtstamps.txt . &
 
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 $DIR/iperf3-bg-client.sh
@@ -85,17 +92,24 @@ sleep 5
 get_XDPTXQ_NUM $IFACE
 
 ./txrx-tsn -XztTi $IFACE -q $XDPTXQ_NUM -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
-                -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > /dev/shm/afxdp-txtstamps.txt &
+                -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > /tmp/afxdp-txtstamps.txt &
 TXRX_PID=$!
+
+if ! ps -p $TXRX_PID > /dev/null; then
+	echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
+	kill -9 $( pgrep -x iperf3 ) > /dev/null
+	exit 1
+fi
+
+# Assign to CPU2
 taskset -p 4 $TXRX_PID
 chrt --fifo -p 90 $TXRX_PID
-ps -o psr,pri,pid,cmd $TXRX_PID
 
 sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
-cp /dev/shm/afxdp-txtstamps.txt .
+cp /tmp/afxdp-txtstamps.txt .
 
 echo Done!
 exit

@@ -69,12 +69,22 @@ sleep 5
 
 get_TXQ_NUM $IFACE
 
-taskset -c 2 ./txrx-tsn -Pri $IFACE -q $TXQ_NUM > /dev/shm/afpkt-rxtstamps.txt &
+./txrx-tsn -Pri $IFACE -q $TXQ_NUM > /tmp/afpkt-rxtstamps.txt &
+TXRX_PID=$!
+
+if ! ps -p $TXRX_PID > /dev/null; then
+	echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
+	kill -9 $( pgrep -x iperf3 ) > /dev/null
+	exit 1
+fi
+
+# Assign to CPU2
+taskset -p 4 $TXRX_PID
 sleep $SLEEP_SEC
 pkill txrx-tsn
 pkill iperf3
 
-cp /dev/shm/afpkt-rxtstamps.txt . &
+cp /tmp/afpkt-rxtstamps.txt . &
 
 echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
 $DIR/iperf3-bg-server.sh
@@ -82,12 +92,22 @@ sleep 5
 
 get_XDPTXQ_NUM $IFACE
 
-taskset -c 2 ./txrx-tsn -Xzri $IFACE -q $XDPTXQ_NUM > /dev/shm/afxdp-rxtstamps.txt &
+./txrx-tsn -Xzri $IFACE -q $XDPTXQ_NUM > /tmp/afxdp-rxtstamps.txt &
+TXRX_PID=$!
+
+if ! ps -p $TXRX_PID > /dev/null; then
+	echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
+	kill -9 $( pgrep -x iperf3 ) > /dev/null
+	exit 1
+fi
+
+# Assign to CPU2
+taskset -p 4 $TXRX_PID
 sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
-cp /dev/shm/afxdp-rxtstamps.txt .
+cp /tmp/afxdp-rxtstamps.txt .
 
 echo "PHASE 3: Calculating.."
 pkill gnuplot
