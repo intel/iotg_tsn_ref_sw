@@ -106,6 +106,14 @@ if [ -n $ETC ]; then
     esac
 fi
 
+if [ "$RUNSH_DEBUG_MODE" == "YES" ]; then
+    cat /var/log/ptp4l.log >> /var/log/total_ptp4l.log
+    cat /var/log/phc2sys.log >> /var/log/total_phc2sys.log
+
+    echo -n "" > /var/log/ptp4l.log
+    echo -n "" > /var/log/phc2sys.log
+fi
+
 #Execute the specific config script, using their own defaults.
 CHECK=$(echo $CONFIG | cut -c -5 )
 if [ $CHECK == "opcua" ]; then
@@ -114,4 +122,33 @@ if [ $CHECK == "opcua" ]; then
 else
         # For shell types like tsq*, xdp*, pkt*, vs* - use script defaults
         ./scripts/$CONFIG.sh $IFACE
+fi
+
+if [ "$RUNSH_DEBUG_MODE" == "YES" ]; then
+
+    grep -vaP '[\0\200-\377]' /var/log/ptp4l.log > /var/log/temp_ptp4l.log
+    grep -vaP '[\0\200-\377]' /var/log/phc2sys.log > /var/log/temp_phc2sys.log
+
+    echo -e ""
+    echo -e "PHC2SYS offset" \
+        "\tmin\t $(grep offset /var/log/temp_phc2sys.log | sort -nk 5 | head -n 1 | awk '{print $5}')" \
+        "\n\t\tmax\t $(grep offset /var/log/temp_phc2sys.log | sort -nk 5 | tail -n 1 | awk '{print $5}')"
+
+    echo -e "\tdelay " \
+        "\tmin\t $(grep delay /var/log/temp_phc2sys.log | sort -nk 10 | head -n 1 | awk '{print $10}')" \
+        "\n\t\tmax\t $(grep delay /var/log/temp_phc2sys.log | sort -nk 10 | tail -n 1 | awk '{print $10}')"
+
+    echo -e "\twaiting:         $(grep -i waiting /var/log/temp_phc2sys.log | wc -l)"
+    echo -e "\tfailed:          $(grep failed /var/log/temp_phc2sys.log | wc -l)"
+
+    echo -e "PTP4L   rms   "  \
+        "\tmin\t $(grep rms /var/log/temp_ptp4l.log | sort -nk 3 | head -n 1 | awk '{print $3}')" \
+        "\n\t\tmax\t $(grep rms /var/log/temp_ptp4l.log | sort -nk 3 | tail -n 1 | awk '{print $3}')"
+
+    echo -e "\tMCLK_SELECTED:   $(grep MASTER_CLOCK_SELECTED /var/log/temp_ptp4l.log | wc -l)"
+    echo -e "\tINIT_COMPLETE:   $(grep FAULT_DETECTED /var/log/temp_ptp4l.log | wc -l)"
+    echo -e "\tFAULT_DETECTED:  $(grep FAULT_DETECTED /var/log/temp_ptp4l.log | wc -l)"
+    echo -e "\tUNCALIBRATED:    $(grep UNCALIBRATED /var/log/temp_ptp4l.log | wc -l)"
+    echo -e "\tlink down:       $(grep "link down" /var/log/temp_ptp4l.log | wc -l)"
+    echo -e "\ttimed out:       $(grep "timed out" /var/log/temp_ptp4l.log | wc -l)"
 fi

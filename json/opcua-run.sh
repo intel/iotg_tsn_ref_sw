@@ -231,5 +231,5 @@ else
     gnuplot -e "FILENAME='afpkt-traffic.txt'; YMAX=10000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AF-PACKET - return trip)'" $DIR/../scripts/latency_single.gnu -p 2> /dev/null &
 fi
 
-while [[ ! -s plot_pic.png ]]; do sleep 5; done
+while [[ ! -s plot_pic.png ]] && [[ $RETRY -lt 30 ]]; do sleep 5; let $(( RETRY++ )); done
 cp plot_pic.png results-$ID/plot-$CONFIG-$NUMPKTS-$SIZE-$INTERVAL-$IDD.png # Backup

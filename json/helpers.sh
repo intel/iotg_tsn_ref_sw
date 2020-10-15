@@ -287,11 +287,10 @@ calc_rx_u2u(){
                         if($1<min) {min=$1};
                         total+=$1; count+=1
                         }
-                      } END {print "U2U\n"total/count,"\n"max,"\n"min}' > temp1.txt
+                      } END {print "U2U\t"max,"\t"total/count,"\t"min}' > temp1.txt
 
-        echo -e "Results\nAvg\nMax\nMin" > temp0.txt
-        paste temp0.txt temp1.txt > temp-total.txt
-        column -t temp-total.txt
+        echo -e "Results\tMax\tAvg\tMin" > temp0.txt
+        column -t temp0.txt temp1.txt > saved1.txt
         rm temp*.txt
 
         #Plot u2u
@@ -316,11 +315,10 @@ calc_return_u2u(){
                         if($1<min) {min=$1};
                         total+=$1; count+=1
                         }
-                      } END {print "U2U\n"total/count,"\n"max,"\n"min}' > temp1.txt
+                      } END {print "U2U\t"max,"\t"total/count,"\t"min}' > temp1.txt
 
-        echo -e "Results\nAvg\nMax\nMin" > temp0.txt
-        paste temp0.txt temp1.txt > temp-total.txt
-        column -t temp-total.txt
+        echo -e "Results\tMax\tAvg\tMin" > temp0.txt
+        column -t temp0.txt temp1.txt > saved1.txt
         rm temp*.txt
 
         #Plot u2u
@@ -338,29 +336,25 @@ calc_rx_duploss(){
 
         # Packet count from json file
         PACKET_COUNT=$(grep -s packet_count $JSON_FILE | awk '{print $2}' | sed 's/,//')
-        echo $PACKET_COUNT >> temp1.txt
 
         # Total packets received
         PACKET_RX=$(cat $XDP_TX_FILENAME \
                 | awk '{print $2}' \
                 | grep -x -E '[0-9]+' \
                 | wc -l)
-        echo $PACKET_RX >> temp1.txt
 
         # Total duplicate
         PACKET_DUPL=$(cat $XDP_TX_FILENAME \
                 | awk '{print $2}' \
                 | uniq -D \
                 | wc -l)
-        echo $PACKET_DUPL >> temp1.txt
 
         # Total missing: Same as: packet count - total_packet - total_duplicate
         PACKET_LOSS=$((PACKET_COUNT-PACKET_RX-PACKET_DUPL))
-        echo $PACKET_LOSS >> temp1.txt
 
-        echo -e "TotalExpected\nTotalReceived\nDuplicates\nLosses" > temp0.txt
-        paste temp0.txt temp1.txt > temp-total.txt
-        column -t temp-total.txt
+        echo -e "Expected\tReceived\tDuplicates\tLosses\n" \
+                "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS" > temp0.txt
+        paste saved1.txt temp0.txt | column -t
         rm temp*.txt
 }
 
@@ -374,29 +368,25 @@ calc_return_duploss(){
 
         # Packet count from json file
         PACKET_COUNT=$(grep -s packet_count $JSON_FILE | awk '{print $2}' | sed 's/,//')
-        echo $PACKET_COUNT >> temp1.txt
 
         # Total packets received
         PACKET_RX=$(cat $XDP_TX_FILENAME \
                 | awk '{print $9}' \
                 | grep -x -E '[0-9]+' \
                 | wc -l)
-        echo $PACKET_RX >> temp1.txt
 
         # Total duplicate
         PACKET_DUPL=$(cat $XDP_TX_FILENAME \
                 | awk '{print $9}' \
                 | uniq -D \
                 | wc -l)
-        echo $PACKET_DUPL >> temp1.txt
 
         # Total missing: Same as: packet count - total_packet - total_duplicate
         PACKET_LOSS=$((PACKET_COUNT-PACKET_RX-PACKET_DUPL))
-        echo $PACKET_LOSS >> temp1.txt
 
-        echo -e "TotalExpected\nTotalReceived\nDuplicates\nLosses" > temp0.txt
-        paste temp0.txt temp1.txt > temp-total.txt
-        column -t temp-total.txt
+        echo -e "Expected\tReceived\tDuplicates\tLosses\n" \
+                "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS" > temp0.txt
+        paste saved1.txt temp0.txt | column -t
         rm temp*.txt
 }
 

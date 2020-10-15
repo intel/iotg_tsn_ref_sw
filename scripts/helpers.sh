@@ -218,11 +218,10 @@ calc_rx_u2u(){
                         if($1<min) {min=$1};
                         total+=$1; count+=1
                         }
-                      } END {print "U2U\n"total/count,"\n"max,"\n"min}' > temp1.txt
+                      } END {print "U2U\t"max,"\t"total/count,"\t"min}' > temp1.txt
 
-        echo -e "Results\nAvg\nMax\nMin" > temp0.txt
-        paste temp0.txt temp1.txt > temp-total.txt
-        column -t temp-total.txt
+        echo -e "Results\tMax\tAvg\tMin" > temp0.txt
+        column -t temp0.txt temp1.txt > saved1.txt
         rm temp*.txt
 
         #Plot u2u
@@ -237,24 +236,25 @@ calc_rx_duploss(){
         cat $XDP_RX_FILENAME \
                 | awk '{print $2}' \
                 | grep -x -E '[0-9]+' \
-                | wc -l >> temp1.txt
+                | wc -l > temp1.txt
 
         # Total duplicate
         cat $XDP_RX_FILENAME \
                 | awk '{print $2}' \
                 | uniq -D \
-                | wc -l >> temp1.txt
+                | wc -l | paste temp1.txt - > temp2.txt
 
         # Total missing: Same as: total_packet - total_unique (uniq -c)
         cat $XDP_RX_FILENAME \
                 | awk '{print $2}' \
                 | grep -x -E '[0-9]+' \
                 | awk '{for(i=p+1; i<$1; i++) print i} {p=$1}' \
-                | wc -l >> temp1.txt
+                | wc -l | paste temp2.txt - > temp3.txt
 
-        echo -e "Total\nDuplicates\nLosses" > temp0.txt
-        paste temp0.txt temp1.txt > temp-total.txt
-        column -t temp-total.txt
+        echo -e "Total\tDuplicates\tLosses" > temp0.txt
+        cat temp3.txt >> temp0.txt
+        paste saved1.txt temp0.txt | column -t
+
         rm temp*.txt
 }
 
