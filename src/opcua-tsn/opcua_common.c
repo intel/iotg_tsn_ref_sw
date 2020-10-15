@@ -57,8 +57,10 @@
 #include "opcua_common.h"
 #include "json_helper.h"
 
-#define PKT_COUNT_MAX 1000000
+#define PKT_COUNT_MAX 10000000
 #define CYCLETIME_NS_MAX 5000000
+#define DATASET_WRITER_MAX 99999
+#define WRITER_GROUP_MAX 99999
 
 #define HUNDRED_USEC_NSEC 100000
 #define ONE_MSEC_NSEC 1000000
@@ -220,12 +222,12 @@ struct ServerData *parseJson(struct json_object *json)
         catch_err(pd->id < 0  || pd->id > FIVE_DIGIT_MAX, "Invalid pub_id");
 
         pd->dataSetWriterId = getInt(pubJson, "dataset_writer_id");
-        catch_err(pd->dataSetWriterId < 0,
-                  "Negative dataset_writer_id is not valid");
+        catch_err(pd->dataSetWriterId < 0 || pd->dataSetWriterId > DATASET_WRITER_MAX,
+                  "Invalid dataset_writer_id");
 
         pd->writerGroupId = getInt(pubJson, "writer_group_id");
-        catch_err(pd->writerGroupId < 0,
-                  "Negative writerGroupId is not valid");
+        catch_err(pd->writerGroupId < 0 || pd->writerGroupId > WRITER_GROUP_MAX,
+                  "Invalid writerGroupId");
 
         pd->twoWayData = getBool(pubJson, "two_way_data");
 
