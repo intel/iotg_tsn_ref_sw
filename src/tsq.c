@@ -47,6 +47,7 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <errno.h>
 
 #define BUFFER_SIZE 256
 #define CLIENT_COUNT 2
@@ -129,13 +130,13 @@ struct opt {
 	int verbose;
 	int mode;
 	char *server_ip;
-	int port;
+	long port;
 	/* Listener */
 	char *output_file;
 	/* Talker */
-	int uid;
+	long uid;
 	char *device;
-	int timeout;
+	long timeout;
 };
 
 static struct argp_option options[] = {
@@ -167,6 +168,9 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 	/* Get the input argument from argp_parse, which we */
 	/* know is a pointer to our user_opt structure. */
 	struct opt *user_opt = state->input;
+	int len = 0;
+	char *str_end = NULL;
+	errno = 0;
 
 	switch (key) {
 	case 'v':
@@ -182,25 +186,28 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		user_opt->server_ip = arg;
 		break;
 	case 'p':
-		user_opt->port = atoi(arg);
-		if (user_opt->port < 999 || user_opt->port > 9999)
-			error("Invalid port number. Check --help");
+		len = strlen(arg);
+		user_opt->port = strtol((const char *)arg, &str_end, 10);
+		if (errno || user_opt->port <= 0 || user_opt->port < 999 || user_opt->port > 9999 || str_end != &arg[len])
+			error("Invalid port number. Check --help.");
 		break;
 	case 'o':
 		user_opt->output_file = arg;
 		break;
 	case 'u':
-		user_opt->uid = atoi(arg);
-		if (user_opt->uid < 999 || user_opt->uid > 9999)
-			error("Invalid UID. Check --help");
+		len = strlen(arg);
+		user_opt->uid = strtol((const char *)arg, &str_end, 10);
+		if (errno || user_opt->uid <= 0 || user_opt->uid < 999 || user_opt->uid > 9999 || str_end != &arg[len])
+			error("Invalid UID. Check --help.");
 		break;
 	case 'd':
 		user_opt->device = arg;
 		break;
 	case 't':
-		user_opt->timeout = atoi(arg);
-		if (user_opt->timeout < 1 || user_opt->timeout > 2000)
-			error("Invalid timeout. Check --help");
+		len = strlen(arg);
+		user_opt->timeout = strtol((const char *)arg, &str_end, 10);
+		if (errno || user_opt->timeout <= 0 || user_opt->timeout > 2000 || str_end != &arg[len])
+			error("Invalid timeout. Check --help.");
 		break;
 	default:
 		return ARGP_ERR_UNKNOWN;

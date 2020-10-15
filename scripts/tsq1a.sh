@@ -40,23 +40,42 @@ IFACE=$1
 if [ $# -eq 2 ]; then
 	TEST_PERIOD=$2
 else
-	TEST_PERIOD=100
+	TEST_PERIOD=60
 fi
 
 IPADDR="169.254.1.11"
 
-if ! pgrep tsq; then pkill tsq; fi
+if pgrep -x tsq > /dev/null; then
+	kill -9 $( pgrep -x tsq ) > /dev/null
+	echo -e "Previous TSQ is still running. Attempting to kill it."
+fi
 pkill gnuplot
 
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 ./tsq -L -i $IPADDR -p 7777 -v &
+TSQ_LISTENER_PID=$!
+
+# Check if tsq listener is alive, otherwise exit.
+if ! ps -p $TSQ_LISTENER_PID > /dev/null; then
+	echo -e "\nTSQ Listener has exited prematurely. Script will stop now."
+	exit 1
+fi
 
 sleep 5
 
 CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
 
 ./tsq -T -i $IPADDR -p 7777 -d /dev/ptp$CLK -v -u 1111  &
+TSQ_TALKER_PID=$!
+
+# Check if tsq talker is alive, otherwise exit
+if ! ps -p $TSQ_TALKER_PID > /dev/null; then
+	echo -e "\nTSQ Talker has exited prematurely. Script will stop now."
+	# Kill tsq listener before exiting.
+	kill -9 $( pgrep -x tsq ) > /dev/null
+	exit 1
+fi
 
 $DIR/enable_extts.sh $IFACE
 
@@ -66,13 +85,13 @@ do
 	echo "Waiting for data file"
 done
 
-if [[ $DISPLAY ]];then
+if [[ $DISPLAY ]]; then
 	echo "Starting plotting"
 	gnuplot -e "filename='tsq-listener-data.txt'" $DIR/liveplot.gnu &
 fi
 
 sleep $TEST_PERIOD
-pkill tsq
+kill -9 $( pgrep -x tsq ) > /dev/null
 
 echo "Plot data file : tsq-listener-data.txt is now ready."
 

@@ -40,12 +40,15 @@ IFACE=$1
 if [ $# -eq 2 ]; then
 	TEST_PERIOD=$2
 else
-	TEST_PERIOD=100
+	TEST_PERIOD=60
 fi
 
 echo $TEST_PERIOD
 
-if ! pgrep tsq; then pkill tsq; fi
+if pgrep -x tsq > /dev/null; then
+	kill -9 $( pgrep -x tsq ) > /dev/null
+	echo -e "Previous TSQ is still running. Attempting to kill it."
+fi
 
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
@@ -55,7 +58,15 @@ IPADDR="169.254.1.11"
 CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
 
 ./tsq -T -i $IPADDR -p 7777 -d /dev/ptp$CLK -v -u 2222 &
+TSQ_TALKER_PID=$!
+
+# Check if tsq listener and talker are both alive.
+if ! ps -p $TSQ_TALKER_PID > /dev/null; then
+	echo -e "TSQ Talker has exited prematurely. Script will stop now."
+	exit 1
+fi
 
 sleep $TEST_PERIOD
+kill -9 $( pgrep -x tsq ) > /dev/null
 
 exit 0
