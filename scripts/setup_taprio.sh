@@ -44,11 +44,15 @@ echo "Running TC-TAPRIO command"
 TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==4{ print $2}')
 BASE=$(expr $(date +%s) + 5)000000000
 
-# To use replace, we need a base for the first time.
-# This command is does nothing if used when there's an existing qdisc.
+# # To use replace, we need a base for the first time. Also, we want to
+# # ensure no packets are "stuck" in a particular queue if TAPRIO completely
+# # closes it off.
+# # This command is does nothing if used when there's an existing qdisc.
 tc qdisc add dev $IFACE root mqprio \
-        num_tc 4 map 0 1 2 3 3 3 3 3 3 3 3 3 3 3 3 0 \
-        queues 1@0 1@1 1@2 1@3 hw 0 2&> /dev/null
+        num_tc 1 map 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \
+        queues 1@0 hw 0 2&> /dev/null
+
+sleep 5
 
 if [ $TXQ_COUNT -eq 8 ]; then
         tc qdisc replace dev $IFACE parent root handle 100 taprio \
