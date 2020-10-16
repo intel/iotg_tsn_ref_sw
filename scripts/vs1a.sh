@@ -59,6 +59,10 @@ source $DIR/helpers.sh
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
 
+# Improve performance/consistency by logging to tmpfs (system memory)
+ln -sfv /tmp/afpkt-txtstamps.txt .
+ln -sfv /tmp/afxdp-txtstamps.txt .
+
 echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
 $DIR/iperf3-bg-client.sh
 sleep 5
@@ -66,7 +70,7 @@ sleep 5
 get_TXQ_NUM $IFACE
 
 ./txrx-tsn -i $IFACE -PtTq $TXQ_NUM -n $NUMPKTS -l $SIZE -y $INTERVAL \
-                -e $EARLY_OFFSET -o $TXTIME_OFFSET > /tmp/afpkt-txtstamps.txt &
+                -e $EARLY_OFFSET -o $TXTIME_OFFSET > afpkt-txtstamps.txt &
 TXRX_PID=$!
 
 if ! ps -p $TXRX_PID > /dev/null; then
@@ -83,8 +87,6 @@ sleep $SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
-cp /tmp/afpkt-txtstamps.txt . &
-
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 $DIR/iperf3-bg-client.sh
 sleep 5
@@ -92,7 +94,7 @@ sleep 5
 get_XDPTXQ_NUM $IFACE
 
 ./txrx-tsn -XztTi $IFACE -q $XDPTXQ_NUM -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
-                -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > /tmp/afxdp-txtstamps.txt &
+                -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
 TXRX_PID=$!
 
 if ! ps -p $TXRX_PID > /dev/null; then
@@ -108,8 +110,6 @@ chrt --fifo -p 90 $TXRX_PID
 sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
-
-cp /tmp/afxdp-txtstamps.txt .
 
 echo Done!
 exit

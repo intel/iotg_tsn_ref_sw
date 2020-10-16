@@ -58,6 +58,10 @@ source $DIR/helpers.sh
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
 
+# Improve performance/consistency by logging to tmpfs (system memory)
+ln -sfv /tmp/afpkt-rxtstamps.txt .
+ln -sfv /tmp/afxdp-rxtstamps.txt .
+
 echo 0 > afpkt-rxtstamps.txt
 echo 0 > afxdp-rxtstamps.txt
 echo 0 > afpkt-traffic.txt
@@ -69,7 +73,7 @@ sleep 5
 
 get_TXQ_NUM $IFACE
 
-./txrx-tsn -Pri $IFACE -q $TXQ_NUM > /tmp/afpkt-rxtstamps.txt &
+./txrx-tsn -Pri $IFACE -q $TXQ_NUM > afpkt-rxtstamps.txt &
 TXRX_PID=$!
 
 if ! ps -p $TXRX_PID > /dev/null; then
@@ -84,15 +88,13 @@ sleep $SLEEP_SEC
 pkill txrx-tsn
 pkill iperf3
 
-cp /tmp/afpkt-rxtstamps.txt . &
-
 echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
 $DIR/iperf3-bg-server.sh
 sleep 5
 
 get_XDPTXQ_NUM $IFACE
 
-./txrx-tsn -Xzri $IFACE -q $XDPTXQ_NUM > /tmp/afxdp-rxtstamps.txt &
+./txrx-tsn -Xzri $IFACE -q $XDPTXQ_NUM > afxdp-rxtstamps.txt &
 TXRX_PID=$!
 
 if ! ps -p $TXRX_PID > /dev/null; then
@@ -106,8 +108,6 @@ taskset -p 4 $TXRX_PID
 sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
-
-cp /tmp/afxdp-rxtstamps.txt .
 
 echo "PHASE 3: Calculating.."
 pkill gnuplot
