@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -48,7 +48,7 @@ IPADDR="169.254.1.11"
 if ! pgrep tsq; then pkill tsq; fi
 pkill gnuplot
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 ./tsq -L -i $IPADDR -p 7777 -v &
 

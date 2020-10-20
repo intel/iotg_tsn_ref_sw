@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -52,7 +52,7 @@ EARLY_OFFSET=700000
 XDP_INTERVAL=200000
 XDP_EARLY_OFFSET=100000
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
 
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))

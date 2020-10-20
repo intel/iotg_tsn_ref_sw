@@ -12,7 +12,7 @@ def initialize():
 
     IS_DRY=False
     genfile = open("setup-generated.sh", "w")
-    genfile.write("#!/bin/bash\n")
+    genfile.write("#!/bin/sh\n")
 
 def teardown():
     genfile.close()

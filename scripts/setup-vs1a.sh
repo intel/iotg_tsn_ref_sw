@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -32,7 +32,7 @@
 
 IFACE=$1
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
 
 #Reset qdiscs, setup static IP, setup VLAN & program MAC address

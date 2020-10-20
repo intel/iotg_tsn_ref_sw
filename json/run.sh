@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #if [ $USER != "root" ]; then
 #    echo "Please run as root"

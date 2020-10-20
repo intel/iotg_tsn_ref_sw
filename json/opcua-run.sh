@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -57,7 +57,7 @@ else
 fi
 
 # Get directory of current script
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
 JSONDIR="$DIR/$PLAT/"
 
@@ -129,7 +129,7 @@ case "$MODE" in
         if [ $? -ne 0 ]; then
             echo "gen_setup.py returned non-zero. Abort" && exit
         fi
-        bash ./setup-generated.sh
+        sh ./setup-generated.sh
         exit 0
         ;;
     run) # Proceed without running init or setup
@@ -165,7 +165,7 @@ case "$MODE" in
         if [ $? -ne 0 ]; then
             echo "gen_setup.py returned non-zero. Abort" && exit
         fi
-        bash ./setup-generated.sh
+        sh ./setup-generated.sh
         ;;
     *)
         echo "Invalid mode $MODE" && exit 1

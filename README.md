@@ -93,7 +93,7 @@ In a Yocto BSP with IOTG TSN Ref Sw included:
 
 1. To build all 3 applications:
 
-```bash
+```sh
 cd /usr/share/iotg-tsn-ref-sw/
 ./build.sh
 ```

@@ -255,7 +255,7 @@ def process_iperf3(obj):
         iperf3_com = 'iperf3 -s -D --affinity {} &'.format(cpu_aff)
         h.sh_run(iperf3_com)
 
-    # create the iperf3 client(udp) bash script if target server IP is given
+    # create the iperf3 client(udp) shell script if target server IP is given
     if client_target_add:
         client_iperf3_com = 'iperf3 -c {} --affinity {} -u -t {} --logfile {} -b {}M '.format(client_target_add, cpu_aff, client_runtime, iperf3_log, client_bw)
         f = open('iperf3-gen-cmd.sh','w')

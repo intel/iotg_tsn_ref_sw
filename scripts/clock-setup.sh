@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -43,7 +43,7 @@ pkill phc2sys
 IFACE=$1
 
 # Get directory of current script
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 # Use 1 queue exclusively for PTP traffic
 TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==4{ print $2}')

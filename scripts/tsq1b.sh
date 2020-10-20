@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -47,7 +47,7 @@ echo $TEST_PERIOD
 
 if ! pgrep tsq; then pkill tsq; fi
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 #Launch only talker on platform B
 IPADDR="169.254.1.11"

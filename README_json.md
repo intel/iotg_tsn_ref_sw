@@ -25,7 +25,7 @@ automatically.
 When a user executes run.sh with a command (init/setup/run), the following scripts
 are called respectively:
 
-```bash
+```sh
 
 #Init only
 run.sh <plat> <iface> [iface2] <json.i> init
@@ -96,7 +96,7 @@ each other via a single-ethernet connection.
 1.  [Board A] Run the setup script to initialize IP and MAC address, then start
     clock synchronization and setup TAPRIO + ETF qdiscs.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh <PLAT> $IFACE opcua-pkt1a init
     ./run.sh <PLAT> $IFACE opcua-pkt1a setup
@@ -105,7 +105,7 @@ each other via a single-ethernet connection.
 2.  [Board A] Run the setup script to initialize IP and MAC address, then start
     clock synchronization and setup ingress qdisc.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh <PLAT> $IFACE opcua-pkt1b init
     ./run.sh <PLAT> $IFACE opcua-pkt1b setup
@@ -113,7 +113,7 @@ each other via a single-ethernet connection.
 
 3.  [Board B] Start listening for packets.
 
-    ```bash
+    ```sh
     ./run.sh <PLAT> $IFACE opcua-pkt1b run
     ```
 
@@ -122,7 +122,7 @@ each other via a single-ethernet connection.
     opcua-pkt* configurations will take longer as they use much higher packet
     intervals compared to AF_XDP or opuca-xdp* configurations.
 
-    ```bash
+    ```sh
     ./run.sh <PLAT> $IFACE opcua-pkt1a run
     ```
 
@@ -149,7 +149,7 @@ When using dual-ports, the <PLAT> should be replaced with "ehl2". (TGL not suppo
 1.  [Board A] Run the setup script to initialize IP and MAC address, then start
     clock synchronization and setup TAPRIO + ETF qdiscs.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3a init
     ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3a setup
@@ -158,7 +158,7 @@ When using dual-ports, the <PLAT> should be replaced with "ehl2". (TGL not suppo
 2.  [Board B] Run the setup script to initialize IP and MAC address, then start
     clock synchronization and setup ingress qdisc.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3b init
     ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3b setup
@@ -166,13 +166,13 @@ When using dual-ports, the <PLAT> should be replaced with "ehl2". (TGL not suppo
 
 3.  [Board B] Start listening for packets.
 
-    ```bash
+    ```sh
     ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3b run
     ```
 
 4.  [Board A] Immediately after step 3, start transmitting packets.
 
-    ```bash
+    ```sh
     ./run.sh <PLAT> $IFACE opcua-pkt3a run
     ```
 

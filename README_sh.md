@@ -32,7 +32,7 @@ both the setting up and execution of the TSQ application.
 1.  [Board A] Run the setup script to configure IP and MAC address, start ptp4l
     , enable pulse-per-second and external timestamping.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh $IFACE setup-tsq1a
     ```
@@ -40,20 +40,20 @@ both the setting up and execution of the TSQ application.
 2.  [Board B] Run the setup script to configure IP and MAC address, start ptp4l
     and enable external timestamping.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh $IFACE setup-tsq1b
     ```
 
 3.  [Board A] Start the talker and listener.
 
-    ```bash
+    ```sh
     ./run.sh $IFACE tsq1a
     ```
 
 4.  [Board B] Immediately after step 3, start the talker.
 
-    ```bash
+    ```sh
     ./run.sh $IFACE tsq1b
     ```
 
@@ -81,7 +81,7 @@ application in Board A to Board B when IPERF3 is running in the background and T
 1.  [Board A] Run the setup script to configure IP and MAC address, start clock
     synchronization and setup TAPRIO qdisc.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh $IFACE setup-vs1a
     ```
@@ -89,7 +89,7 @@ application in Board A to Board B when IPERF3 is running in the background and T
 2.  [Board B] Run the setup script to configure IP and MAC address, start clock
     synchronization and setup ingress qdiscs.
 
-    ```bash
+    ```sh
     cd /usr/share/iotg-tsn-ref-sw/
     ./run.sh $IFACE setup-vs1b
     ```
@@ -98,7 +98,7 @@ application in Board A to Board B when IPERF3 is running in the background and T
     re-start the application using AF_XDP socket after it has completed. This
     duration will be printed on the shell line: "Phase xxx (N-duration seconds)"
 
-    ```bash
+    ```sh
     ./run.sh $IFACE vs1b
     ```
 
@@ -106,7 +106,7 @@ application in Board A to Board B when IPERF3 is running in the background and T
     it will automatically re-start the application and trasnmit using AF_XDP
     socket after 30 seconds.
 
-    ```bash
+    ```sh
     ./run.sh $IFACE vs1a
     ```
 
