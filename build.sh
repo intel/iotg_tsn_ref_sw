@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -30,22 +30,22 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-make -C src/ clean
-rm -f txrx-tsn tsq opcua-server
+rm -rf  aclocal.m4              \
+        autom4te.cache/         \
+        compile                 \
+        config.h.in             \
+        config.log              \
+        config.status           \
+        configure               \
+        depcomp                 \
+        install-sh              \
+        missing                 \
+        src/.deps/              \
+        src/opcua-tsn/.deps/
 
-make -C src/
+autoreconf --install
+./configure --prefix /usr --with-open62541-headers=/usr/include/open62541
 
-mv src/txrx-tsn .
-if [ $? -ne 0 ]; then
-        echo "txrx-tsn build failed" && exit
-fi
+if [ $? -ne 0 ]; then echo "Configure failed"; exit 1; fi
 
-mv src/tsq .
-if [ $? -ne 0 ]; then
-        echo "tsq build failed" && exit
-fi
-
-mv src/opcua-server .
-if [ $? -ne 0 ]; then
-        echo "opcua-server build failed" && exit
-fi
+make
