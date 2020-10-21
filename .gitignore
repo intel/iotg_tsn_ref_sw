@@ -14,6 +14,7 @@ tags
 # Build artifacts
 tsq
 txrx-tsn
+opcua-server
 
 # Skip result files
 results-*/
@@ -27,7 +28,24 @@ a6
 # We only save json.i
 *.json
 
-opcua-server
-src/build-opcua/
+# Generated scripts
 iperf3-gen-cmd.sh
+setup-generated.sh
+
+# OPCUA autotools generated files
 json/__pycache__/
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+compile
+config.*
+configure
+depcomp
+install-sh
+missing
+src/.deps/
+src/.dirstamp
+src/opcua-tsn/.deps/
+src/opcua-tsn/.dirstamp
+stamp-h*
