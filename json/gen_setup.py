@@ -322,6 +322,11 @@ def process_custom_a(obj):
     arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-f',  'scripts/gPTP.cfg', '--step_threshold=2']
     arglist += ['--socket_priority', '1']
     h.run_with_out(arglist, '/var/log/ptp4l.log')
+
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface2, '-f',  'scripts/gPTP.cfg', '--step_threshold=2']
+    arglist += ['--socket_priority', '1']
+    h.run_with_out(arglist, '/var/log/ptp4l2.log')
+
     #print("Give 30 secs for ptp to sync")
     if not h.IS_DRY:
         h.sh_run('sleep 30')
