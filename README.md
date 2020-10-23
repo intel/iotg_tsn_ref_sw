@@ -51,7 +51,7 @@ negatively impacted.
 
 ## Dependencies
 
-Refer to DEPENDENCIES.md
+Refer to [DEPENDENCIES.md](DEPENDENCIES.md)
 
 ## Disclaimer
 
@@ -102,4 +102,4 @@ things up:
 
 ## License
 
-Refer to LICENSE.md
+Refer to [LICENSE.md](LICENSE.md)

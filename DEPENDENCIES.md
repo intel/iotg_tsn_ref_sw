@@ -7,7 +7,7 @@ This section is to give some background on the project's dependencies.
 
 For compilation:
 * [Custom linux kernel headers](https://github.com/intel/linux-intel-lts/tree/5.4/preempt-rt)
-* [Custom libopen62541](https://github.com/intel/iotg-yocto-ese-main/tree/master/recipes-connectivity/open62541)
+* [Custom libopen62541-iotg](https://github.com/intel/iotg-yocto-ese-main/tree/master/recipes-connectivity/open62541)
 * [Custom libbpf](https://github.com/intel/iotg-yocto-ese-main/tree/master/recipes-connectivity/libbpf)
 * libelf
 * libjson-c
