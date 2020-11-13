@@ -30,46 +30,36 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-pkill gnuplot
-pkill txrx-tsn
-pkill iperf3
-
-if [ $# -eq 3 ]; then
-        IFACE=$1
-        NUMPKTS=$2
-        SIZE=$3
-else
-        echo "Note: Using default PKT3a params"
-        IFACE=$1
-        NUMPKTS=1000000
-        SIZE=64
-fi
-
-TXTIME_OFFSET=20000
-
-INTERVAL=1000000
-EARLY_OFFSET=700000
-XDP_INTERVAL=200000
-XDP_EARLY_OFFSET=100000
-
 # Get this script's dir because cfg file is stored together with this script
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
+source $DIR/$PLAT/$(basename -s ".sh" $0).config
 
-SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
-XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
+if [ -z $1 ]; then
+        echo "Specify interface"; exit
+elif [[ -z $INTERVAL || -z $XDP_INTERVAL ||
+       -z $EARLY_OFFSET || -z $XDP_EARLY_OFFSET ||
+       -z $TXTIME_OFFSET || -z $NUMPKTS || -z $SIZE ||
+       -z $TX_PKT_Q || -z $TX_XDP_Q ]]; then
+        echo "Source config file first"; exit
+fi
+
+pkill gnuplot
+pkill txrx-tsn
+pkill iperf3
 
 # Improve performance/consistency by logging to tmpfs (system memory)
 ln -sfv /tmp/afpkt-txtstamps.txt .
 ln -sfv /tmp/afxdp-txtstamps.txt .
 
+SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
+XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
+
 echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
-$DIR/iperf3-bg-client.sh
+run_iperf3_bg_client
 sleep 5
 
-get_TXQ_NUM $IFACE
-
-./txrx-tsn -i $IFACE -PtTq $TXQ_NUM -n $NUMPKTS -l $SIZE -y $INTERVAL \
+./txrx-tsn -i $IFACE -PtTq $TX_PKT_Q -n $NUMPKTS -l $SIZE -y $INTERVAL \
                 -e $EARLY_OFFSET -o $TXTIME_OFFSET > afpkt-txtstamps.txt &
 TXRX_PID=$!
 
@@ -88,12 +78,10 @@ pkill iperf3
 pkill txrx-tsn
 
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
-$DIR/iperf3-bg-client.sh
+run_iperf3_bg_client
 sleep 5
 
-get_XDPTXQ_NUM $IFACE
-
-./txrx-tsn -XztTi $IFACE -q $XDPTXQ_NUM -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
+./txrx-tsn -XztTi $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
                 -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
 TXRX_PID=$!
 

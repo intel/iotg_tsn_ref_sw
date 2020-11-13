@@ -30,22 +30,58 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-IFACE=$1
-
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
+source $DIR/$PLAT/$(basename -s ".sh" $0).config
 
-#Reset qdiscs, setup static IP, setup VLAN & program MAC address
-setup_sp1b $IFACE
+if [ $# -eq 0 ]; then
+	echo "How to run this : $0 <interface> < secs ( opt : how long to run the test , def : 50 sec ) >"
+	exit 1
+fi
 
-$DIR/clock-setup.sh $IFACE
-sleep 30 #Give some time for clock daemons to start.
+IFACE=$1
+CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
 
-#Route TX packets using 4Q MQPRIO qdisc, required for XDP
-$DIR/setup_mqprio.sh $IFACE
+pkill gnuplot
+if pgrep -x tsq > /dev/null; then
+	kill -9 $( pgrep -x tsq ) > /dev/null
+	echo -e "Previous TSQ is still running. Attempting to kill it."
+fi
 
-# Steer VLAN prio N packets to RX queue N
-$DIR/setup_vlanrx.sh $IFACE 1 1
-$DIR/setup_vlanrx.sh $IFACE 2 2
-$DIR/setup_vlanrx.sh $IFACE 3 1 #TGL only
-$DIR/setup_vlanrx.sh $IFACE 6 2 #EHL only
+# Start the listener
+./tsq -L -i $TARGET_IP_ADDR -p 7777 -v &
+TSQ_LISTENER_PID=$!
+
+# Check if tsq listener is alive, otherwise exit.
+if ! ps -p $TSQ_LISTENER_PID > /dev/null; then
+	echo -e "\nTSQ Listener has exited prematurely. Script will stop now."
+	exit 1
+fi
+
+sleep 5
+
+# Start the talker
+./tsq -T -i $TARGET_IP_ADDR -p 7777 -d /dev/ptp$CLK -v -u 1111  &
+TSQ_TALKER_PID=$!
+
+# Check if tsq talker is alive, otherwise exit
+if ! ps -p $TSQ_TALKER_PID > /dev/null; then
+	echo -e "\nTSQ Talker has exited prematurely. Script will stop now."
+	# Kill tsq listener before exiting.
+	kill -9 $( pgrep -x tsq ) > /dev/null
+	exit 1
+fi
+
+# Start the liveplot
+while [[ ! -s tsq-listener-data.txt ]]; do sleep 1 && echo "Waiting for data"; done
+if [[ $DISPLAY ]]; then
+	echo "Starting plotting"
+	gnuplot -e "filename='tsq-listener-data.txt'" $DIR/../common/liveplot.gnu &
+fi
+
+# Let listener, talker and gnuplot run until the test_period is over.
+sleep $TEST_PERIOD
+kill -9 $( pgrep -x tsq-talker ) > /dev/null #do you need twice?
+kill -9 $( pgrep -x tsq-listener ) > /dev/null
+
+exit 0

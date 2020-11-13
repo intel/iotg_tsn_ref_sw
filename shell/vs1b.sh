@@ -30,33 +30,23 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
+# Get this script's dir because cfg file is stored together with this script
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source $DIR/helpers.sh
+source $DIR/$PLAT/$(basename -s ".sh" $0).config
+
+if [ -z $1 ]; then
+        echo "Specify interface"; exit
+elif [[ -z $INTERVAL || -z $XDP_INTERVAL ||
+       -z $EARLY_OFFSET || -z $XDP_EARLY_OFFSET ||
+       -z $TXTIME_OFFSET || -z $NUMPKTS || -z $SIZE ||
+       -z $RX_PKT_Q || -z $RX_XDP_Q ]]; then
+        echo "Source config file first"; exit
+fi
+
 pkill gnuplot
 pkill txrx-tsn
 pkill iperf3
-
-if [ $# -eq 3 ]; then
-        IFACE=$1
-        NUMPKTS=$2
-        SIZE=$3
-else
-        echo "Note: Using default PKT3a params"
-        IFACE=$1
-        NUMPKTS=1000000
-        SIZE=64
-fi
-
-TXTIME_OFFSET=20000
-
-INTERVAL=1000000
-EARLY_OFFSET=700000
-XDP_INTERVAL=200000
-XDP_EARLY_OFFSET=100000
-
-DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-source $DIR/helpers.sh
-
-SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
-XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
 
 # Improve performance/consistency by logging to tmpfs (system memory)
 ln -sfv /tmp/afpkt-rxtstamps.txt .
@@ -67,13 +57,14 @@ echo 0 > afxdp-rxtstamps.txt
 echo 0 > afpkt-traffic.txt
 echo 0 > afxdp-traffic.txt
 
+SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
+XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
+
 echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
-$DIR/iperf3-bg-server.sh
+run_iperf3_bg_server
 sleep 5
 
-get_TXQ_NUM $IFACE
-
-./txrx-tsn -Pri $IFACE -q $TXQ_NUM > afpkt-rxtstamps.txt &
+./txrx-tsn -Pri $IFACE -q $RX_PKT_Q > afpkt-rxtstamps.txt &
 TXRX_PID=$!
 
 if ! ps -p $TXRX_PID > /dev/null; then
@@ -89,12 +80,10 @@ pkill txrx-tsn
 pkill iperf3
 
 echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
-$DIR/iperf3-bg-server.sh
+run_iperf3_bg_server
 sleep 5
 
-get_XDPTXQ_NUM $IFACE
-
-./txrx-tsn -Xzri $IFACE -q $XDPTXQ_NUM > afxdp-rxtstamps.txt &
+./txrx-tsn -Xzri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt &
 TXRX_PID=$!
 
 if ! ps -p $TXRX_PID > /dev/null; then
@@ -122,7 +111,7 @@ calc_rx_duploss "afxdp-rxtstamps.txt"
 
 save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL
 
-gnuplot -e "FILENAME='afpkt-traffic.txt';FILENAME2='afxdp-traffic.txt';" $DIR/latency_dual.gnu -p 2> /dev/null &
+gnuplot -e "FILENAME='afpkt-traffic.txt';FILENAME2='afxdp-traffic.txt';" $DIR/../common/latency_dual.gnu -p 2> /dev/null &
 
 while [[ ! -s plot_pic.png ]]; do sleep 5; done
 cp plot_pic.png results-$ID/plot-$(basename $0 .sh)-$NUMPKTS-$SIZE-$INTERVAL-$XDP_INTERVAL-$IDD.png

@@ -30,18 +30,26 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-TERM_EMU=$(ps -o comm= -p "$(($(ps -o ppid= -p "$(($(ps -o sid= -p "$$")))")))")
+# Get this script's dir because cfg file is stored together with this script
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source $DIR/helpers.sh
+source $DIR/$PLAT/$CONFIG.config
 
-#Run Iperf3
-#	run server
-#	bind to ip
-#	output interval 5s
-#	use CPU1 or CPUAffinity1
-
-if [ "$TERM_EMU" == "sshd" ]; then
-	#This might still have issues.
-	iperf3 -s -B 169.254.1.22 -i 10 -1 -A 0 &
+if [ -z $1 ]; then
+        echo "Specify interface"; exit
 else
-	#Run in bg xterm, UI requires xterm -e, nohup is not helpful
-	xterm -e 'iperf3 -s -B 169.254.1.22 -i 10 -A 0 -1' &
+        IFACE=$1
 fi
+
+#Each func/script has their own basic input validation - apart from $IFACE
+
+init_interface  $IFACE
+
+$DIR/clock-setup.sh $IFACE
+sleep 30 #Give some time for clock daemons to start.
+
+setup_taprio    $IFACE
+
+setup_etf       $IFACE
+
+setup_vlanrx    $IFACE

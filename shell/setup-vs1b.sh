@@ -30,42 +30,24 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-if [ -z $1 ]; then
-    echo "Please enter interface: ./clock-setup.sh eth0"
-    exit
-fi
-
-echo "Running PTP4L & PHC2SYS"
-
-pkill ptp4l
-pkill phc2sys
-
-IFACE=$1
-
-# Get directory of current script
+# Get this script's dir because cfg file is stored together with this script
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source $DIR/helpers.sh
+source $DIR/$PLAT/$CONFIG.config
 
-# Use 1 queue exclusively for PTP traffic
-TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==4{ print $2}')
-if [ $TXQ_COUNT -eq 8 ]; then
-        PTPTXQ_NUM=1 #EHL-HWTXq1
-elif [ $TXQ_COUNT -eq 4 ]; then
-        PTPTXQ_NUM=2 #TGL-HWTXq2
+if [ -z $1 ]; then
+        echo "Specify interface"; exit
 else
-        PTPTXQ_NUM=1 #default
+        IFACE=$1
 fi
 
-taskset -c 1 ptp4l -P2Hi $IFACE.vlan -f $DIR/gPTP.cfg \
-        --step_threshold=1 --socket_priority=$PTPTXQ_NUM -m$2 2&> /var/log/ptp4l.log &
+#Each func/script has their own basic input validation - apart from $IFACE
 
-sleep 2 # Required
+init_interface  $IFACE
 
-pmc -u -b 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248
-        clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 37
-        leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable
-        1 frequencyTraceable 0 timeSource 0xa0" 2&> /var/log/pmc.log
+$DIR/clock-setup.sh $IFACE
+sleep 30 #Give some time for clock daemons to start.
 
-sleep 3
+setup_mqprio $IFACE
 
-taskset -c 1 phc2sys -s $IFACE -c CLOCK_REALTIME --step_threshold=1 \
-        --transportSpecific=1 -O 0 -w -ml 7 2&> /var/log/phc2sys.log &
+setup_vlanrx $IFACE
