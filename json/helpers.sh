@@ -31,42 +31,66 @@
 # *****************************************************************************/
 
 # Helper functions. This script executes nothing.
-# TODO: Move these into a python script, perhaps launch.py?
+
+###############################################################################
+# PHASE: Init
 
 set_irq_smp_affinity(){
 
         IFACE=$1
         AFFINITY_FILE=$2
-
-        # echo "Setting IRQ affinity based on $AFFINITY_FILE"
+        if [ -z $AFFINITY_FILE ]; then
+                echo "Error: AFFINITY_FILE not defined"; exit 1;
+        fi
+        echo "Setting IRQ affinity based on $AFFINITY_FILE"
         # echo "Note: affinity file should have empty new line at the end."
-
         #Rather than mapping all irqs to a CPU, we only map the queues we use
         # via the affinity file. Only 2 columns used, last column is comments
+
         while IFS=, read -r CSV_Q CSV_CORE CSV_COMMENTS
         do
-                IRQ_NUM=$(cat /proc/interrupts | grep $IFACE:$CSV_Q | awk '{print $1}' | rev | cut -c 2- | rev)
-                # echo "Echo-ing 0x$CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity $IFACE:$CSV_Q "
+                IRQ_NUM=$(cat /proc/interrupts | grep $IFACE.*$CSV_Q | awk '{print $1}' | rev | cut -c 2- | rev)
+                echo "Echo-ing 0x$CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity $IFACE:$CSV_Q "
                 echo $CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity
         done < $AFFINITY_FILE
 }
 
-setup_sp1a(){
+init_interface(){
         # Static IP and MAC addresses are hardcoded here
 
         IFACE=$1
+        INIT_CONFIG_FILE=$2
+
+        source $INIT_CONFIG_FILE
+        if [ ! $? ]; then echo "Error: config file invalid."; exit 1; fi
+
+        if [ -z $IFACE ]; then
+                echo "Error: please specify interface.";
+                exit 1
+        elif [[ -z $IFACE_MAC_ADDR || -z $IFACE_VLAN_ID ||
+                -z $IFACE_IP_ADDR || -z $IFACE_BRC_ADDR ||
+                -z $IFACE_VLAN_IP_ADDR || -z $IFACE_VLAN_BRC_ADDR ||
+                -z "$IRQ_AFFINITY_FILE" ||
+                -z $TX_Q_COUNT || -z $RX_Q_COUNT ]]; then
+                echo "Make sure config file is correct";
+                exit 1
+        fi
 
         # Always remove previous qdiscs
         tc qdisc del dev $IFACE parent root 2> /dev/null
         tc qdisc del dev $IFACE parent ffff: 2> /dev/null
         tc qdisc add dev $IFACE ingress
 
-        RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==3{ print $2}')
-        TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==4{ print $2}')
+        # Set an even queue pair. Minimum is 4 rx 4 tx.
+        if [[ "$RX_Q_COUNT" == "$TX_Q_COUNT" ]]; then
+                ethtool -L $IFACE rx $RX_Q_COUNT tx $TX_Q_COUNT
+        fi
 
-        if [ $RXQ_COUNT != $TXQ_COUNT ]; then
-                # Set it to even queue count. Minimum is 4 rx 4 tx.
-                ethtool -L $IFACE rx 4 tx 4
+        RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==8{ print $2}')
+        TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==9{ print $2}')
+
+        if [[ "$RXQ_COUNT" != "$TXQ_COUNT" ]]; then
+                echo "Error: TXQ and RXQ count do not match."; exit 1;
         fi
 
         # Make sure systemd do not manage the interface
@@ -75,19 +99,19 @@ setup_sp1a(){
         # Restart interface and systemd, also set HW MAC address for multicast
         ip link set $IFACE down
         systemctl restart systemd-networkd.service
-        ip link set dev $IFACE address aa:00:aa:00:aa:00
+        ip link set dev $IFACE address $IFACE_MAC_ADDR
         ip link set dev $IFACE up
         sleep 3
 
         # Set VLAN ID to 3, all traffic fixed to one VLAN ID, but vary the VLAN Priority
         ip link delete dev $IFACE.vlan 2> /dev/null
-        ip link add link $IFACE name $IFACE.vlan type vlan id 3
+        ip link add link $IFACE name $IFACE.vlan type vlan id $IFACE_VLAN_ID
 
         # Provide static ip address for interfaces
         ip addr flush dev $IFACE
         ip addr flush dev $IFACE.vlan
-        ip addr add 169.254.1.11/24 brd 169.254.1.255 dev $IFACE
-        ip addr add 169.254.11.11/24 brd 169.254.11.255 dev $IFACE.vlan
+        ip addr add $IFACE_IP_ADDR/24 brd $IFACE_BRC_ADDR dev $IFACE
+        ip addr add $IFACE_VLAN_IP_ADDR/24 brd $IFACE_VLAN_BRC_ADDR dev $IFACE.vlan
 
         # Map socket priority N to VLAN priority N
         ip link set $IFACE.vlan type vlan egress-qos-map 1:1
@@ -95,181 +119,26 @@ setup_sp1a(){
         ip link set $IFACE.vlan type vlan egress-qos-map 3:3
         ip link set $IFACE.vlan type vlan egress-qos-map 4:4
         ip link set $IFACE.vlan type vlan egress-qos-map 5:5
+        ip link set $IFACE.vlan type vlan egress-qos-map 6:6
+        ip link set $IFACE.vlan type vlan egress-qos-map 7:7
 
         # Flush neighbours, just in case
         ip neigh flush all dev $IFACE
         ip neigh flush all dev $IFACE.vlan
 
-        if [ $TXQ_COUNT -eq 8 ]; then
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_8tx_8rx.map
-        else
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_4tx_4rx.map
-        fi
+        # Turn off VLAN Stripping
+        ethtool -K $IFACE rxvlan off
 
-        # OPCUA-PKT3? multistream
+        # Disable EEE - off by default
+        # ethtool --set-eee $IFACE eee off 2&> /dev/null
+
+        # Set irq affinity
+        set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
+
 }
 
-setup_sp2a(){
-        # Static IP and MAC addresses are hardcoded here
-
-        IFACE=$1
-
-        # Always remove previous qdiscs
-        tc qdisc del dev $IFACE parent root 2> /dev/null
-        tc qdisc del dev $IFACE parent ffff: 2> /dev/null
-        tc qdisc add dev $IFACE ingress
-
-        RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==3{ print $2}')
-        TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==4{ print $2}')
-
-        if [ $RXQ_COUNT != $TXQ_COUNT ]; then
-                # Set it to even queue count. Minimum is 4 rx 4 tx.
-                ethtool -L $IFACE rx 4 tx 4
-        fi
-
-        # Restart interface and systemd, also set HW MAC address for multicast
-        ip link set $IFACE down
-        ip link set dev $IFACE address aa:11:aa:11:aa:11
-        ip link set dev $IFACE up
-        sleep 3
-
-        # Set VLAN ID to 3, all traffic fixed to one VLAN ID, but vary the VLAN Priority
-        ip link delete dev $IFACE.vlan 2> /dev/null
-        ip link add link $IFACE name $IFACE.vlan type vlan id 3
-
-        # Provide static ip address for interfaces
-        ip addr flush dev $IFACE
-        ip addr flush dev $IFACE.vlan
-        ip addr add 169.254.2.11/24 brd 169.254.2.255 dev $IFACE
-        ip addr add 169.254.22.11/24 brd 169.254.22.255 dev $IFACE.vlan
-
-        # Map socket priority N to VLAN priority N
-        ip link set $IFACE.vlan type vlan egress-qos-map 1:1
-        ip link set $IFACE.vlan type vlan egress-qos-map 2:2
-        ip link set $IFACE.vlan type vlan egress-qos-map 3:3
-        ip link set $IFACE.vlan type vlan egress-qos-map 4:4
-        ip link set $IFACE.vlan type vlan egress-qos-map 5:5
-
-        # Flush neighbours, just in case
-        ip neigh flush all dev $IFACE
-        ip neigh flush all dev $IFACE.vlan
-
-        if [ $TXQ_COUNT -eq 8 ]; then
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_8tx_8rx-multi.map
-        else
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_4tx_4rx.map
-        fi
-}
-
-
-setup_sp1b(){
-        # Static IP and MAC addresses are hardcoded here
-
-        IFACE=$1
-
-        # Always remove previous qdiscs
-        tc qdisc del dev $IFACE parent root 2> /dev/null
-        tc qdisc del dev $IFACE parent ffff: 2> /dev/null
-        tc qdisc add dev $IFACE ingress
-
-        RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==3{ print $2}')
-        TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==4{ print $2}')
-
-        if [ $RXQ_COUNT != $TXQ_COUNT ]; then
-                # Set it to even queue count. Minimum is 4 rx 4 tx.
-                ethtool -L $IFACE rx 4 tx 4
-        fi
-
-        # Make sure systemd do not manage the interface
-        mv /lib/systemd/network/80-wired.network . 2> /dev/null
-
-        # Restart interface and systemd, also set HW MAC address for multicast
-        ip link set $IFACE down
-        systemctl restart systemd-networkd.service
-        ip link set dev $IFACE address 22:bb:22:bb:22:bb
-        ip link set dev $IFACE up
-        sleep 3
-
-        # Set VLAN ID to 3, all traffic fixed to one VLAN ID, but vary the VLAN Priority
-        ip link delete dev $IFACE.vlan 2> /dev/null
-        ip link add link $IFACE name $IFACE.vlan type vlan id 3
-
-        # Provide static ip address for interfaces
-        ip addr flush dev $IFACE
-        ip addr flush dev $IFACE.vlan
-        ip addr add 169.254.1.22/24 brd 169.254.1.255 dev $IFACE
-        ip addr add 169.254.11.22/24 brd 169.254.11.255 dev $IFACE.vlan
-
-        # Map socket priority N to VLAN priority N
-        ip link set $IFACE.vlan type vlan egress-qos-map 1:1
-        ip link set $IFACE.vlan type vlan egress-qos-map 2:2
-        ip link set $IFACE.vlan type vlan egress-qos-map 3:3
-        ip link set $IFACE.vlan type vlan egress-qos-map 4:4
-        ip link set $IFACE.vlan type vlan egress-qos-map 5:5
-
-        # Flush neighbours, just in case
-        ip neigh flush all dev $IFACE
-        ip neigh flush all dev $IFACE.vlan
-
-        if [ $TXQ_COUNT -eq 8 ]; then
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_8tx_8rx.map
-        else
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_4tx_4rx.map
-        fi
-}
-
-setup_sp2b(){
-        # Static IP and MAC addresses are hardcoded here
-
-        IFACE=$1
-
-        # Always remove previous qdiscs
-        tc qdisc del dev $IFACE parent root 2> /dev/null
-        tc qdisc del dev $IFACE parent ffff: 2> /dev/null
-        tc qdisc add dev $IFACE ingress
-
-        RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==3{ print $2}')
-        TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==4{ print $2}')
-
-        if [ $RXQ_COUNT != $TXQ_COUNT ]; then
-                # Set it to even queue count. Minimum is 4 rx 4 tx.
-                ethtool -L $IFACE rx 4 tx 4
-        fi
-
-        # Restart interface and systemd, also set HW MAC address for multicast
-        ip link set $IFACE down
-        ip link set dev $IFACE address 22:cc:22:cc:22:cc
-        ip link set dev $IFACE up
-        sleep 3
-
-        # Set VLAN ID to 3, all traffic fixed to one VLAN ID, but vary the VLAN Priority
-        ip link delete dev $IFACE.vlan 2> /dev/null
-        ip link add link $IFACE name $IFACE.vlan type vlan id 3
-
-        # Provide static ip address for interfaces
-        ip addr flush dev $IFACE
-        ip addr flush dev $IFACE.vlan
-        ip addr add 169.254.2.22/24 brd 169.254.22.255 dev $IFACE
-        ip addr add 169.254.22.22/24 brd 169.254.22.255 dev $IFACE.vlan
-
-        # Map socket priority N to VLAN priority N
-        ip link set $IFACE.vlan type vlan egress-qos-map 1:1
-        ip link set $IFACE.vlan type vlan egress-qos-map 2:2
-        ip link set $IFACE.vlan type vlan egress-qos-map 3:3
-        ip link set $IFACE.vlan type vlan egress-qos-map 4:4
-        ip link set $IFACE.vlan type vlan egress-qos-map 5:5
-
-        # Flush neighbours, just in case
-        ip neigh flush all dev $IFACE
-        ip neigh flush all dev $IFACE.vlan
-
-        if [ $TXQ_COUNT -eq 8 ]; then
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_8tx_8rx-multi.map
-        else
-                set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_4tx_4rx.map
-        fi
-}
-
+###############################################################################
+# PHASE: Results calculation
 
 calc_rx_u2u(){
         # Output format (1 way):
@@ -377,7 +246,7 @@ calc_return_duploss(){
 
         # Total duplicate
         PACKET_DUPL=$(cat $XDP_TX_FILENAME \
-                | awk '{print $9}' \
+                | awk '{print $2}' \
                 | uniq -D \
                 | wc -l)
 
