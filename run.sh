@@ -29,103 +29,118 @@
 #  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
+set -a # enable variable export
+RUNSH_DEBUG_MODE="NO"
 
-#if [ $USER != "root" ]; then
-#    echo "Please run as root"
-#    exit
-#fi
+main() {
+    #if [ $USER != "root" ]; then
+    #    echo "Please run as root"
+    #    exit
+    #fi
 
-if [ -z $1 ]; then
-    echo "For tsq*/xdp*/pkt* use:
-        ./run.sh eth0 tsq1a
-For single-ethernet opcua-pkt/xdp* use:
-        ./run.sh ehl  eth0 opcua-pkt1a init
-For double-ethernet opcua-pkt/xdp* use:
-        ./run.sh ehl2 eth0 eth1 opcua-pkt2a init"
-    exit
-fi
+    # Check for minimum inputs
+    if [ $# -eq 3 ]; then
+        echo -e "Error: invalid input. Examples on how to run:\n" \
+            "Format: ./run.sh <PLAT> <IFACE> [IFACE2] <CONFIG> [OPCUA-ACTION]\n" \
+            "For tsq*: \n" \
+            "    ./run.sh ehl  eth0 tsq1a setup\n" \
+            "    ./run.sh ehl  eth0 tsq1a run\n" \
+            "For vs1*: \n" \
+            "    ./run.sh tglu eth0 vs1a setup\n" \
+            "    ./run.sh tglu eth0 vs1a run\n" \
+            "For single-ethernet opcua-pkt/xdp*:\n"\
+            "    ./run.sh ehl  eth0 opcua-pkt1a init\n"\
+            "    ./run.sh ehl  eth0 opcua-pkt1a setup\n"\
+            "    ./run.sh ehl  eth0 opcua-pkt1a run\n"\
+            "For 2-port-ethernet opcua-pkt/xdp*, add a 2 to the end, and extra i\nface:"\
+            "    ./run.sh ehl2 eth0 eth1 opcua-pkt2a init\n"\
+            "    ./run.sh ehl2 eth0 eth1 opcua-pkt2a setup\n"\
+            "    ./run.sh ehl2 eth0 eth1 opcua-pkt2a run\n";
+        exit 1
+    fi
 
-if [[ "$1" == "tgl" || "$1" == "ehl" ]]; then
     PLAT=$1
     IFACE=$2
-    IFACE2=""
-    CONFIG=$3
-    MODE=$4
-elif [[ "$1" == "tgl2" || "$1" == "ehl2" ]]; then
-    PLAT=$1
-    IFACE=$2
-    IFACE2=$3
-    CONFIG=$4
-    MODE=$5
-else
-    IFACE=$1
-    CONFIG=$2
-    ETC=$3
-fi
 
-if [ -z $CONFIG ]; then
-    echo "For tsq*/xdp*/pkt* use:
-        ./run.sh eth0 tsq1a
-For single-ethernet opcua-pkt/xdp* use:
-        ./run.sh ehl  eth0 opcua-pkt1a init
-For double-ethernet opcua-pkt/xdp* use:
-        ./run.sh ehl2 eth0 eth1 opcua-pkt2a init"
-    exit
-else
-    # Parse and check if its a valid base/config
-    LIST=$(ls  scripts/ | grep 'tsq\|vs' | rev | cut -c 4- | rev | sort)
-    LIST+=$(echo -ne " \n")
-    if [[ $LIST =~ (^|[[:space:]])"$CONFIG"($|[[:space:]]) ]] ; then
-        echo "Selected config: $CONFIG"
-    elif [[ "(^|[[:space:]])"$CONFIG"($|[[:space:]])" =~ "opcua" ]] ; then
-        echo "opcua config detected"
+    # Check for valid <PLAT>
+    if [[ "$1" == "tglu" || "$1" == "ehl" ]]; then #TODO: tglh, i210-ehl, i210-ehl2, i210-tglu etc
+        IFACE2=""
+        CONFIG=$3
+        ACTION=$4
+    elif [[ "$1" == "tglh" || "$1" == "ehl2" ]]; then
+        IFACE2=$3
+        CONFIG=$4
+        ACTION=$5
     else
-        echo -e "Invalid config selected: $CONFIG \nAvailable configs:"
+        LIST=$(ls -d shell/*/ | rev | cut -c 2- | rev | cut -c 8- | sort)
+        LIST+=$(echo -ne " \n")
+        echo -e "Run.sh invalid <PLAT>: $PLAT\n\nList of supported platforms for sh:"
+        echo $LIST
+
+        LIST=$(ls -d json/*/ | rev | cut -c 2- | rev | cut -c 6- | sort)
+        LIST+=$(echo -ne " \n")
+        echo -e "\nList of supported platforms for json:"
+        echo $LIST
+        exit 1
+    fi
+
+    # Check for valid <IFACE>
+    ip a show $IFACE up > /dev/null
+    if [ ! $? ]; then echo "Invalid interface: $IFACE"; exit 1; fi
+
+    # Check for valid <CONFIG>
+    LIST=$(ls shell/$PLAT 2> /dev/null | rev | cut -c 8- | rev | sort)
+    if [[ $LIST =~ (^|[[:space:]])"$CONFIG"($|[[:space:]]) ]] ; then
+        echo "Run.sh selected: $CONFIG"
+    elif [[ "(^|[[:space:]])"$CONFIG"($|[[:space:]])" =~ "opcua" ]] ; then
+        echo "Run.sh detected: opcua/json config" # Do nothing
+    else
+        LIST+=$(echo -ne " \n")
+        echo -e "Run.sh invalid <CONFIG>: $CONFIG \nAvailable configs for $PLAT:"
         printf '%s\n' "${LIST[@]}"
         exit
     fi
-fi
 
-# Run something else first.
-if [ -n $ETC ]; then
-    case "$ETC" in
-        clock)
-            echo "[RUN.SH] Running clock-setup.sh"
-            ./scripts/clock-setup.sh $IFACE
-            ;;
-        setup*)
-            echo "[RUN.SH] Running setup-$CONFIG, then $CONFIG"
-            ./scripts/setup-$CONFIG.sh $IFACE
-            ;;
-        "") #Do nothing
-            ;;
-        *)
-            echo "Invalid third option: $3"
-            exit
-            ;;
-    esac
-fi
+    # Only for debug: timesync per-run logging
+    if [[ "$RUNSH_DEBUG_MODE" == "YES" && "$ACTION" == "run" ]]; then
+        ts_log_start
+    fi
 
-if [ "$RUNSH_DEBUG_MODE" == "YES" ]; then
+    # Execute: redirect to opcua if opcua config, otherwise execute shell scripts
+    CHECK=$(echo $CONFIG | cut -c -5 )
+    if [ "$CHECK" == "opcua" ]; then
+        ./json/opcua-run.sh $PLAT $IFACE $IFACE2 $CONFIG $ACTION
+
+    elif [[ "$ACTION" == "setup" || "$ACTION" == "init" ]]; then
+        export PLAT=$PLAT
+        ./shell/setup-$CONFIG.sh $IFACE
+
+    elif [ "$ACTION" == "run" ]; then
+        ./shell/$CONFIG.sh $IFACE
+
+    else
+        echo "Error: This is unexpected.. something is wrong.."
+    fi
+
+    # Only for debug: timesync per-run logging
+    if [[ "$RUNSH_DEBUG_MODE" == "YES" && "$ACTION" == "run" ]]; then
+        ts_log_stop_n_report
+    fi
+
+    if [[ "$RUNSH_DEBUG_MODE" == "YES" && "$ACTION" == "setup" ]]; then
+        save_board_info > board_info.txt
+    fi
+}
+
+ts_log_start(){
     cat /var/log/ptp4l.log >> /var/log/total_ptp4l.log
     cat /var/log/phc2sys.log >> /var/log/total_phc2sys.log
 
     echo -n "" > /var/log/ptp4l.log
     echo -n "" > /var/log/phc2sys.log
-fi
+}
 
-#Execute the specific config script, using their own defaults.
-CHECK=$(echo $CONFIG | cut -c -5 )
-if [ $CHECK == "opcua" ]; then
-        # For json types like opcua-pkt*, opcua-xdp*
-        ./json/opcua-run.sh $PLAT $IFACE $IFACE2 $CONFIG $MODE
-else
-        # For shell types like tsq*, xdp*, pkt*, vs* - use script defaults
-        ./scripts/$CONFIG.sh $IFACE
-fi
-
-if [ "$RUNSH_DEBUG_MODE" == "YES" ]; then
-
+ts_log_stop_n_report(){
     grep -vaP '[\0\200-\377]' /var/log/ptp4l.log > /var/log/temp_ptp4l.log
     grep -vaP '[\0\200-\377]' /var/log/phc2sys.log > /var/log/temp_phc2sys.log
 
@@ -151,4 +166,33 @@ if [ "$RUNSH_DEBUG_MODE" == "YES" ]; then
     echo -e "\tUNCALIBRATED:    $(grep UNCALIBRATED /var/log/temp_ptp4l.log | wc -l)"
     echo -e "\tlink down:       $(grep "link down" /var/log/temp_ptp4l.log | wc -l)"
     echo -e "\ttimed out:       $(grep "timed out" /var/log/temp_ptp4l.log | wc -l)"
-fi
+}
+
+save_board_info(){
+        echo -e "\n\nBIOS Version: " $(dmidecode -s bios-version)
+        echo "Kernel Version: " $(uname -r)
+        echo "Kernel Build Date: " $(uname -v)
+        echo -e "Kernel Parameter: \n" $(cat /proc/cmdline)
+
+        echo "CPU Info:"
+        grep "MHz" /proc/cpuinfo
+
+        echo "Memory Info:"
+        free -mt
+
+        echo "Storage Info:"
+        df -h
+
+        echo "Ethernet Info:"
+        ethtool -i $IFACE | head -n 1
+        cat /proc/interrupts | grep $IFACE
+
+        if [ ! -z $IFACE2 ]; then
+            ethtool -i $IFACE2 | head -n 1
+            cat /proc/interrupts | grep $IFACE2
+        fi
+}
+
+main "$@"
+
+set +a # Disable variable export

@@ -30,22 +30,25 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-IFACE=$1
-
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
+source $DIR/$PLAT/$CONFIG.config
 
-#Reset qdiscs, setup static IP, setup VLAN & program MAC address
-setup_sp1a $IFACE
+if [ -z $1 ]; then
+        echo "Specify interface"; exit
+else
+        IFACE=$1
+fi
+
+#Each func/script has their own basic input validation - apart from $IFACE
+
+init_interface  $IFACE
 
 $DIR/clock-setup.sh $IFACE
-sleep 30 #Give some time for clock daemons to start.
+sleep 20
 
-#Note: TAPRIO relies on fully synchronized ptp-phc clocks for setting basetime
-$DIR/setup_taprio.sh $IFACE
-$DIR/setup_vlanrx.sh $IFACE 1 1
-$DIR/setup_vlanrx.sh $IFACE 2 2
+pkill phc2sys #need to disable phc2sys to use EXTTS
 
-#Get the right TXQ number and add etf qdisc to it.
-get_TXQ_NUM $IFACE
-$DIR/setup_etf.sh $IFACE $TXQ_NUM 400000
+enable_extts    $IFACE
+
+enable_pps      $IFACE

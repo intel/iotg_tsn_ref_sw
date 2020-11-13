@@ -30,16 +30,32 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-if [ -z $1 ]; then
-    echo "Please enter interface: ./enable_extts.sh iface"
-    exit
+if [ $# -eq 0 ]; then
+	echo "How to run this : $0 <interface> < secs (opt: how long to run it)> "
+	exit 1
 fi
 
 IFACE=$1
-
 CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
-PCLK=ptp$CLK
-echo "Enabling extts on $IFACE ($PCLK)"
 
-# enable ext timestamping
-echo 0 1 > /sys/class/ptp/$PCLK/extts_enable
+if pgrep -x tsq > /dev/null; then
+	kill -9 $( pgrep -x tsq ) > /dev/null
+	echo -e "Previous TSQ is still running. Attempting to kill it."
+fi
+
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+# Only start the talker for board B.
+./tsq -T -i $IPADDR -p 7777 -d /dev/ptp$CLK -v -u 2222 &
+TSQ_TALKER_PID=$!
+
+# Check if tsq listener and talker are both alive.
+if ! ps -p $TSQ_TALKER_PID > /dev/null; then
+	echo -e "TSQ Talker has exited prematurely. Script will stop now."
+	exit 1
+fi
+
+sleep $TEST_PERIOD
+kill -9 $( pgrep -x tsq ) > /dev/null
+
+exit 0

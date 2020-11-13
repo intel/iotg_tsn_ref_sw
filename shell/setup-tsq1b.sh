@@ -30,17 +30,23 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-IFACE=$1
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
+source $DIR/$PLAT/$CONFIG.config
 
-#Reset qdiscs, setup static IP, setup VLAN & program MAC address
-setup_sp1b $IFACE
+if [ -z $1 ]; then
+        echo "Specify interface"; exit
+else
+        IFACE=$1
+fi
+
+#Each func/script has their own basic input validation - apart from $IFACE
+
+init_interface  $IFACE
 
 $DIR/clock-setup.sh $IFACE
 sleep 20
-pkill phc2sys
 
-$DIR/enable_extts.sh $IFACE
+pkill phc2sys #need to disable phc2sys to use EXTTS
 
-echo "Done setup"
+enable_extts    $IFACE
