@@ -33,8 +33,9 @@
 if [[ "$1" = "-h" ]] || [[ "$1" = "" ]]; then
     echo "\
 Usage: opcua-run.sh <PLAT> <interface> [interface2] <CONFIG> [mode]
-Example: ./opcua-run.sh ehl  eth0 opcua-pkt1a init
-         ./opcua-run.sh ehl2 eth0 eth1 opcua-pkt2a setup
+Examples: ./opcua-run.sh ehl  eth0 opcua-pkt1a init
+          ./opcua-run.sh ehl2 eth0 eth1 opcua-pkt2a setup
+          ./opcua-run.sh ehl2 eth0 eth1 opcua-pkt3a run
     "
     exit 0
 fi
@@ -93,22 +94,29 @@ if [[ "$PLAT" = "ehl2" || "$PLAT" = "tgl2" ]];then
 fi
 
 case "$MODE" in
-    init) # Set the static ip and mac address only
+
+    # Set the static ip and mac address only. using opcua-*.cfg
+    init) 
         case "$CONFIG" in
+            # .config: A/B used for single-trip, C/D added for round-trip
+            #
+            #   opcua-A --------------> opcua-B
+            #                             |
+            #                             V
+            #   opcua-D <-------------- opcua-C
+            #
+            #   Board A                 Board B
+            #
             opcua-*a)
-                setup_sp1a $IFACE
+                init_interface $IFACE $DIR/$PLAT/opcua-A.config
                 if [[ ! -z "$IFACE2" ]];then
-                    setup_sp2a $IFACE2
-                    #Overwrite IFACE1 previous map to use multi-stream map
-                    set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_8tx_8rx-multi.map
+                    init_interface $IFACE2 $DIR/$PLAT/opcua-D.config;
                 fi
                 ;;
             opcua-*b)
-                setup_sp1b $IFACE
+                init_interface $IFACE $DIR/$PLAT/opcua-B.config
                 if [[ ! -z "$IFACE2" ]];then
-                    setup_sp2b $IFACE2
-                    #Overwrite IFACE1 previous map to use multi-stream map
-                    set_irq_smp_affinity $IFACE $DIR/../scripts/irq_affinity_4c_8tx_8rx-multi.map
+                    init_interface $IFACE2 $DIR/$PLAT/opcua-C.config;
                 fi
                 ;;
             "")
@@ -120,8 +128,9 @@ case "$MODE" in
         esac
         exit 0
         ;;
-    setup) # Run setup using *-tsn.json, and then exit
-        #Remove existing iperf3 generated command file
+
+    # Run setup using opcua*-tsn.json
+    setup) 
         rm -f $DIR/../$IPERF3_GEN_CMD
 
         python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
@@ -131,41 +140,11 @@ case "$MODE" in
         sh ./setup-generated.sh
         exit 0
         ;;
-    run) # Proceed without running init or setup
+
+     run)
+         # Execute as written below
         ;;
 
-    "") # Default if no MODE specified, run init, setup and start opcua-server
-        case "$CONFIG" in
-            opcua-*a)
-                setup_sp1a $IFACE
-                if [[ ! -z "$IFACE2" ]];then
-                    setup_sp2a $IFACE2
-                fi
-                ;;
-            opcua-*b)
-                setup_sp1b $IFACE
-                if [[ ! -z "$IFACE2" ]];then
-                    setup_sp2a $IFACE2
-                fi
-                ;;
-            "")
-                ;&
-            *)
-                echo "Invalid config $CONFIG"
-                exit 1
-                ;;
-        esac
-        ;& #fallthru
-    setup-run)
-        #Remove existing iperf3 generated command file
-        [[ -f "$DIR/../$IPERF3_GEN_CMD" ]] && rm -f $DIR/../$IPERF3_GEN_CMD
-
-        python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
-        if [ $? -ne 0 ]; then
-            echo "gen_setup.py returned non-zero. Abort" && exit
-        fi
-        sh ./setup-generated.sh
-        ;;
     *)
         echo "Invalid mode $MODE" && exit 1
         ;;
@@ -187,6 +166,7 @@ if [[ ! -z $OUTPUT_FILE ]]; then
     ln -sfv /tmp/$OUTPUT_FILE .
 fi
 
+# Execute the server and pass it opcua-*.json
 ./opcua-server "$NEW_JSON"
 
 RETVAL_OPCUA=$?
@@ -229,13 +209,13 @@ fi
 save_result_files $CONFIG $NUMPKTS $SIZE $INTERVAL #this file's name aka config.
 
 if [[ "$TYPE" == "afxdp" ]]; then
-	gnuplot -e "FILENAME='afxdp-traffic.txt'; YMAX=2000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AFXDP)'" $DIR/../scripts/latency_single.gnu -p 2> /dev/null &
+	gnuplot -e "FILENAME='afxdp-traffic.txt'; YMAX=2000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AFXDP)'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
 elif [[ "$CONFIG" == "opcua-pkt1b" ]]; then
     # Plotting for single trip
-    gnuplot -e "FILENAME='afpkt-traffic.txt'; YMAX=10000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AF-PACKET - single trip)'" $DIR/../scripts/latency_single.gnu -p 2> /dev/null &
+    gnuplot -e "FILENAME='afpkt-traffic.txt'; YMAX=10000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AF-PACKET - single trip)'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
 else
     # Plotting for return trip
-    gnuplot -e "FILENAME='afpkt-traffic.txt'; YMAX=10000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AF-PACKET - return trip)'" $DIR/../scripts/latency_single.gnu -p 2> /dev/null &
+    gnuplot -e "FILENAME='afpkt-traffic.txt'; YMAX=10000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AF-PACKET - return trip)'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
 fi
 
 while [[ ! -s plot_pic.png ]] && [[ $RETRY -lt 30 ]]; do sleep 5; let $(( RETRY++ )); done

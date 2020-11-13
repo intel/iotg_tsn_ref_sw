@@ -7,11 +7,39 @@ import os
 import json
 import math
 
-import helpers as h
+###############################################################################
+# Helpers
 
-# Dry run or not
-# Make this a global so we don't have to pass it everywhere
-# IS_DRY = False
+def initialize():
+    global IS_DRY
+    global genfile
+
+    IS_DRY=False
+    genfile = open("setup-generated.sh", "w")
+    genfile.write("#!/bin/sh\n")
+
+def teardown():
+    genfile.close()
+
+def err_exit(msg):
+    print(msg)
+    exit(1)
+
+def ensure_keys_exist(name, mapd, *keys):
+    for k in keys:
+        if not k in mapd:
+            print('Key {} does not exist in {}'.format(k, name))
+            exit(2)
+
+def sh_run(cmd):
+    genfile.write('echo "Running {}"\n'.format(cmd))
+    genfile.write(cmd + "\n")
+
+def run_with_out(cmd, outfile):
+    cmd += ['2&>', outfile, '&\n']
+    cmd2 = ' '.join(cmd)
+    genfile.write('echo "Running (async) {}"\n'.format(cmd2))
+    genfile.write(cmd2)
 
 def get_show_qdisc_cmd(interface):
     return 'tc qdisc show dev {}'.format(interface)
@@ -19,15 +47,18 @@ def get_show_qdisc_cmd(interface):
 def delete_qdiscs(iface):
     #print('Deleting existing qdiscs')
     cmd = 'tc qdisc del dev {} parent root'.format(iface)
-    proc = h.sh_run(cmd)
-    h.sh_run('sleep 5')
+    proc = sh_run(cmd)
+    sh_run('sleep 5')
 
 def init_ingress(iface, show_qdisc_cmd):
     clear_rx_cmd = "tc qdisc del dev {} parent ffff:".format(iface)
     add_ingress_cmd = "tc qdisc add dev {} ingress".format(iface)
 
-    output = h.sh_run(clear_rx_cmd)
-    output = h.sh_run(add_ingress_cmd)
+    output = sh_run(clear_rx_cmd)
+    output = sh_run(add_ingress_cmd)
+
+###############################################################################
+# Real content
 
 def set_vlanrx(iface, config, show_qdisc_cmd):
 
@@ -38,7 +69,7 @@ def set_vlanrx(iface, config, show_qdisc_cmd):
     set_vlanrx_cmd += "parent ffff: protocol 802.1Q flower vlan_prio {} ".format(vlan_priority)
     set_vlanrx_cmd += "hw_tc {} ".format(rx_hw_q)
 
-    output = h.sh_run(set_vlanrx_cmd)
+    output = sh_run(set_vlanrx_cmd)
 
 
 def set_taprio(iface, maps, config, basetime, clkid):
@@ -79,7 +110,7 @@ def set_taprio(iface, maps, config, basetime, clkid):
     if 'offload' in config and config.get('offload'):
         set_taprio_cmd += ' offload 1'
 
-    output = h.sh_run(set_taprio_cmd)
+    output = sh_run(set_taprio_cmd)
 
 def set_mqprio(iface, maps, config):
     num_tc = 0
@@ -108,7 +139,7 @@ def set_mqprio(iface, maps, config):
     set_mqprio_cmd += "parent root handle {} ".format(handle)
     set_mqprio_cmd += "mqprio num_tc {} ".format(num_tc)
     set_mqprio_cmd += "map {} queues {} hw 0".format(maps,queues)
-    output = h.sh_run(set_mqprio_cmd)
+    output = sh_run(set_mqprio_cmd)
 
 def set_etf(iface, clkid, config, show_cmd, use_taprio):
     # unpack config variable
@@ -124,7 +155,7 @@ def set_etf(iface, clkid, config, show_cmd, use_taprio):
 
     # find the parent for specific qdisc
     cmd = 'HANDLE_ID="$(tc qdisc show dev {} | tr -d \':\' | awk \'NR==1{{print $3}}\')"'.format(iface)
-    h.sh_run(cmd)
+    sh_run(cmd)
 
     # check if config specify deadline_mode or offload
     for each in config.keys():
@@ -143,8 +174,8 @@ def set_etf(iface, clkid, config, show_cmd, use_taprio):
         etf_default_cmd += ' deadline_mode'
 
     # #print('Adding etf qdisc on queue {}...'.format(queue))
-    output = h.sh_run(etf_default_cmd)
-    # h.sh_run('sleep 2')
+    output = sh_run(etf_default_cmd)
+    # sh_run('sleep 2')
 
 def set_mapping(scenario_config, use_mapping):
     maps = []
@@ -178,8 +209,8 @@ def set_cbs(iface, scenario_config):
     etf_default_cmd += 'offload {} '.format(offload)
 
     #print('Adding cbs qdisc on queue {}...'.format(queue))
-    output = h.sh_run(etf_default_cmd)
-    h.sh_run('sleep 5')
+    output = sh_run(etf_default_cmd)
+    sh_run('sleep 5')
 
 def process_tc_data(data):
     # If file is empty then we do nothing
@@ -187,7 +218,7 @@ def process_tc_data(data):
         return
 
     if not 'interface' in data:
-        h.err_exit('Interface not found in tc config')
+        err_exit('Interface not found in tc config')
 
     interface = data.get('interface')
 
@@ -236,13 +267,13 @@ def process_tc_data(data):
     if 'run_sh' in data:
         #print('Running raw shell commands, this shouldn\'t happen in prod')
         for cmd in data.get('run_sh'):
-            h.sh_run(cmd)
+            sh_run(cmd)
 
-    # #print(h.sh_run(show_qdisc_cmd).decode('utf8'))
+    # #print(sh_run(show_qdisc_cmd).decode('utf8'))
 
 def process_iperf3(obj):
     # kill all currently running iperf3
-    h.sh_run('pkill iperf3')
+    sh_run('pkill iperf3')
     run_server = obj.get('run_server', False)
     client_target_add = str(obj.get('client_target_address'))
     cpu_aff = str(obj.get('cpu_affinity', 3))
@@ -253,7 +284,7 @@ def process_iperf3(obj):
     # run the iperf3 server if server is enabled
     if run_server:
         iperf3_com = 'iperf3 -s -D --affinity {} &'.format(cpu_aff)
-        h.sh_run(iperf3_com)
+        sh_run(iperf3_com)
 
     # create the iperf3 client(udp) shell script if target server IP is given
     if client_target_add:
@@ -263,30 +294,30 @@ def process_iperf3(obj):
         f.close()
 
 def process_ptp(obj):
-    h.ensure_keys_exist('ptp', obj, 'interface')
+    ensure_keys_exist('ptp', obj, 'interface')
     iface = obj.get('interface')
     ignore_existing = obj.get('ignore_existing', False)
     socket_prio = str(obj.get('socket_prio', 2))
 
     ## TODO sock prio or net prio
     if not ignore_existing: return
-    h.sh_run('pkill ptp4l')
+    sh_run('pkill ptp4l')
 
-    # ptp4l -mP2Hi eth0 -f scripts/gPTP.cfg --step_threshold=2 --socket_priority 1
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-f',  'scripts/gPTP.cfg', '--step_threshold=2']
+    # ptp4l -mP2Hi eth0 -f common/gPTP.cfg --step_threshold=2 --socket_priority 1
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-f',  'common/gPTP.cfg', '--step_threshold=2']
     arglist += ['--socket_priority', socket_prio]
-    h.run_with_out(arglist, '/var/log/ptp4l.log')
-    h.sh_run('sleep 30')
+    run_with_out(arglist, '/var/log/ptp4l.log')
+    sh_run('sleep 30')
 
 def process_phc2sys(obj):
-    h.ensure_keys_exist('phc2sys', obj, 'clock', 'interface')
+    ensure_keys_exist('phc2sys', obj, 'clock', 'interface')
     clock = obj.get('clock')
     iface = obj.get('interface')
     ignore_existing = obj.get('ignore_existing', False)
 
     if not ignore_existing: return
-    h.sh_run('pkill phc2sys')
-    h.sh_run('sleep 2')
+    sh_run('pkill phc2sys')
+    sh_run('sleep 2')
 
     # pmc -ub 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248 \
     #       clockAccuracy 0xfe offsetScaledLogVariance 0xffff    \
@@ -297,39 +328,39 @@ def process_phc2sys(obj):
                 ' clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 37'
                 ' leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable'
                 ' 1 frequencyTraceable 0 timeSource 0xa0', '"']
-    h.run_with_out(arglist, '/var/log/pmc.log')
+    run_with_out(arglist, '/var/log/pmc.log')
 
-    h.sh_run('sleep 2')
+    sh_run('sleep 2')
 
     # phc2sys -c CLOCK_REALTIME --step_threshold=1 -s eth0 \
     #       --transportSpecific=1 -O 0 -w -ml 7
     arglist = ['taskset', '-c', '1', 'phc2sys', '-c', 'CLOCK_REALTIME', '--step_threshold=1', '-s',
                 iface, '--transportSpecific=1', '-O', '0', '-w', '-ml', '7']
-    h.run_with_out(arglist, '/var/log/phc2sys.log')
+    run_with_out(arglist, '/var/log/phc2sys.log')
 
 def process_custom_a(obj):
-    h.ensure_keys_exist(obj, 'interface2', 'interface')
+    ensure_keys_exist(obj, 'interface2', 'interface')
     iface = obj.get('interface')
     iface2 = obj.get('interface2')
     ignore_existing = obj.get('ignore_existing', False)
     socket_prio = str(obj.get('socket_prio', 1))
 
     if not ignore_existing: return
-    h.sh_run('pkill phc2sys')
-    h.sh_run('pkill ptp4l')
+    sh_run('pkill phc2sys')
+    sh_run('pkill ptp4l')
 
-    # ptp4l -mP2Hi eth0 -f scripts/gPTP.cfg --step_threshold=2 --socket_priority 1
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-f',  'scripts/gPTP.cfg', '--step_threshold=2']
+    # ptp4l -mP2Hi eth0 -f common/gPTP.cfg --step_threshold=2 --socket_priority 1
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-f',  'common/gPTP.cfg', '--step_threshold=2']
     arglist += ['--socket_priority', '1']
-    h.run_with_out(arglist, '/var/log/ptp4l.log')
+    run_with_out(arglist, '/var/log/ptp4l.log')
 
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface2, '-f',  'scripts/gPTP.cfg', '--step_threshold=2']
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface2, '-f',  'common/gPTP.cfg', '--step_threshold=2']
     arglist += ['--socket_priority', '1']
-    h.run_with_out(arglist, '/var/log/ptp4l2.log')
+    run_with_out(arglist, '/var/log/ptp4l2.log')
 
     #print("Give 30 secs for ptp to sync")
-    if not h.IS_DRY:
-        h.sh_run('sleep 30')
+    if not IS_DRY:
+        sh_run('sleep 30')
 
     # pmc -ub 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248 \
     #       clockAccuracy 0xfe offsetScaledLogVariance 0xffff    \
@@ -340,34 +371,34 @@ def process_custom_a(obj):
                 ' clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 37'
                 ' leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable'
                 ' 1 frequencyTraceable 0 timeSource 0xa0', '"']
-    h.run_with_out(arglist, '/var/log/pmc.log')
+    run_with_out(arglist, '/var/log/pmc.log')
 
     # phc2sys -c CLOCK_REALTIME --step_threshold=1 -s eth0 \
     #       --transportSpecific=1 -O 0 -w -ml 7
     arglist = ['taskset', '-c', '1', 'phc2sys', '-c', 'CLOCK_REALTIME', '--step_threshold=1', '-s',
                 iface, '--transportSpecific=1', '-O', '0', '-w', '-ml', '7']
-    h.run_with_out(arglist, '/var/log/phc2sys.log')
+    run_with_out(arglist, '/var/log/phc2sys.log')
 
 def process_custom_b(obj):
-    h.ensure_keys_exist(obj, 'interface2', 'interface')
+    ensure_keys_exist(obj, 'interface2', 'interface')
     iface = obj.get('interface')
     iface2 = obj.get('interface2')
     ignore_existing = obj.get('ignore_existing', False)
     socket_prio = str(obj.get('socket_prio', 1))
 
     if not ignore_existing: return
-    h.sh_run('pkill phc2sys')
-    h.sh_run('pkill ptp4l')
+    sh_run('pkill phc2sys')
+    sh_run('pkill ptp4l')
 
-    # ptp4l -mP2Hi eth0 -i eth2 -f scripts/gPTP.cfg --step_threshold=2 \
+    # ptp4l -mP2Hi eth0 -i eth2 -f common/gPTP.cfg --step_threshold=2 \
     #   --socket_priority 1 --boundary_clock_jbod=1
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-i', iface2 , '-f',  'scripts/gPTP.cfg', '--step_threshold=2']
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-i', iface2 , '-f',  'common/gPTP.cfg', '--step_threshold=2']
     arglist += ['--socket_priority', '1']
     arglist += ['--boundary_clock_jbod=1']
-    h.run_with_out(arglist, '/var/log/ptp4l.log')
+    run_with_out(arglist, '/var/log/ptp4l.log')
     #print("Give 30 secs for ptp to sync")
-    if not h.IS_DRY:
-        h.sh_run('sleep 30')
+    if not IS_DRY:
+        sh_run('sleep 30')
 
     # pmc -ub 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248 \
     #       clockAccuracy 0xfe offsetScaledLogVariance 0xffff    \
@@ -378,11 +409,11 @@ def process_custom_b(obj):
                 ' clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 0'
                 ' leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable'
                 ' 1 frequencyTraceable 0 timeSource 0xa0', '"']
-    h.run_with_out(arglist, '/var/log/pmc.log')
+    run_with_out(arglist, '/var/log/pmc.log')
 
-    # phc2sys -arrml 7 -f scripts/gPTP.cfg
-    arglist = ['taskset', '-c', '1', 'phc2sys', '-arrml', '7', '-f', 'scripts/gPTP.cfg']
-    h.run_with_out(arglist, '/var/log/phc2sys.log')
+    # phc2sys -arrml 7 -f common/gPTP.cfg
+    arglist = ['taskset', '-c', '1', 'phc2sys', '-arrml', '7', '-f', 'common/gPTP.cfg']
+    run_with_out(arglist, '/var/log/phc2sys.log')
 
 def main():
     parser = argparse.ArgumentParser(description='Configures the interface')
@@ -392,8 +423,8 @@ def main():
     args = parser.parse_args()
     cfg_path = args.config_file
 
-    h.initialize()
-    h.IS_DRY = args.dry
+    initialize()
+    IS_DRY = args.dry
 
     if not os.path.isfile(cfg_path):
         #print('File {} not found'.format(cfg_path))
@@ -416,7 +447,7 @@ def main():
     if 'iperf3' in data:
         process_iperf3(data['iperf3'])
 
-    h.teardown()
+    teardown()
 
 if __name__ == '__main__':
     main()
