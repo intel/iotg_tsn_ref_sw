@@ -72,7 +72,7 @@ reset
 	set label front sprintf("Average: %d us", avg_us) at graph 0.01, graph 0.85
 
 	plot FILENAME \
-		using ($1) title "Legacy socket"  lc rgb "red" w points
+		using 2:1 title "Legacy socket"  lc rgb "red" w points
 
 	unset label
 

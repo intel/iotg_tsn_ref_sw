@@ -164,7 +164,7 @@ calc_rx_u2u(){
 
         #Plot u2u
         cat $RX_FILENAME | \
-                         awk '{ print $1 }' > $SHORTNAME-traffic.txt
+                         awk '{ print $1 "\t" $2 }' > $SHORTNAME-traffic.txt
 }
 
 calc_return_u2u(){
@@ -192,7 +192,7 @@ calc_return_u2u(){
 
         #Plot u2u
         cat $RX_FILENAME | \
-                         awk '{ print $14 }' > $SHORTNAME-traffic.txt
+                         awk '{ print $14 "\t" $2 }' > $SHORTNAME-traffic.txt
 }
 
 

@@ -76,7 +76,7 @@ reset
 	set label front sprintf("Average: %d us", avg_us) at graph 0.01, graph 0.85
 
 	plot FILENAME \
-		using ($1) title "Legacy socket"  lc rgb "red" w points
+		using 2:1 title "Legacy socket"  lc rgb "red" w points
 
 	unset label
 
@@ -91,19 +91,40 @@ reset
 	set label front sprintf("Average: %d us", avg_us) at graph 0.01, graph 0.85
 
 	plot FILENAME2 \
-		using ($1) title "XDP socket"  lc rgb "red" w points
+		using 2:1 title "XDP socket"  lc rgb "red" w points
 
 	unset multiplot
 	unset output
 
-	#Replot to GUI
+	#Replot to GUI - TODO, use a loop to achieve this instead
 	set terminal x11 size 1720,980
 	set output
 	set multiplot layout 1,2
+
+	min_us = a_min/1000
+	max_us = a_max/1000
+	avg_us = a_mean/1000
+
+	set label front sprintf("Minimum: %d us", min_us) at graph 0.01, graph 0.95
+	set label front sprintf("Maximum: %d us", max_us) at graph 0.01, graph 0.90
+	set label front sprintf("Average: %d us", avg_us) at graph 0.01, graph 0.85
+
 	plot FILENAME \
-		using ($1) title "Legacy socket"  lc rgb "red" w points
+		using 2:1 title "Legacy socket"  lc rgb "red" w points
+
+	unset label
+
+	set yrange [0:2000000]	#XDP socket plot YMAX
+
+	min_us = b_min/1000
+	max_us = b_max/1000
+	avg_us = b_mean/1000
+
+	set label front sprintf("Minimum: %d us", min_us) at graph 0.01, graph 0.95
+	set label front sprintf("Maximum: %d us", max_us) at graph 0.01, graph 0.90
+	set label front sprintf("Average: %d us", avg_us) at graph 0.01, graph 0.85
 
 	plot FILENAME2 \
-		using ($1) title "XDP socket"  lc rgb "red" w points
+		using 2:1 title "XDP socket"  lc rgb "red" w points
 
 pause 10 #in case some one forgets to add -p
