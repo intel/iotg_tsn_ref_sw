@@ -378,7 +378,7 @@ calc_rx_u2u(){
 
         #Plot u2u
         cat $RX_FILENAME | \
-                         awk '{ print $1 }' > $SHORTNAME-traffic.txt
+                         awk '{ print $1 "\t" $2 }' > $SHORTNAME-traffic.txt
 }
 
 calc_rx_duploss(){
