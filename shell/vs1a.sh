@@ -40,7 +40,7 @@ if [ -z $1 ]; then
 elif [[ -z $INTERVAL || -z $XDP_INTERVAL ||
        -z $EARLY_OFFSET || -z $XDP_EARLY_OFFSET ||
        -z $TXTIME_OFFSET || -z $NUMPKTS || -z $SIZE ||
-       -z $TX_PKT_Q || -z $TX_XDP_Q ]]; then
+       -z $TX_PKT_Q || -z $TX_XDP_Q || -z $XDP_MODE ]]; then
         echo "Source config file first"; exit
 fi
 
@@ -81,7 +81,7 @@ echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 run_iperf3_bg_client
 sleep 5
 
-./txrx-tsn -XztTi $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
+./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
                 -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
 TXRX_PID=$!
 
