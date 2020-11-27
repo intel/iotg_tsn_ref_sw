@@ -1,63 +1,13 @@
-# Running examples using JSON
+# JSON Runner
 
-All examples are run with 2 units of the same platform. Mind the notation
-"[Board A or B]". The following steps assumes both platforms are connected
-to each other via an Ethernet connection and user has a terminal open in the
-/usr/share/iotg-tsn-ref-sw directory - with the C-applications already built.
-
-## Role of run.sh & JSON
-
-Unlike TSQ and TXRX-TSN which are regular C-application that takes in input via
-parameter lists. OPCUA-SERVER uses JSON files for input. This is to allow OPCUA-SERVER
-to have more customizable parameters and enable pre-written example configurations
-in the form of JSON. To make it even easier, all Linux configurations are also
-customizable via JSON file.
-
-Run.sh serves only as a shortcut to call the desired scripts and pass them
-the JSON files. Each pre-defined example has either a *.json.i or *-tsn.json.i
-file for either Board A or Board B.
+## JSON.i
 
 Important: when using run.sh, users should modify the corresponding
 **.json.i** file NOT the generated .json file. **.json.i** denotes incomplete or
 interim json file as it has fields intentionally left blank for run.sh to fill in
 automatically.
 
-When a user executes run.sh with a command (init/setup/run), the following scripts
-are called respectively:
-
-```sh
-
-#Init only
-run.sh <plat> <iface> [iface2] <json.i> init
-    |__ json/opcua-run.sh       #create a json using correct iface(s)
-        |__ json/helpers.sh     #set ip/mac address, single/dual port
-
-#Setup only
-run.sh <plat> <iface> [iface2] <json.i> setup
-    |__ json/opcua-run.sh       #create a json using correct iface(s)
-        |__ json/gen_setup.py       #parse json and generate setup scripts
-        |__ generated_setup.sh      #set up clocks, different TCs
-            |__ ptp4l
-            |__ phc2sys
-            |__ tc
-
-#Run only
-run.sh <plat> <iface> [iface2] <json.i> run
-    |__ json/opcua-run.sh       #create a json using correct iface(s)
-        |__ ./iperf-gen-cmd.sh      #run iperf if required
-        |__ ./opcua-server <json>   #use new json opcua parameters to execute
-        |__ gnuplot & save results
-```
-
-## OPCUA-SERVER - AF_PACKET & AF_XDP OPCUA-based application
-
-Refer to the full documentation for details as this README will serve as an
-overview only.
-
-OPCUA-SERVER is a C-application that can transmit and receive ETH_UADP packets using
-AF_PACKET or AF_XDP sockets using libopen62541 (OPCUA-based library) APIs. It
-accepts only 1 .json.i file as input and supported .json.i entries are as follows
-(kindly refer to the examples in json/<plat>/ for examples of its structure tree):
+### Acceptable inputs and range for json.i
 
 |     Category      |            Field             |  Type   |  Min   |   Max    |
 | ----------------- | ---------------------------- | ------- | ------ | -------- |
@@ -88,18 +38,41 @@ accepts only 1 .json.i file as input and supported .json.i entries are as follow
 | Subscriber        | cpu_affinity                 | Int     | 0      | 3        |
 | Subscriber        | xdp_queue                    | Int     | 1      | 3        |
 
-### Single-port example
+### Acceptable inputs and range for tsn-json.i
+
+Refer to examples provided by the project.
+
+## OPCUA-SERVER - AF_PACKET & AF_XDP OPCUA-based application
+
+OPCUA-SERVER is a C-application that can transmit and receive ETH_UADP packets using
+AF_PACKET or AF_XDP sockets using libopen62541 (OPCUA-based library) APIs. It
+accepts only 1 .json.i file as input.
+
+### About: 1-port
+
+Very simple, just 1 pub/sub thread
+
+At the end userspace-userpsace example, 1mil packet blabla
+
+### Usage: 1-port
 
 Similar to TSQ & TXRX-TSN examples, 2 platforms are required to be connected to
 each other via a single-ethernet connection.
+
+0.  [Board A & B] Build the project.
+
+    ```sh
+    cd /usr/share/iotg-tsn-ref-sw/
+    ./build.sh
+    ```
 
 1.  [Board A] Run the setup script to initialize IP and MAC address, then start
     clock synchronization and setup TAPRIO + ETF qdiscs.
 
     ```sh
     cd /usr/share/iotg-tsn-ref-sw/
-    ./run.sh <PLAT> $IFACE opcua-pkt1a init
-    ./run.sh <PLAT> $IFACE opcua-pkt1a setup
+    ./run.sh $PLAT $IFACE opcua-pkt1a init
+    ./run.sh $PLAT $IFACE opcua-pkt1a setup
     ```
 
 2.  [Board A] Run the setup script to initialize IP and MAC address, then start
@@ -107,14 +80,14 @@ each other via a single-ethernet connection.
 
     ```sh
     cd /usr/share/iotg-tsn-ref-sw/
-    ./run.sh <PLAT> $IFACE opcua-pkt1b init
-    ./run.sh <PLAT> $IFACE opcua-pkt1b setup
+    ./run.sh $PLAT $IFACE opcua-pkt1b init
+    ./run.sh $PLAT $IFACE opcua-pkt1b setup
     ```
 
 3.  [Board B] Start listening for packets.
 
     ```sh
-    ./run.sh <PLAT> $IFACE opcua-pkt1b run
+    ./run.sh $PLAT $IFACE opcua-pkt1b run
     ```
 
 4.  [Board B] Immediately after step 3, start transmitting packets. The
@@ -123,7 +96,7 @@ each other via a single-ethernet connection.
     intervals compared to AF_XDP or opuca-xdp* configurations.
 
     ```sh
-    ./run.sh <PLAT> $IFACE opcua-pkt1a run
+    ./run.sh $PLAT $IFACE opcua-pkt1a run
     ```
 
 5.  [Board B] A gnuplot window should appear showing the time taken for each
@@ -132,7 +105,8 @@ each other via a single-ethernet connection.
     Each run will enumerate and store its raw timestamps/data & plot images in the
     results-<DATE> folder for easy reference, repeat steps 3-4 as needed.
 
-### Dual-port example
+
+### About: 2-port
 
 In this example type, 2 platforms are required to be connected to each other via
 **two** ethernet connections. Meaning there is a total of four
@@ -144,15 +118,24 @@ A simplified explanation of the data flow:
 3. Board B's second interface ($IFACE2) is used to transmit back to Board A
 4. Board A's second interface ($IFACE2) is used to receive
 
-When using dual-ports, the <PLAT> should be replaced with "ehl2". (TGL not supported)
+### Usage: 2-port
+
+When using dual-ports, the $PLAT should be replaced with "ehl2". (TGL not supported)
+
+0.  [Board A & B] Build the project.
+
+    ```sh
+    cd /usr/share/iotg-tsn-ref-sw/
+    ./build.sh
+    ```
 
 1.  [Board A] Run the setup script to initialize IP and MAC address, then start
     clock synchronization and setup TAPRIO + ETF qdiscs.
 
     ```sh
     cd /usr/share/iotg-tsn-ref-sw/
-    ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3a init
-    ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3a setup
+    ./run.sh $PLAT $IFACE $IFACE2 opcua-pkt3a init
+    ./run.sh $PLAT $IFACE $IFACE2 opcua-pkt3a setup
     ```
 
 2.  [Board B] Run the setup script to initialize IP and MAC address, then start
@@ -160,20 +143,20 @@ When using dual-ports, the <PLAT> should be replaced with "ehl2". (TGL not suppo
 
     ```sh
     cd /usr/share/iotg-tsn-ref-sw/
-    ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3b init
-    ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3b setup
+    ./run.sh $PLAT $IFACE $IFACE2 opcua-pkt3b init
+    ./run.sh $PLAT $IFACE $IFACE2 opcua-pkt3b setup
     ```
 
 3.  [Board B] Start listening for packets.
 
     ```sh
-    ./run.sh <PLAT> $IFACE $IFACE2 opcua-pkt3b run
+    ./run.sh $PLAT $IFACE $IFACE2 opcua-pkt3b run
     ```
 
 4.  [Board A] Immediately after step 3, start transmitting packets.
 
     ```sh
-    ./run.sh <PLAT> $IFACE opcua-pkt3a run
+    ./run.sh $PLAT $IFACE opcua-pkt3a run
     ```
 
 5.  [Board A] A gnuplot window should appear showing the time taken for each
