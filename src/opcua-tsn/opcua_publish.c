@@ -46,7 +46,6 @@
 
 #define PUBSUB_CONFIG_FASTPATH_FIXED_OFFSETS    //TODO define this elsewhere
 #define KEYFRAME_COUNT     10
-#define PUB_MODE_ZERO_COPY
 
 extern UA_NodeId g_writerGroupIdent;
 
@@ -70,15 +69,14 @@ void addPubSubConnection(UA_Server *server, UA_NodeId *connId,
     connectionConfig.etfConfiguration.sotxtimeEnabled = UA_TRUE;
 
     if (sdata->useXDP) {
-#ifdef PUB_MODE_ZERO_COPY
         connectionConfig.xdp_queue = pdata->xdpQueue;
         connectionConfig.xdp_flags |= XDP_FLAGS_DRV_MODE;
+    }
+
+    if (sdata->useXDP_ZC) {
         connectionConfig.xdp_bind_flags |= XDP_ZEROCOPY;
-#else
-        connectionConfig.xdp_queue = pdata->xdpQueue;
-        connectionConfig.xdp_flags |= XDP_FLAGS_SKB_MODE;
+    } else {
         connectionConfig.xdp_bind_flags |= XDP_COPY;
-#endif
     }
 
     UA_NetworkAddressUrlDataType networkAddressUrl = {

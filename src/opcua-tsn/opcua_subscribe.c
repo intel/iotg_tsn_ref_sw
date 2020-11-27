@@ -42,8 +42,6 @@
 
 #include "opcua_common.h"
 
-#define SUB_MODE_ZERO_COPY
-
 /* Add new connection to the server */
 void addSubConnection(UA_Server *server, UA_NodeId *connId,
                       struct ServerData *sdata, struct SubscriberData *sub)
@@ -62,15 +60,18 @@ void addSubConnection(UA_Server *server, UA_NodeId *connId,
     };
 
     if (sdata->useXDP) {
-#ifdef SUB_MODE_ZERO_COPY
         connectionConfig.xdp_queue = sub->xdpQueue;
-        connectionConfig.xdp_flags |= XDP_FLAGS_DRV_MODE;
-        connectionConfig.xdp_bind_flags |= XDP_ZEROCOPY;
-#else
-        connectionConfig.xdp_queue = sub->xdpQueue;
-        connectionConfig.xdp_flags |= XDP_FLAGS_SKB_MODE;
-        connectionConfig.xdp_bind_flags |= XDP_COPY;
-#endif
+
+        if (sdata->useXDP_SKB && !sdata->useXDP_ZC) {
+            connectionConfig.xdp_flags |= XDP_FLAGS_SKB_MODE;
+            connectionConfig.xdp_bind_flags |= XDP_COPY;
+        } else if (!sdata->useXDP_SKB && !sdata->useXDP_ZC) {
+            connectionConfig.xdp_flags |= XDP_FLAGS_DRV_MODE;
+            connectionConfig.xdp_bind_flags |= XDP_COPY;
+        } else {
+            connectionConfig.xdp_flags |= XDP_FLAGS_DRV_MODE;
+            connectionConfig.xdp_bind_flags |= XDP_ZEROCOPY;
+        }
     }
 
     UA_Variant_setScalar(&connectionConfig.address, &networkAddressUrl,
