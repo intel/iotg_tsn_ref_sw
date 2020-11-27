@@ -3,10 +3,9 @@
 If you are running from a compatible Intel-provided Yocto BSP & hardware, these
 software dependencies would have already been installed.
 
-This section is to give some background on the project's dependencies.
-
 For compilation:
 * [Custom linux kernel headers](https://github.com/intel/linux-intel-lts/tree/5.4/preempt-rt)
+* [Custom linux-libc-headers](https://github.com/intel/iotg-yocto-ese-bsp/tree/master/recipes-kernel/linux-libc-headers/linux-libc-headers)
 * [Custom libopen62541-iotg](https://github.com/intel/iotg-yocto-ese-main/tree/master/recipes-connectivity/open62541)
 * [Custom libbpf](https://github.com/intel/iotg-yocto-ese-main/tree/master/recipes-connectivity/libbpf)
 * libelf
@@ -20,6 +19,10 @@ For run-time:
 * Python 3.8.2
 * gnuplot 5.2
 * IceWM - Any GUI/window manager can be used, required to display graphs.
+
+# Hardware dependencies
+
+* Refer to compatible platform list.
 
 ### IceWM
 
