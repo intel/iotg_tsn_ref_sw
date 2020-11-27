@@ -44,13 +44,23 @@ pkill ptp4l
 pkill phc2sys
 
 # Defaults when executing clock-setup.sh directly
-# Use q0, SGMII-MV2110-1G (TGL) phy latencies and no vlan
-if [ -z $PTP_TX_Q ]; then PTP_TX_Q=0; echo "Using default $PTP_TX_Q"; fi
-if [ -z $PTP_PHY_HW ]; then PTP_PHY_HW="SGMII-MV2110-1G"; echo "Using default $PTP_PHY_HW"; fi
+# Use q0, gPTP.cfg and no vlan
+if [ -z $PTP_TX_Q ]; then
+    PTP_TX_Q=0;
+    echo "Using default $PTP_TX_Q";
+fi
 
 echo "Running PTP4L & PHC2SYS"
 
-taskset -c 1 ptp4l -P2Hi $IFACE$PTP_IFACE_APPEND -f $DIR/../common/gPTP_$PTP_PHY_HW.cfg \
+if [ -z $PTP_PHY_HW ]; then
+    GPTP_FILE="gPTP.cfg"
+    echo "Using default gPTP.cfg";
+else
+    GPTP_FILE="gPTP_$PTP_PHY_HW.cfg"
+    echo "Using $GPTP_FILE";
+fi
+
+taskset -c 1 ptp4l -P2Hi $IFACE$PTP_IFACE_APPEND -f $DIR/../common/$GPTP_FILE \
         --step_threshold=1 --socket_priority=$PTP_TX_Q -m 2&> /var/log/ptp4l.log &
 
 sleep 2 # Required
