@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <sys/msg.h>
 
 #include "opcua_utils.h"
 
@@ -105,6 +106,9 @@ struct ServerData {
     UA_UInt64 startTime;
     UA_String transportProfile;
     UA_UInt64 packetCount;
+
+    struct msqid_ds mqbuf1;
+    int msqid;
 };
 
 void free_resources(struct ServerData *sdata);

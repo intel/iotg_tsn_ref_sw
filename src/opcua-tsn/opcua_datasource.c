@@ -56,15 +56,14 @@
 #include <errno.h>
 
 #include "opcua_common.h"
+#include "opcua_datasource.h"
 #include "json_helper.h"
 
-UA_Int64 tx_sequence = -2;
 extern struct ServerData *g_sData;
-extern UA_Boolean g_running;
-UA_UInt64 rx_sequence;
-UA_UInt64 txTime;
-UA_UInt64 rxTime;
-static pthread_mutex_t ds_mutex = PTHREAD_MUTEX_INITIALIZER;
+extern UA_Boolean g_running, g_roundtrip_pubReturn;
+/* PubReturn only */
+static UA_Int64 tx_sequence = -2; //TODO
+static UA_UInt64 prev_rx_sequence = 999;
 
 UA_StatusCode
 pubGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
@@ -92,7 +91,7 @@ pubGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
     currentTime = as_nanoseconds(&current_time_timespec);
     UA_UInt64 d[2] = {tx_sequence, currentTime};
 
-    /* debug("[PUB] tx_sequence : %ld, time : %ld\n", tx_sequence, currentTime); */
+    debug("[PUB] tx_sequence : %ld, time : %ld\n", tx_sequence, currentTime);
 
     UA_StatusCode retval = UA_Variant_setArrayCopy(&data->value, &d[0], 2,
                                                    &UA_TYPES[UA_TYPES_UINT64]);
@@ -105,7 +104,7 @@ pubGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
 
     if (tx_sequence == (UA_Int64)packetCount) {
         g_running = UA_FALSE;
-        /* debug("\n[PUB] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n", tx_sequence); */
+        debug("\n[PUB] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n", tx_sequence);
     }
 
     return UA_STATUSCODE_GOOD;
@@ -131,6 +130,8 @@ subStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
     UA_UInt64 packetCount = g_sData->packetCount;
     UA_Int32 ret = 0;
 
+    struct msgq_buf msgqB = {.rx_sequence = 999, .txTime = 999 , .rxTime = 999 };
+
     if (data == NULL) {
         debug("[SUB] Rx Data is null\n");
         goto  ret;
@@ -146,46 +147,45 @@ subStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
 
     /* Check if valid data is there */
     if (v.arrayLength == (UA_UInt64) -1 || v.arrayLength > 0) {
+        g_roundtrip_pubReturn = true;
 
         UA_UInt64 *ptr_data = (UA_UInt64 *)data->value.data;
         UA_UInt64 RXhwTS = 0; /* TODO: hard code as per now */
         struct timespec current_time_timespec;
         clock_gettime(CLOCK_TAI, &current_time_timespec);
 
-        ret = pthread_mutex_lock(&ds_mutex);
-        if (ret != 0) {
-            UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                    "pthread_mutex_lock failed. Errno code : %s\n", strerror(errno));
-            goto ret;
-        }
-        rx_sequence = ptr_data[0];
-        txTime = ptr_data[1];
-        rxTime = as_nanoseconds(&current_time_timespec);
-        ret = pthread_mutex_unlock(&ds_mutex);
-        if (ret != 0) {
-            UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                    "pthread_mutex_unlock failed. Errno code : %s\n", strerror(errno));
-            exit(1);
-        }
+        msgqB.msg_type = MSGQ_TYPE;
+        msgqB.rx_sequence = ptr_data[0];
+        msgqB.txTime = ptr_data[1];
+        msgqB.rxTime = as_nanoseconds(&current_time_timespec);
 
-        UA_Int64 latency = (UA_Int64)(rxTime - txTime);
+        UA_Int64 latency = (UA_Int64)(msgqB.rxTime - msgqB.txTime);
 
         if (fpSubscriber != NULL) {
             fprintf(fpSubscriber, "%ld\t%ld\t%d\t%ld\t%ld\t%ld\n",
-                    latency, rx_sequence, sdata->id, txTime, RXhwTS, rxTime);
+                    latency, msgqB.rx_sequence, sdata->id, msgqB.txTime, RXhwTS, msgqB.rxTime);
+        }
+
+        ret = msgsnd(g_sData->msqid, (void *)&msgqB, sizeof(struct msgq_buf), IPC_NOWAIT);
+        if (ret < 0) {
+            if (errno == EAGAIN) {
+                debug("msgsnd: queue is full\n");
+            } else {
+                debug("msgsnd: errno:%d\n", errno);
+            }
         }
 
         debug("[SUB] RX: seq:%ld rx_t(ns):%ld local_t(ns):%ld diff_t(ns): %ld\n",
-              (long)rx_sequence, (long)txTime, (long)rxTime, latency);
+              (long)msgqB.rx_sequence, (long)msgqB.txTime, (long)msgqB.rxTime, latency);
     }
 
-    if (rx_sequence == packetCount) {
+    if (msgqB.rx_sequence == packetCount) {
         if (fpSubscriber != NULL) {
             fflush(fpSubscriber);
             fclose(fpSubscriber);
         }
         g_running = UA_FALSE;
-        debug("[SUB] RX: rx_sequence = packet_count = %ld\n", rx_sequence);
+        debug("[SUB] RX: rx_sequence = packet_count = %ld\n", msgqB.rx_sequence);
     }
 
 ret:
@@ -208,7 +208,6 @@ pubReturnGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
 
     assert(nodeContext != NULL);
     UA_UInt64 currentTime = 0;
-    static UA_UInt64 prev_rx_sequence;
     struct timespec current_time_timespec;
     UA_UInt64 packetCount = g_sData->packetCount;
     UA_UInt64 curr_rx_sequence = 0;
@@ -216,60 +215,91 @@ pubReturnGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
     UA_UInt64 curr_txTime = 0;
     UA_Int32 ret = 0;
 
-    ret = pthread_mutex_lock(&ds_mutex);
-    if (ret != 0) {
-        UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                    "pthread_mutex_lock failed. Error: %s\n", strerror(errno));
-        goto ret;
-    }
-    curr_rx_sequence = rx_sequence;
-    curr_rxTime = rxTime;
-    curr_txTime = txTime;
-    ret = pthread_mutex_unlock(&ds_mutex);
-    if (ret != 0) {
-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                    "pthread_mutex_unlock failed. Error: %s\n", strerror(errno));
-        exit(1);
+    struct msgq_buf msgqC = {.rx_sequence = 888, .txTime = 888 , .rxTime = 888 };
+
+    /* Give a window of 150us */
+    for (int i = 0; i < 15; i++) {
+        ret = msgrcv(g_sData->msqid, (void *)&msgqC, sizeof(struct msgq_buf),
+                     MSGQ_TYPE, IPC_NOWAIT);
+        if (ret < 0) {
+            if (errno == EAGAIN) {
+                debug("msgrcv: No message available\n");
+            } else {
+                debug("msgrcv: errno:%d\n", errno);
+            }
+        }
+         else {
+             break;
+         }
+         usleep(10);
+     }
+
+    curr_rx_sequence = msgqC.rx_sequence;
+    curr_rxTime = msgqC.rxTime;
+    curr_txTime = msgqC.txTime;
+
+    /* Validate forwarded data. We will only pass if */
+    if (curr_rx_sequence < 10 && curr_rxTime == 999 && curr_txTime == 999) {
+        log("[PUBR] #%ld Early invalid packet. Pausing pubReturn.", tx_sequence);
+        g_roundtrip_pubReturn = false;
+
+    } else if(curr_rx_sequence < 10 && curr_rxTime == 888 && curr_txTime == 888) {
+        log("[PUBR] #%ld Early msgq missed. Pausing pubReturn.", tx_sequence);
+        g_roundtrip_pubReturn = false;
+
+    } else if(curr_rx_sequence == 999 && curr_rxTime == 999 && curr_txTime == 999) {
+        log("[PUBR] #%ld forwarding error logged.\n", tx_sequence);
+        curr_rx_sequence = ERROR_NOTHING_TO_FORWARD;
+        curr_rxTime = ERROR_NOTHING_TO_FORWARD;
+        curr_txTime = ERROR_NOTHING_TO_FORWARD;
+
+    } else if(curr_rx_sequence == 888 && curr_rxTime == 888 && curr_txTime == 888) {
+        log("[PUBR] #%ld msgq copy error logged.", tx_sequence);
+        curr_rx_sequence = ERROR_MSGQ_COPY;
+        curr_rxTime = ERROR_MSGQ_COPY;
+        curr_txTime = ERROR_MSGQ_COPY;
+
+    } else if (curr_rx_sequence == prev_rx_sequence && curr_rx_sequence > 10 && curr_rxTime != 999) {
+        log("[PUBR] #%ld duplicate error logged.", tx_sequence);
+        curr_rx_sequence = ERROR_DUPLICATE;
+        curr_rxTime = ERROR_DUPLICATE;
+        curr_txTime = ERROR_DUPLICATE;
+
+    } else {
+        tx_sequence++; /* all good, bump tx counter */
     }
 
-    if(curr_rx_sequence == prev_rx_sequence)
-        goto ret;
-
-    if (tx_sequence <= 0 && curr_rx_sequence != 0) {
-        /* Init the tx_sequence to the first rx_sequence received by sub thread */
-        tx_sequence = curr_rx_sequence;
-    }
-    else {
-        tx_sequence++;
-    }
-
+    /* Prep data for forwarding */
     clock_gettime(CLOCK_TAI, &current_time_timespec);
     currentTime = as_nanoseconds(&current_time_timespec);
 
     UA_UInt64 d[5] = {curr_rx_sequence, curr_txTime, curr_rxTime, tx_sequence, currentTime};
 
-    debug("[PUBB] rx_seqA:%ld, txtimePubA:%ld, rxTimeSubB:%ld, tx_seqB:%ld, txtimePubB:%ld\n", curr_rx_sequence, curr_txTime, curr_rxTime, tx_sequence, currentTime);
+    debug("[PUBR] rx_seqA:%ld, txtimePubA:%ld, rxTimeSubB:%ld, tx_seqB:%ld, txtimePubB:%ld\n",
+          curr_rx_sequence, curr_txTime, curr_rxTime, tx_sequence, currentTime);
 
     UA_StatusCode retval = UA_Variant_setArrayCopy(&data->value, &d[0], 5,
                                                    &UA_TYPES[UA_TYPES_UINT64]);
-
     if (retval != UA_STATUSCODE_GOOD)
-            debug("[PUB]Error in transmitting data source\n");
+            debug("[PUBR] Error in transmitting data source\n");
 
     data->hasValue = true;
     data->value.storageType = UA_VARIANT_DATA_NODELETE;
 
-    prev_rx_sequence = curr_rx_sequence;
-
-    if (tx_sequence == (UA_Int64)packetCount) {
+    /* Termination condition */
+    if (tx_sequence >= (UA_Int64)packetCount) {
         g_running = UA_FALSE;
-        /* debug("\n[PUB] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n", tx_sequence); */
+        debug("\n[PUBR] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n",
+              tx_sequence);
     }
 
-ret:
+    if (curr_rx_sequence != ERROR_DUPLICATE &&
+        curr_rx_sequence != ERROR_MSGQ_COPY &&
+        curr_rx_sequence != ERROR_NOTHING_TO_FORWARD)
+        prev_rx_sequence = curr_rx_sequence;
+
     return UA_STATUSCODE_GOOD;
 }
-
 
 UA_StatusCode
 subReturnStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
@@ -306,7 +336,6 @@ subReturnStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
 
     /* Check if valid data is there */
     if (v.arrayLength == (UA_UInt64) -1 || v.arrayLength > 0) {
-
         /* Data received ; {SeqA, tx-PubA, rx-SubB, SeqB, tx-PubB}; */
         UA_UInt64 *ptr_data = (UA_UInt64 *)data->value.data;
         UA_UInt64 RXhwTS = 0; /* TODO: hard code as per now */
@@ -330,27 +359,32 @@ subReturnStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
         returnLatency = (UA_Int64)(rxSubA-txPubA);
 
         if (fpSubscriber != NULL) {
-            fprintf(fpSubscriber, "%ld\t%ld\t%d\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld\t%d\t%ld\t%ld\t%ld\t%ld\n",
-                    a2bLatency, seqA, sdata->id, txPubA, RXhwTS, rxSubB, processingLatency,
-                    b2aLatency, seqB, sdata->id, txPubB, RXhwTS, rxSubA, returnLatency);
+            if (seqA == ERROR_DUPLICATE) {
+                fprintf(fpSubscriber, "ERROR_DUPLICATE_SKIPPED\n");
+            } else if (seqA == ERROR_MSGQ_COPY) {
+                fprintf(fpSubscriber, "ERROR_MSGQ_COPY\n");
+            } else if (seqA == ERROR_NOTHING_TO_FORWARD) {
+                fprintf(fpSubscriber, "ERROR_NOTHING_TO_FORWARD\n");
+            } else {
+                fprintf(fpSubscriber,
+                        "%ld\t%ld\t%d\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld\t%d\t%ld\t%ld\t%ld\t%ld\n",
+                        a2bLatency, seqA, sdata->id, txPubA, RXhwTS, rxSubB, processingLatency,
+                        b2aLatency, seqB, sdata->id, txPubB, RXhwTS, rxSubA, returnLatency);
+            }
         }
-
-        /*  UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                "[seqA:%ld] txPubA(ns)=%ld rxSubB(ns)=%ld (ns) a2bLatency=%ld(ns) processingLatency=%ld(ns) \n",
-                (long)seqA, (long)txPubA, (long)rxSubB, a2bLatency, processingLatency);
-            UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                "[seqB:%ld] txPubB(ns)=%ld rxSubA(ns)=%ld (ns) b2aLatency=%ld(ns) returnLatency=%ld(ns)\n",
-                (long)seqB, (long)txPubB, (long)rxSubA, returnLatency);
-         */
+    } else {
+        debug("[SUBR] Rx invalid variant\n");
     }
 
-    if (seqB == packetCount) {
+    if (seqA != ERROR_DUPLICATE && seqA != ERROR_MSGQ_COPY
+        && seqA != ERROR_NOTHING_TO_FORWARD && seqA >= packetCount) {
         if (fpSubscriber != NULL) {
             fflush(fpSubscriber);
             fclose(fpSubscriber);
         }
         g_running = UA_FALSE;
-        /* debug("\n[SUB][readCurrentTime]: rx_sequence=packet_count=%ld reached. Exit.\n ", rx_sequence); */
+        debug("\n[SUBR][readCurrentTime]: rx_sequence=packet_count=%ld reached. Exit.\n ",
+              seqA);
     }
 ret:
     return UA_STATUSCODE_GOOD;
@@ -390,6 +424,6 @@ dummyDSWrite(UA_Server *server, const UA_NodeId *sessionId,
     (void) range;
     (void) value;
 
-    /* debug("WARN: dummyDSWrite() shouldn't be called"); */
+    debug("WARN: dummyDSWrite() shouldn't be called");
     return UA_STATUSCODE_GOOD;
 }

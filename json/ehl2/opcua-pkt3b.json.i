@@ -12,7 +12,7 @@
         "pub_id": 2234,
         "dataset_writer_id": 62541,
         "writer_group_id": 101,
-        "early_offset_ns": 800000,
+        "early_offset_ns": 400000,
         "publish_offset_ns": 1000100,
         "socket_prio": 6,
         "two_way_data": true,
