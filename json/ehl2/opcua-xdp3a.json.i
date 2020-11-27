@@ -3,6 +3,8 @@
     "publisher_interface": "_PREPROCESS_STR_interface",
     "subscriber_interface": "_PREPROCESS_STR_2nd_interface",
     "use_xdp": true,
+    "use_xdp_zc": true,
+    "use_xdp_skb": false,
     "packet_count": 1000000,
     "cycle_time_ns": 400000,
     "polling_duration_ns": 0,

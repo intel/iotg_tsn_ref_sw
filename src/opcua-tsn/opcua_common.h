@@ -94,6 +94,8 @@ struct ServerData {
     int32_t pollingDurationNs;
     int cpu;
     bool useXDP;
+    bool useXDP_ZC;
+    bool useXDP_SKB;
 
     int pubCount;
     int subCount;

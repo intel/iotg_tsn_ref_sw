@@ -147,6 +147,11 @@ struct ServerData *parseJson(struct json_object *json)
 
     s->useXDP = getBool(json, "use_xdp");
 
+    if (s->useXDP) {
+        s->useXDP_ZC = getBool(json, "use_xdp_zc");
+        s->useXDP_SKB = getBool(json, "use_xdp_skb");
+    }
+
     s->pollingDurationNs = getInt(json, "polling_duration_ns");
     catch_err(s->pollingDurationNs < 0 || s->pollingDurationNs > TEN_MSEC_NSEC,
               "Invalid polling_duration_ns");
