@@ -80,6 +80,7 @@ def set_taprio(iface, maps, config, basetime, clkid):
     num_tc = 0
     queues = 0
     handle = 0
+    txtime_delay = 0
     for each in config.keys():
         if each == "num_tc":
             num_tc = config["num_tc"]
@@ -87,6 +88,8 @@ def set_taprio(iface, maps, config, basetime, clkid):
             queues = config["queues"]
         if each == "handle":
             handle = config["handle"]
+        if each == "txtime_delay":
+            handle = config["txtime_delay"]
 
     if not num_tc:
         #print( "num_tc not defined" )
@@ -103,12 +106,14 @@ def set_taprio(iface, maps, config, basetime, clkid):
     set_taprio_cmd += "parent root handle {} ".format(handle)
     set_taprio_cmd += "taprio num_tc {} map {} ".format(num_tc, maps)
     set_taprio_cmd += "queues {} base-time {} ".format(queues, basetime)
-    set_taprio_cmd += "{} flags 0x2".format(schedules)
+    set_taprio_cmd += "{} ".format(schedules)
 
     # Parse hardware offload option
     # It's specified in json as "offload": true|false
-    if 'offload' in config and config.get('offload'):
-        set_taprio_cmd += ' offload 1'
+    if 'txtime_delay' in config and config.get('txtime_delay'):
+        set_taprio_cmd += ' flags 0x2 txtime-delay {} clockid CLOCK_TAI'.format(txtime_delay)
+    else :
+        set_taprio_cmd += ' flags 0x2'
 
     output = sh_run(set_taprio_cmd)
 
@@ -152,6 +157,7 @@ def set_etf(iface, clkid, config, show_cmd, use_taprio):
     # deadline_mode and offload is turn off by default
     deadline_mode = False
     offload = False
+    skipsock_mode = False
 
     # find the parent for specific qdisc
     cmd = 'HANDLE_ID="$(tc qdisc show dev {} | tr -d \':\' | awk \'NR==1{{print $3}}\')"'.format(iface)
@@ -163,6 +169,8 @@ def set_etf(iface, clkid, config, show_cmd, use_taprio):
             deadline_mode = config['deadline_mode']
         if each == 'offload':
             offload = config['offload']
+        if each == 'skipsock':
+            skipsock_mode = config['skipsock']
 
     # generate etf command
     etf_default_cmd = 'tc qdisc replace dev {} parent $HANDLE_ID:{} etf '.format(iface, queue)
@@ -172,6 +180,8 @@ def set_etf(iface, clkid, config, show_cmd, use_taprio):
         etf_default_cmd += ' offload'
     if deadline_mode == True:
         etf_default_cmd += ' deadline_mode'
+    if deadline_mode == True:
+        etf_default_cmd += ' skip_sock_check'
 
     # #print('Adding etf qdisc on queue {}...'.format(queue))
     output = sh_run(etf_default_cmd)
