@@ -250,11 +250,17 @@ calc_return_duploss(){
                 | uniq -D \
                 | wc -l)
 
+        # Total fwd errors: duplicate, failed, empty
+        PACKET_ERR=$(cat $XDP_TX_FILENAME \
+                | awk '{print $1}' \
+                | grep ERROR_ \
+                | wc -l)
+
         # Total missing: Same as: packet count - total_packet - total_duplicate
         PACKET_LOSS=$((PACKET_COUNT-PACKET_RX-PACKET_DUPL))
 
-        echo -e "Expected\tReceived\tDuplicates\tLosses\n" \
-                "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS" > temp0.txt
+        echo -e "Expected\tReceived\tDuplicates\tLosses\tFwdErrors\n" \
+                "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS\t$PACKET_ERR" > temp0.txt
         paste saved1.txt temp0.txt | column -t
         rm temp*.txt
 }

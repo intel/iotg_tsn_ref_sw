@@ -53,7 +53,7 @@
 
 extern struct threadParams *g_thread;
 extern UA_UInt16 g_threadRun;
-extern UA_Boolean g_running;
+extern UA_Boolean g_running, g_roundtrip_pubReturn;
 extern UA_NodeId g_writerGroupIdent;
 extern struct ServerData *g_sData;
 UA_UInt16 g_indexPub;
@@ -139,6 +139,7 @@ void *pub_thread(void *arg)
     UA_ServerCallback pubCallback;
     UA_Server         *server;
     UA_WriterGroup    *currentWriterGroup;
+    UA_Int32          blank_counter = 0;
     UA_Int32          earlyOffsetNs = 0;
     UA_Int32          publishOffsetNs = 0;
     UA_UInt32         ind = 0;
@@ -195,10 +196,32 @@ void *pub_thread(void *arg)
         nextnanosleeptime.tv_nsec = (tx_timestamp - earlyOffsetNs) % ONESEC_IN_NSEC;
         nextnanosleeptime.tv_sec = (tx_timestamp - earlyOffsetNs) / ONESEC_IN_NSEC;
         clock_nanosleep(CLOCKID, TIMER_ABSTIME, &nextnanosleeptime, NULL);
-        pubCallback(server, currentWriterGroup);
+
+        /* Specifically for round-trip pubReturn ONLY. This blank_counter
+         * condition only gets triggered if B-side starts earlier than A-side's
+         * thread - due to user delay in starting A-side or timer misalignment.
+         *
+         * This check pauses pubReturn until sub has cleared this bit which
+         * indicates valid data is available for transmission.
+         * Regardless of this bit, the timestamp will keep rolling.
+         *
+         * Without this check, pubReturn might send blanks/invalid packets
+         * and stall subReturn. We do implement several checks to help with
+         * processing invalids, this is just a supplementary safeguard.
+         *
+         * We can't do this check elsewhere since once we've started pubCallback,
+         * a packet WILL get sent, valid data or not. Preventing pubCallback is
+         * the best option.
+         */
+        if (!g_roundtrip_pubReturn)
+            blank_counter++; //Do nothing
+        else
+            pubCallback(server, currentWriterGroup);
+
         tx_timestamp += cycleTimeNs;
         ethernetETFtransportSettings.transmission_time = tx_timestamp;
     }
+    debug("Blank counter: %d\n", blank_counter);
 
     UA_free(threadArgumentsPublisher);
     return (void *)NULL;
@@ -276,14 +299,18 @@ UA_PubSubManager_addRepeatedCallback(UA_Server *server, UA_ServerCallback callba
     if (UA_NodeId_equal(&tmpWriter->identifier, &g_writerGroupIdent)) {
         char threadNamePub[10] = "Publisher";
         params->data_index = g_indexPub;
-        g_thread[g_threadRun].id = threadCreation(PUB_THREAD_PRIORITY, g_sData->pubData[g_indexPub].cpuAffinity, pub_thread,
+        g_thread[g_threadRun].id = threadCreation(PUB_THREAD_PRIORITY,
+                                                  g_sData->pubData[g_indexPub].cpuAffinity,
+                                                  pub_thread,
                                                   threadNamePub, params);
         g_indexPub++;
     }
     else {
         char threadNameSub[11] = "Subscriber";
         params->data_index = g_indexSub;
-        g_thread[g_threadRun].id = threadCreation(SUB_THREAD_PRIORITY, g_sData->subData[g_indexSub].cpuAffinity, sub_thread,
+        g_thread[g_threadRun].id = threadCreation(SUB_THREAD_PRIORITY,
+                                                  g_sData->subData[g_indexSub].cpuAffinity,
+                                                  sub_thread,
                                                   threadNameSub, params);
         g_indexSub++;
     }

@@ -59,11 +59,13 @@
 #include "opcua_datasource.h"
 
 #define VERBOSE 0
+#define MSG_KEY_1 3838
 
 /* Globals */
 struct threadParams *g_thread;
 UA_UInt16 g_threadRun;
 UA_Boolean g_running = true;
+UA_Boolean g_roundtrip_pubReturn = true;
 UA_NodeId g_writerGroupIdent;
 struct ServerData *g_sData;
 int verbose = VERBOSE;
@@ -88,13 +90,37 @@ int configureServer(struct ServerData *sdata)
     sdata->transportProfile =
         UA_STRING("http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp");
 
+    sdata->msqid = -1;
+
     for (int i = 0; i < sdata->pubCount; i++) {
         struct PublisherData *pub = &sdata->pubData[i];
+
         pub->writeFunc = &dummyDSWrite;
-        if( pub->twoWayData == false)
+
+        if( pub->twoWayData == false) {
             pub->readFunc = &pubGetDataToTransmit;
-        else
+        } else {
             pub->readFunc = &pubReturnGetDataToTransmit;
+
+            /* Don't start pubReturn until valid data available */
+            g_roundtrip_pubReturn = false;
+
+            /* Setup message queue IPC */
+            sdata->msqid = msgget((key_t)MSG_KEY_1, 0644 | IPC_CREAT);
+            if (sdata->msqid < 0)
+                log_error("msgget() failed with error\n");
+
+            if (msgctl(sdata->msqid, IPC_STAT, &sdata->mqbuf1) < 0)
+                log_error("msgctl(IPC_STAT) failed\n");
+
+            memset(&sdata->mqbuf1, 0, sizeof(sdata->mqbuf1));
+
+            sdata->mqbuf1.msg_qbytes = sizeof(sdata->mqbuf1) * 24;
+
+            if (msgctl(sdata->msqid, IPC_SET, &sdata->mqbuf1) < 0)
+                log_error("msgctl(IPC_SET) failed\n");
+
+        }
     }
 
     for (int i = 0; i < sdata->subCount; i++) {
@@ -175,6 +201,8 @@ static UA_Server *setupOpcuaServer(struct ServerData *sdata)
         catch_err(ret == -1, "createSubscriber() returned -1");
     }
 
+    catch_err(ret < 0, "createSubscriber() returned < 0");
+
     return server;
 
 error:
@@ -214,6 +242,14 @@ int main(int argc, char **argv)
         if (ret != 0)
             UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
                         "\nPthread Join Failed:%ld\n", g_thread[i].id);
+    }
+
+    /* Clear msgq */
+    if (g_sData->msqid >= 0){
+        if (msgctl(g_sData->msqid, IPC_RMID, 0) < 0)
+            log_error("Failed to remove IPC");
+        else
+            log("Successfully removed IPC");
     }
 
     /* Teardown and free any malloc-ed memory (incl those by strndup) */

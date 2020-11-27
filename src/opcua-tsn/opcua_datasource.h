@@ -41,6 +41,19 @@
 
 #include "opcua_utils.h"
 
+#define ERROR_DUPLICATE 3131313131313131313LL
+#define ERROR_MSGQ_COPY 4343434343434343434LL
+#define ERROR_NOTHING_TO_FORWARD 5656565656565656565LL
+#define MSGQ_TYPE 1
+
+/* Specially for round-trip Sub forward to PubReturn */
+struct msgq_buf {
+    long msg_type;
+    UA_UInt64 rx_sequence;
+    UA_UInt64 txTime;
+    UA_UInt64 rxTime;
+};
+
 UA_StatusCode
 pubReturnGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
                      void *sessionContext, const UA_NodeId *nodeId,
