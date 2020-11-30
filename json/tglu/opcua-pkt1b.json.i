@@ -17,7 +17,7 @@
         "offset_ns": 1000,
         "subscriber_output_file": "afpkt-rxtstamps.txt",
         "two_way_data": false,
-        "cpu_affinity": 2,
+        "cpu_affinity": 3,
         "xdp_queue": -1
       }
     }

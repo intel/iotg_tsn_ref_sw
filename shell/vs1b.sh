@@ -73,8 +73,8 @@ if ! ps -p $TXRX_PID > /dev/null; then
 	exit 1
 fi
 
-# Assign to CPU2
-taskset -p 4 $TXRX_PID
+# Assign to CPU3
+taskset -p 8 $TXRX_PID
 sleep $SLEEP_SEC
 pkill txrx-tsn
 pkill iperf3
@@ -92,8 +92,8 @@ if ! ps -p $TXRX_PID > /dev/null; then
 	exit 1
 fi
 
-# Assign to CPU2
-taskset -p 4 $TXRX_PID
+# Assign to CPU3
+taskset -p 8 $TXRX_PID
 sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
