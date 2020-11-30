@@ -67,6 +67,132 @@ UA_UInt64 rxTime;
 static pthread_mutex_t ds_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 UA_StatusCode
+pubGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
+                     void *sessionContext, const UA_NodeId *nodeId,
+                     void *nodeContext, UA_Boolean sourceTimeStamp,
+                     const UA_NumericRange *range, UA_DataValue *data)
+{
+    (void) server;
+    (void) sessionId;
+    (void) sessionContext;
+    (void) nodeId;
+    (void) nodeContext;
+    (void) sourceTimeStamp;
+    (void) range;
+
+    assert(nodeContext != NULL);
+
+    UA_UInt64 currentTime = 0;
+    struct timespec current_time_timespec;
+    UA_UInt64 packetCount = g_sData->packetCount;
+
+    clock_gettime(CLOCK_TAI, &current_time_timespec);
+
+    tx_sequence++;
+    currentTime = as_nanoseconds(&current_time_timespec);
+    UA_UInt64 d[2] = {tx_sequence, currentTime};
+
+    /* debug("[PUB] tx_sequence : %ld, time : %ld\n", tx_sequence, currentTime); */
+
+    UA_StatusCode retval = UA_Variant_setArrayCopy(&data->value, &d[0], 2,
+                                                   &UA_TYPES[UA_TYPES_UINT64]);
+
+    if (retval != UA_STATUSCODE_GOOD)
+            debug("[PUB]Error in transmitting data source\n");
+
+    data->hasValue = true;
+    data->value.storageType = UA_VARIANT_DATA_NODELETE;
+
+    if (tx_sequence == (UA_Int64)packetCount) {
+        g_running = UA_FALSE;
+        /* debug("\n[PUB] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n", tx_sequence); */
+    }
+
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode
+subStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
+                     void *sessionContext, const UA_NodeId *nodeId,
+                     void *nodeContext, const UA_NumericRange *range,
+                     const UA_DataValue *data)
+{
+    (void) server;
+    (void) sessionId;
+    (void) sessionContext;
+    (void) nodeId;
+    (void) nodeContext;
+    (void) range;
+
+    assert(nodeContext != NULL);
+
+    struct SubscriberData *sdata = (struct SubscriberData *)nodeContext;
+    FILE   *fpSubscriber = sdata->fpSubscriberOutput;
+    UA_UInt64 packetCount = g_sData->packetCount;
+    UA_Int32 ret = 0;
+
+    if (data == NULL) {
+        debug("[SUB] Rx Data is null\n");
+        goto  ret;
+    }
+
+    /* Validate incoming data is byte array */
+    UA_Variant v = data->value;
+
+    if (v.arrayLength == (UA_UInt64) -1 && v.data == NULL) {
+        debug("[SUB] Rx empty variant\n");
+        goto ret;
+    }
+
+    /* Check if valid data is there */
+    if (v.arrayLength == (UA_UInt64) -1 || v.arrayLength > 0) {
+
+        UA_UInt64 *ptr_data = (UA_UInt64 *)data->value.data;
+        UA_UInt64 RXhwTS = 0; /* TODO: hard code as per now */
+        struct timespec current_time_timespec;
+        clock_gettime(CLOCK_TAI, &current_time_timespec);
+
+        ret = pthread_mutex_lock(&ds_mutex);
+        if (ret != 0) {
+            UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
+                    "pthread_mutex_lock failed. Errno code : %s\n", strerror(errno));
+            goto ret;
+        }
+        rx_sequence = ptr_data[0];
+        txTime = ptr_data[1];
+        rxTime = as_nanoseconds(&current_time_timespec);
+        ret = pthread_mutex_unlock(&ds_mutex);
+        if (ret != 0) {
+            UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
+                    "pthread_mutex_unlock failed. Errno code : %s\n", strerror(errno));
+            exit(1);
+        }
+
+        UA_Int64 latency = (UA_Int64)(rxTime - txTime);
+
+        if (fpSubscriber != NULL) {
+            fprintf(fpSubscriber, "%ld\t%ld\t%d\t%ld\t%ld\t%ld\n",
+                    latency, rx_sequence, sdata->id, txTime, RXhwTS, rxTime);
+        }
+
+        debug("[SUB] RX: seq:%ld rx_t(ns):%ld local_t(ns):%ld diff_t(ns): %ld\n",
+              (long)rx_sequence, (long)txTime, (long)rxTime, latency);
+    }
+
+    if (rx_sequence == packetCount) {
+        if (fpSubscriber != NULL) {
+            fflush(fpSubscriber);
+            fclose(fpSubscriber);
+        }
+        g_running = UA_FALSE;
+        debug("[SUB] RX: rx_sequence = packet_count = %ld\n", rx_sequence);
+    }
+
+ret:
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode
 pubReturnGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
                      void *sessionContext, const UA_NodeId *nodeId,
                      void *nodeContext, UA_Boolean sourceTimeStamp,
@@ -144,50 +270,6 @@ ret:
     return UA_STATUSCODE_GOOD;
 }
 
-UA_StatusCode
-pubGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
-                     void *sessionContext, const UA_NodeId *nodeId,
-                     void *nodeContext, UA_Boolean sourceTimeStamp,
-                     const UA_NumericRange *range, UA_DataValue *data)
-{
-    (void) server;
-    (void) sessionId;
-    (void) sessionContext;
-    (void) nodeId;
-    (void) nodeContext;
-    (void) sourceTimeStamp;
-    (void) range;
-
-    assert(nodeContext != NULL);
-
-    UA_UInt64 currentTime = 0;
-    struct timespec current_time_timespec;
-    UA_UInt64 packetCount = g_sData->packetCount;
-
-    clock_gettime(CLOCK_TAI, &current_time_timespec);
-
-    tx_sequence++;
-    currentTime = as_nanoseconds(&current_time_timespec);
-    UA_UInt64 d[2] = {tx_sequence, currentTime};
-
-    /* debug("[PUB] tx_sequence : %ld, time : %ld\n", tx_sequence, currentTime); */
-
-    UA_StatusCode retval = UA_Variant_setArrayCopy(&data->value, &d[0], 2,
-                                                   &UA_TYPES[UA_TYPES_UINT64]);
-
-    if (retval != UA_STATUSCODE_GOOD)
-            debug("[PUB]Error in transmitting data source\n");
-
-    data->hasValue = true;
-    data->value.storageType = UA_VARIANT_DATA_NODELETE;
-
-    if (tx_sequence == (UA_Int64)packetCount) {
-        g_running = UA_FALSE;
-        /* debug("\n[PUB] SendCurrentTime: tx_sequence=packet_count=%ld reached. Exiting...\n", tx_sequence); */
-    }
-
-    return UA_STATUSCODE_GOOD;
-}
 
 UA_StatusCode
 subReturnStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
@@ -270,87 +352,6 @@ subReturnStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
         g_running = UA_FALSE;
         /* debug("\n[SUB][readCurrentTime]: rx_sequence=packet_count=%ld reached. Exit.\n ", rx_sequence); */
     }
-ret:
-    return UA_STATUSCODE_GOOD;
-}
-
-UA_StatusCode
-subStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
-                     void *sessionContext, const UA_NodeId *nodeId,
-                     void *nodeContext, const UA_NumericRange *range,
-                     const UA_DataValue *data)
-{
-    (void) server;
-    (void) sessionId;
-    (void) sessionContext;
-    (void) nodeId;
-    (void) nodeContext;
-    (void) range;
-
-    assert(nodeContext != NULL);
-
-    struct SubscriberData *sdata = (struct SubscriberData *)nodeContext;
-    FILE   *fpSubscriber = sdata->fpSubscriberOutput;
-    UA_UInt64 packetCount = g_sData->packetCount;
-    UA_Int32 ret = 0;
-
-    if (data == NULL) {
-        debug("[SUB] Rx Data is null\n");
-        goto  ret;
-    }
-
-    /* Validate incoming data is byte array */
-    UA_Variant v = data->value;
-
-    if (v.arrayLength == (UA_UInt64) -1 && v.data == NULL) {
-        debug("[SUB] Rx empty variant\n");
-        goto ret;
-    }
-
-    /* Check if valid data is there */
-    if (v.arrayLength == (UA_UInt64) -1 || v.arrayLength > 0) {
-
-        UA_UInt64 *ptr_data = (UA_UInt64 *)data->value.data;
-        UA_UInt64 RXhwTS = 0; /* TODO: hard code as per now */
-        struct timespec current_time_timespec;
-        clock_gettime(CLOCK_TAI, &current_time_timespec);
-
-        ret = pthread_mutex_lock(&ds_mutex);
-        if (ret != 0) {
-            UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                    "pthread_mutex_lock failed. Errno code : %s\n", strerror(errno));
-            goto ret;
-        }
-        rx_sequence = ptr_data[0];
-        txTime = ptr_data[1];
-        rxTime = as_nanoseconds(&current_time_timespec);
-        ret = pthread_mutex_unlock(&ds_mutex);
-        if (ret != 0) {
-            UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                    "pthread_mutex_unlock failed. Errno code : %s\n", strerror(errno));
-            exit(1);
-        }
-
-        UA_Int64 latency = (UA_Int64)(rxTime - txTime);
-
-        if (fpSubscriber != NULL) {
-            fprintf(fpSubscriber, "%ld\t%ld\t%d\t%ld\t%ld\t%ld\n",
-                    latency, rx_sequence, sdata->id, txTime, RXhwTS, rxTime);
-        }
-
-        debug("[SUB] RX: seq:%ld rx_t(ns):%ld local_t(ns):%ld diff_t(ns): %ld\n",
-              (long)rx_sequence, (long)txTime, (long)rxTime, latency);
-    }
-
-    if (rx_sequence == packetCount) {
-        if (fpSubscriber != NULL) {
-            fflush(fpSubscriber);
-            fclose(fpSubscriber);
-        }
-        g_running = UA_FALSE;
-        debug("[SUB] RX: rx_sequence = packet_count = %ld\n", rx_sequence);
-    }
-
 ret:
     return UA_STATUSCODE_GOOD;
 }
