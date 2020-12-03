@@ -48,4 +48,4 @@ autoreconf --install
 
 if [ $? -ne 0 ]; then echo "Configure failed"; exit 1; fi
 
-make
+make -j 4
