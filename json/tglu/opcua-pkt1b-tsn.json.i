@@ -1,6 +1,7 @@
 {
   "ptp": {
     "interface": "_PREPROCESS_STR_interface.vlan",
+    "gPTP_file": "gPTP_SGMII-MV2110-1G.cfg",
     "ignore_existing": true
   },
   "phc2sys": {
