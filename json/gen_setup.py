@@ -308,13 +308,15 @@ def process_ptp(obj):
     iface = obj.get('interface')
     ignore_existing = obj.get('ignore_existing', False)
     socket_prio = str(obj.get('socket_prio', 2))
+    gptp_filepath = 'common/' + str(obj.get('gPTP_file', 'gPTP.cfg'))
 
     ## TODO sock prio or net prio
     if not ignore_existing: return
     sh_run('pkill ptp4l')
 
     # ptp4l -mP2Hi eth0 -f common/gPTP.cfg --step_threshold=2 --socket_priority 1
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-f',  'common/gPTP.cfg', '--step_threshold=2']
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '--step_threshold=2']
+    arglist += ['-f', gptp_filepath]
     arglist += ['--socket_priority', socket_prio]
     run_with_out(arglist, '/var/log/ptp4l.log')
     sh_run('sleep 30')
@@ -354,17 +356,20 @@ def process_custom_a(obj):
     iface2 = obj.get('interface2')
     ignore_existing = obj.get('ignore_existing', False)
     socket_prio = str(obj.get('socket_prio', 1))
+    gptp_filepath = 'common/' + str(obj.get('gPTP_file', 'gPTP.cfg'))
 
     if not ignore_existing: return
     sh_run('pkill phc2sys')
     sh_run('pkill ptp4l')
 
     # ptp4l -mP2Hi eth0 -f common/gPTP.cfg --step_threshold=2 --socket_priority 1
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-f',  'common/gPTP.cfg', '--step_threshold=2']
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '--step_threshold=2']
+    arglist += ['-f', gptp_filepath]
     arglist += ['--socket_priority', '1']
     run_with_out(arglist, '/var/log/ptp4l.log')
 
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface2, '-f',  'common/gPTP.cfg', '--step_threshold=2']
+    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface2, '--step_threshold=2']
+    arglist += ['-f', gptp_filepath]
     arglist += ['--socket_priority', '1']
     run_with_out(arglist, '/var/log/ptp4l2.log')
 
@@ -395,6 +400,7 @@ def process_custom_b(obj):
     iface2 = obj.get('interface2')
     ignore_existing = obj.get('ignore_existing', False)
     socket_prio = str(obj.get('socket_prio', 1))
+    gptp_filepath = 'common/' + str(obj.get('gPTP_file', 'gPTP.cfg'))
 
     if not ignore_existing: return
     sh_run('pkill phc2sys')
@@ -406,7 +412,8 @@ def process_custom_b(obj):
     arglist += ['--socket_priority', '1']
     arglist += ['--boundary_clock_jbod=1']
     run_with_out(arglist, '/var/log/ptp4l.log')
-    #print("Give 30 secs for ptp to sync")
+    arglist += ['-f', gptp_filepath]
+
     if not IS_DRY:
         sh_run('sleep 30')
 

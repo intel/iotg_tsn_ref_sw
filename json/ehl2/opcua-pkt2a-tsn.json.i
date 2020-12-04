@@ -3,6 +3,7 @@
     "interface": "_PREPROCESS_STR_interface.vlan",
     "interface2": "_PREPROCESS_STR_2nd_interface.vlan",
     "ignore_existing": true,
+    "gPTP_file": "gPTP_RGMII-MV1510-1G.cfg",
     "socket_prio": 1
   },
   "tc_group": [
