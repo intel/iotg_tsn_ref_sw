@@ -30,22 +30,43 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-rm -rf  aclocal.m4              \
+touch Makefile.am configure.ac
+
+# Ideally, just use git reset HEAD --hard
+rm -rf  Makefile                \
+        Makefile.in             \
+        aclocal.m4              \
         autom4te.cache/         \
         compile                 \
+        config.guess            \
         config.h.in             \
         config.log              \
         config.status           \
+        config.sub              \
         configure               \
         depcomp                 \
         install-sh              \
         missing                 \
         src/.deps/              \
-        src/opcua-tsn/.deps/
+        src/opcua-tsn/.deps/    \
+        tsq                     \
+        txrx-tsn                \
+        opcua-server            \
+        *.png                   \
+        *.txt
 
+echo -e "\nBUILD.SH: Configure"
 autoreconf --install
 ./configure --prefix /usr --with-open62541-headers=/usr/include/open62541
-
 if [ $? -ne 0 ]; then echo "Configure failed"; exit 1; fi
 
+echo -e "\nBUILD.SH: Compile"
 make -j 4
+
+# Ideally, just use git reset HEAD --hard
+echo -e "\nBUILD.SH: Clean up automake artifacts."
+make distclean-compile  \
+     distclean-generic  \
+     distclean-hdr      \
+     distclean-tags     \
+     mostlyclean-am
