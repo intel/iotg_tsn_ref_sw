@@ -61,16 +61,16 @@ else
 fi
 
 taskset -c 1 ptp4l -P2Hi $IFACE$PTP_IFACE_APPEND -f $DIR/../common/$GPTP_FILE \
-        --step_threshold=1 --socket_priority=$PTP_TX_Q -m 2&> /var/log/ptp4l.log &
+        --step_threshold=1 --socket_priority=$PTP_TX_Q -m &> /var/log/ptp4l.log &
 
 sleep 2 # Required
 
 pmc -u -b 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248
         clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 37
         leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable
-        1 frequencyTraceable 0 timeSource 0xa0" 2&> /var/log/pmc.log
+        1 frequencyTraceable 0 timeSource 0xa0" &> /var/log/pmc.log
 
 sleep 3
 
 taskset -c 1 phc2sys -s $IFACE -c CLOCK_REALTIME --step_threshold=1 \
-        --transportSpecific=1 -O 0 -w -ml 7 2&> /var/log/phc2sys.log &
+        --transportSpecific=1 -O 0 -w -ml 7 &> /var/log/phc2sys.log &

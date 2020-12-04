@@ -144,7 +144,7 @@ init_interface(){
         ethtool -K $IFACE rxvlan off
 
         # Disable EEE - off by default
-        # ethtool --set-eee $IFACE eee off 2&> /dev/null
+        # ethtool --set-eee $IFACE eee off &> /dev/null
 
         # Set irq affinity
         # set_irq_smp_affinity $IFACE
@@ -170,7 +170,7 @@ setup_taprio(){
         # # This command is does nothing if used when there's an existing qdisc.
         tc qdisc add dev $IFACE root mqprio \
                 num_tc 1 map 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \
-                queues 1@0 hw 0 2&> /dev/null
+                queues 1@0 hw 0 &> /dev/null
 
         sleep 5
 
