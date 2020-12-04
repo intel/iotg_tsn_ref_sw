@@ -36,7 +36,7 @@ def sh_run(cmd):
     genfile.write(cmd + "\n")
 
 def run_with_out(cmd, outfile):
-    cmd += ['2&>', outfile, '&\n']
+    cmd += ['&>', outfile, '&\n']
     cmd2 = ' '.join(cmd)
     genfile.write('echo "Running (async) {}"\n'.format(cmd2))
     genfile.write(cmd2)
@@ -46,7 +46,7 @@ def get_show_qdisc_cmd(interface):
 
 def delete_qdiscs(iface):
     #print('Deleting existing qdiscs')
-    cmd = 'tc qdisc del dev {} parent root'.format(iface)
+    cmd = 'tc qdisc del dev {} parent root 2> /dev/null'.format(iface)
     proc = sh_run(cmd)
     sh_run('sleep 5')
 
