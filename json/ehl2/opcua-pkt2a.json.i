@@ -27,7 +27,7 @@
         "subscribed_pub_id": 2234,
         "subscribed_dataset_writer_id": 62541,
         "subscribed_writer_group_id": 101,
-        "offset_ns": 1150000,
+        "offset_ns": 1050000,
         "subscriber_output_file": "afpkt-rxtstamps.txt",
         "two_way_data": true,
         "cpu_affinity": 3,

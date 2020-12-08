@@ -14,7 +14,7 @@
         "pub_id": 2235,
         "dataset_writer_id": 62541,
         "writer_group_id": 101,
-        "early_offset_ns": 5000,
+        "early_offset_ns": 50000,
         "publish_offset_ns": 250000,
         "socket_prio": 2,
         "two_way_data": true,
