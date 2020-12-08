@@ -166,6 +166,16 @@ ts_log_stop_n_report(){
     echo -e "\tUNCALIBRATED:    $(grep UNCALIBRATED /var/log/temp_ptp4l.log | wc -l)"
     echo -e "\tlink down:       $(grep "link down" /var/log/temp_ptp4l.log | wc -l)"
     echo -e "\ttimed out:       $(grep "timed out" /var/log/temp_ptp4l.log | wc -l)"
+
+    if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ||
+          "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp3a" ]]; then
+        tc -s qdisc show dev $IFACE
+    elif [[ "$CONFIG" == "opcua-pkt2b" || "$CONFIG" == "opcua-pkt3b" ||
+            "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3b" ]]; then
+        tc -s qdisc show dev $IFACE2
+    else
+        echo "" # Nothing
+    fi
 }
 
 save_board_info(){
