@@ -42,9 +42,9 @@ NUM_CORE=4
 set_irq_smp_affinity(){
 
         IFACE=$1
-        if [ -z $IRQ_AFFINITY_MAP ]; then
-                echo "Error: IRQ_AFFINITY_MAP not defined"; exit 1;
-        fi
+        # if [ -z $IRQ_AFFINITY_MAP ]; then
+        #         echo "Error: IRQ_AFFINITY_MAP not defined"; exit 1;
+        # fi
 
         AFFINITY_FILE=$2
         if [ -z $AFFINITY_FILE ]; then
@@ -81,7 +81,7 @@ init_interface(){
         elif [[ -z $IFACE_MAC_ADDR || -z $IFACE_VLAN_ID ||
                 -z $IFACE_IP_ADDR || -z $IFACE_BRC_ADDR ||
                 -z $IFACE_VLAN_IP_ADDR || -z $IFACE_VLAN_BRC_ADDR ||
-                -z "$IRQ_AFFINITY_FILE" || -z "$IRQ_AFFINITY_MAP" ||
+                -z "$IRQ_AFFINITY_FILE" ||
                 -z $TX_Q_COUNT || -z $RX_Q_COUNT ]]; then
                 echo "Source config file first"
                 exit 1
