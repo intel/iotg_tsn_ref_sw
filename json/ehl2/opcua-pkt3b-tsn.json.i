@@ -11,7 +11,7 @@
     "run_server": true,
     "client_target_address": "169.254.2.11",
     "client_runtime_in_sec": 5000,
-    "client_bandwidth_in_mbps": 200
+    "client_bandwidth_in_mbps": 50
   },
   "tc_group": [
     {

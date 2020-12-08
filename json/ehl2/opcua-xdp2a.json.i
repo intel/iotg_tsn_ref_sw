@@ -15,7 +15,7 @@
         "dataset_writer_id": 62541,
         "writer_group_id": 101,
         "early_offset_ns": 100000,
-        "publish_offset_ns": 100,
+        "publish_offset_ns": 1000,
         "socket_prio": 2,
         "two_way_data": false,
         "cpu_affinity": 2,
