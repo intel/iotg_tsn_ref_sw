@@ -30,6 +30,10 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source $DIR/helpers.sh
+source $DIR/$PLAT/$(basename -s ".sh" $0).config
+
 if [ $# -eq 0 ]; then
 	echo "How to run this : $0 <interface> < secs (opt: how long to run it)> "
 	exit 1
@@ -43,10 +47,8 @@ if pgrep -x tsq > /dev/null; then
 	echo -e "Previous TSQ is still running. Attempting to kill it."
 fi
 
-DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-
 # Only start the talker for board B.
-./tsq -T -i $IPADDR -p 7777 -d /dev/ptp$CLK -v -u 2222 &
+./tsq -T -i $TARGET_IP_ADDR -p 7777 -d /dev/ptp$CLK -v -u 2222 &
 TSQ_TALKER_PID=$!
 
 # Check if tsq listener and talker are both alive.
