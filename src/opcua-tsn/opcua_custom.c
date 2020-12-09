@@ -177,7 +177,7 @@ void *pub_thread(void *arg)
 
     /* Get current time and compute the next nanosleeptime to the nearest 5th second */
     clock_gettime(CLOCKID, &temp_t);
-    tx_timestamp = ((temp_t.tv_sec + 4) / 5) * 5;
+    tx_timestamp = ((temp_t.tv_sec + 9) / 10) * 10;
     /* Add 3 secs delay for publisher (subscriber starts earlier) */
     tx_timestamp += 3;
     tx_timestamp *= ONESEC_IN_NSEC;
@@ -228,7 +228,7 @@ void *sub_thread(void *arg)
     /* Get current time and compute the next nanosleeptime to the nearest 5th second */
     clock_gettime(CLOCKID, &nextnanosleeptimeSub);
 
-    nextnanosleeptimeSub.tv_sec  = ((nextnanosleeptimeSub.tv_sec + 4) / 5) * 5;
+    nextnanosleeptimeSub.tv_sec  = ((nextnanosleeptimeSub.tv_sec + 9) / 10) * 10;
     /* Add 3 secs delay for subscriber to start */
     nextnanosleeptimeSub.tv_sec += 3;
     nextnanosleeptimeSub.tv_nsec = offsetNs;
