@@ -166,6 +166,23 @@ if [[ ! -z $OUTPUT_FILE ]]; then
     ln -sfv /tmp/$OUTPUT_FILE .
 fi
 
+# Workaround for delays spikes after the first init-setup
+if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ]]; then
+    echo "Workaround A"
+    sleep 5
+    ./txrx-tsn -Pti $IFACE -q 2 -n 10000 -y 200000 > someTX.txt &
+    sleep 5 && pkill txrx-tsn
+
+elif [[ "$CONFIG" == "opcua-pkt2b" || "$CONFIG" == "opcua-pkt3b" ]]; then
+    echo "Workaround B"
+    ./txrx-tsn -Pri $IFACE -q 2 > someRX.txt &
+    sleep 10 && pkill txrx-tsn
+
+else
+    echo "" # Nothing
+fi
+
+
 # Execute the server and pass it opcua-*.json
 ./opcua-server "$NEW_JSON"
 
