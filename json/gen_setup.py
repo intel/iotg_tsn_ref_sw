@@ -338,7 +338,7 @@ def process_phc2sys(obj):
     arglist = ['pmc', '-u', '-b', '0', '-t', '1', '"',
                 'SET GRANDMASTER_SETTINGS_NP clockClass 248'
                 ' clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 37'
-                ' leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable'
+                ' leap61 0 leap59 0 currentUtcOffsetValid 0 ptpTimescale 1 timeTraceable'
                 ' 1 frequencyTraceable 0 timeSource 0xa0', '"']
     run_with_out(arglist, '/var/log/pmc.log')
 
@@ -384,7 +384,7 @@ def process_custom_a(obj):
     arglist = ['pmc', '-u', '-b', '0', '-t', '1', '"',
                 'SET GRANDMASTER_SETTINGS_NP clockClass 248'
                 ' clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 37'
-                ' leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable'
+                ' leap61 0 leap59 0 currentUtcOffsetValid 0 ptpTimescale 1 timeTraceable'
                 ' 1 frequencyTraceable 0 timeSource 0xa0', '"']
     run_with_out(arglist, '/var/log/pmc.log')
 

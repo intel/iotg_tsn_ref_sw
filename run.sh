@@ -30,7 +30,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 set -a # enable variable export
-RUNSH_DEBUG_MODE="NO"
+RUNSH_DEBUG_MODE="YES"
 
 main() {
     #if [ $USER != "root" ]; then
@@ -166,6 +166,8 @@ ts_log_stop_n_report(){
     echo -e "\tUNCALIBRATED:    $(grep UNCALIBRATED /var/log/temp_ptp4l.log | wc -l)"
     echo -e "\tlink down:       $(grep "link down" /var/log/temp_ptp4l.log | wc -l)"
     echo -e "\ttimed out:       $(grep "timed out" /var/log/temp_ptp4l.log | wc -l)"
+    echo -e "\ttemporal:       $(grep "temporal" /var/log/temp_ptp4l.log | wc -l)"
+    echo -e "\tUTCoffset:       $(grep "updating UTC offset to 0" /var/log/temp_ptp4l.log | wc -l)"
 
     if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ||
           "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp3a" ]]; then
