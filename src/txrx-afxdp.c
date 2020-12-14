@@ -70,9 +70,9 @@
 
 #include "txrx-afxdp.h"
 
-uint32_t glob_xdp_flags;
-int glob_ifindex;
-int verbose;
+extern uint32_t glob_xdp_flags;
+extern int glob_ifindex;
+extern int verbose;
 
 /* User Defines */
 #define BATCH_SIZE 64	//for l2fwd only
