@@ -31,10 +31,19 @@
 
 # Example cmdline:
 #	gnuplot -e "FILENAME='input.txt'" latency_single.gnu -p
-reset
 
-	set terminal pngcairo size 1920,1080
-	set output 'plot_pic.png'
+do for [indx in "file gui"] {
+
+	reset
+
+	if (indx eq "file") {
+		set terminal pngcairo size 1920,1080
+		set output 'plot_pic.png'
+	} else {
+		# GUI
+		set terminal x11 size 1720,980
+		set output
+	}
 
 	set size 1,1
 	set datafile missing'?'	# Skip invalid/missing data
@@ -59,8 +68,6 @@ reset
 	set xlabel "Packet count"
 	set ylabel "Latency in nanoseconds"
 
-	#set multiplot layout 1
-
 	stats FILENAME u 1 name "a" nooutput
 
 	min_us = a_min/1000
@@ -72,20 +79,11 @@ reset
 	set label front sprintf("Average: %d us", avg_us) at graph 0.01, graph 0.85
 
 	plot FILENAME \
-		using 2:1 title "Legacy socket"  lc rgb "red" w points
+		using 2:1 title "Packet Latency"  lc rgb "red" w points
 
 	unset label
-
-
 	unset multiplot
 	unset output
-
-	#Replot to GUI
-	set terminal x11 size 1720,980
-	set output
-	#set multiplot layout 1
-	plot FILENAME \
-		using ($1) title "Legacy socket"  lc rgb "red" w points
-
+}
 
 pause 10 #in case some one forgets to add -p
