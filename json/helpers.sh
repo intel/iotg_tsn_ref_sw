@@ -51,6 +51,10 @@ set_irq_smp_affinity(){
         do
                 IRQ_NUM=$(cat /proc/interrupts | grep $IFACE.*$CSV_Q | awk '{print $1}' | rev | cut -c 2- | rev)
                 echo "Echo-ing 0x$CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity $IFACE:$CSV_Q "
+                if [ -z $IRQ_NUM ]; then
+                        echo "Error: invalid IRQ NUM"; exit 1;
+                fi
+
                 echo $CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity
         done < $AFFINITY_FILE
 }
