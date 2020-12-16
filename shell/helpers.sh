@@ -42,9 +42,6 @@ NUM_CORE=4
 set_irq_smp_affinity(){
 
         IFACE=$1
-        # if [ -z $IRQ_AFFINITY_MAP ]; then
-        #         echo "Error: IRQ_AFFINITY_MAP not defined"; exit 1;
-        # fi
 
         AFFINITY_FILE=$2
         if [ -z $AFFINITY_FILE ]; then
@@ -55,21 +52,12 @@ set_irq_smp_affinity(){
         while IFS=, read -r CSV_Q CSV_CORE CSV_COMMENTS; do
                 IRQ_NUM=$(cat /proc/interrupts | grep $IFACE.*$CSV_Q | awk '{print $1}' | rev | cut -c 2- | rev)
                 echo "Echo-ing 0x$CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity --> $IFACE:$CSV_Q "
+                if [ -z $IRQ_NUM ]; then
+                        echo "Error: invalid IRQ NUM"; exit 1;
+                fi
+
                 echo $CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity
         done < $AFFINITY_FILE
-
-        # # BACKUP: affiinity array method
-        # while IFS=, read -r CSV_Q CSV_CORE CSV_COMMENTS
-        # do
-        #         IRQ_NUM=$(cat /proc/interrupts | grep $IFACE.*$CSV_Q | awk '{print $1}' | rev | cut -c 2- | rev)
-        #         # echo "Echo-ing 0x$CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity $IFACE:$CSV_Q "
-        #         if [ -z $IRQ_NUM ]; then
-        #                 echo "Error: invalid IRQ NUM"; exit 1;
-        #         fi
-
-        #         echo $CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity
-
-        # done <<< $(for i in ${IRQ_AFFINITY_MAP[@]}; do echo $i; done )
 }
 
 init_interface(){
@@ -147,7 +135,6 @@ init_interface(){
         # ethtool --set-eee $IFACE eee off &> /dev/null
 
         # Set irq affinity
-        # set_irq_smp_affinity $IFACE
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
 }
 
