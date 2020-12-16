@@ -86,7 +86,12 @@ main() {
 
     # Check for valid <IFACE>
     ip a show $IFACE up > /dev/null
-    if [ ! $? ]; then echo "Invalid interface: $IFACE"; exit 1; fi
+    if [ $? -eq 1 ]; then echo "Error: Invalid interface $IFACE"; exit 1; fi
+
+    if [ ! -z $IFACE2 ]; then
+        ip a show $IFACE2 up > /dev/null
+        if [ $? -eq 1 ]; then echo "Error: Invalid interface $IFACE2"; exit 1; fi
+    fi
 
     # Check for valid <CONFIG>
     LIST=$(ls shell/$PLAT 2> /dev/null | rev | cut -c 8- | rev | sort)
@@ -119,7 +124,8 @@ main() {
         ./shell/$CONFIG.sh $IFACE
 
     else
-        echo "Error: This is unexpected.. something is wrong.."
+        echo "Error: run.sh invalid commands"
+        exit 1
     fi
 
     # Only for debug: timesync per-run logging
