@@ -52,8 +52,7 @@ rm -rf  Makefile                \
         tsq                     \
         txrx-tsn                \
         opcua-server            \
-        *.png                   \
-        *.txt
+        *.png
 
 echo -e "\nBUILD.SH: Configure"
 autoreconf --install
