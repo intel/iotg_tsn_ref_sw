@@ -138,7 +138,7 @@ void free_resources(struct ServerData *sdata)
 
 struct ServerData *parseJson(struct json_object *json)
 {
-    struct ServerData *s = malloc(sizeof(struct ServerData));
+    struct ServerData *s = calloc(1, sizeof(struct ServerData));
     catch_err(s == NULL, "ServerData - Out of memory");
 
     log("Parsing OPCUA server");
