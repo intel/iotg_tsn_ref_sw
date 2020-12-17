@@ -39,11 +39,11 @@ do for [indx in "file gui"] {
 	reset
 
 	if (indx eq "file") {
-		set terminal pngcairo size 1920,1080
+		set terminal pngcairo size 1920,1080 noenhanced
 		set output 'plot_pic.png'
 	} else {
 		# GUI
-		set terminal x11 size 1720,980
+		set terminal x11 size 1720,980 noenhanced
 		set output
 		set multiplot layout 1,2
 	}
