@@ -223,7 +223,7 @@ else
     exit 0
 fi
 
-save_result_files $CONFIG $NUMPKTS $SIZE $INTERVAL #this file's name aka config.
+save_result_files $CONFIG $PLAT #this file's name aka config.
 
 if [[ "$TYPE" == "afxdp" ]]; then
 	gnuplot -e "FILENAME='afxdp-traffic.txt'; YMAX=2000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AFXDP)'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
@@ -236,4 +236,6 @@ else
 fi
 
 while [[ ! -s plot_pic.png ]] && [[ $RETRY -lt 30 ]]; do sleep 5; let $(( RETRY++ )); done
-cp plot_pic.png results-$ID/plot-$CONFIG-$NUMPKTS-$SIZE-$INTERVAL-$IDD.png # Backup
+cp plot_pic.png results-$ID/$PLAT-plot-$CONFIG-$NUMPKTS-$SIZE-$INTERVAL-$IDD.png # Backup
+
+exit 0

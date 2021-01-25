@@ -166,12 +166,14 @@ subStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
                     latency, msgqB.rx_sequence, sdata->id, msgqB.txTime, RXhwTS, msgqB.rxTime);
         }
 
-        ret = msgsnd(g_sData->msqid, (void *)&msgqB, sizeof(struct msgq_buf), IPC_NOWAIT);
-        if (ret < 0) {
-            if (errno == EAGAIN) {
-                debug("msgsnd: queue is full\n");
-            } else {
-                debug("msgsnd: errno:%d\n", errno);
+        if (g_sData->msqid >= 0) {
+            ret = msgsnd(g_sData->msqid, (void *)&msgqB, sizeof(struct msgq_buf), IPC_NOWAIT);
+            if (ret < 0) {
+                if (errno == EAGAIN) {
+                    debug("msgsnd: queue is full\n");
+                } else {
+                    debug("msgsnd: errno:%d\n", errno);
+                }
             }
         }
 

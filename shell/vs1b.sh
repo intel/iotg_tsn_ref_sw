@@ -79,24 +79,28 @@ sleep $SLEEP_SEC
 pkill txrx-tsn
 pkill iperf3
 
-echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
-run_iperf3_bg_server
-sleep 5
+if [ "$XDP_MODE" = "NA" ]; then
+    echo "PHASE 2: Skipped. Currently $PLAT does not support AF_XDP."
+else
+    echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
+    run_iperf3_bg_server
+    sleep 5
 
-./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt &
-TXRX_PID=$!
+    ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt &
+    TXRX_PID=$!
 
-if ! ps -p $TXRX_PID > /dev/null; then
-	echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
-	kill -9 $( pgrep -x iperf3 ) > /dev/null
-	exit 1
+    if ! ps -p $TXRX_PID > /dev/null; then
+        echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
+        kill -9 $( pgrep -x iperf3 ) > /dev/null
+        exit 1
+    fi
+
+    # Assign to CPU3
+    taskset -p 8 $TXRX_PID
+    sleep $XDP_SLEEP_SEC
+    pkill iperf3
+    pkill txrx-tsn
 fi
-
-# Assign to CPU3
-taskset -p 8 $TXRX_PID
-sleep $XDP_SLEEP_SEC
-pkill iperf3
-pkill txrx-tsn
 
 echo "PHASE 3: Calculating.."
 pkill gnuplot
@@ -105,13 +109,21 @@ stop_if_empty "afpkt-rxtstamps.txt"
 calc_rx_u2u "afpkt-rxtstamps.txt"
 calc_rx_duploss "afpkt-rxtstamps.txt"
 
-stop_if_empty "afxdp-rxtstamps.txt"
-calc_rx_u2u "afxdp-rxtstamps.txt"
-calc_rx_duploss "afxdp-rxtstamps.txt"
+if [ "$XDP_MODE" != "NA" ]; then
+    stop_if_empty "afxdp-rxtstamps.txt"
+    calc_rx_u2u "afxdp-rxtstamps.txt"
+    calc_rx_duploss "afxdp-rxtstamps.txt"
+fi
 
-save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL
+save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT
 
-gnuplot -e "FILENAME='afpkt-traffic.txt';FILENAME2='afxdp-traffic.txt';" $DIR/../common/latency_dual.gnu -p 2> /dev/null &
+if [ "$XDP_MODE" = "NA" ]; then
+    gnuplot -e "FILENAME='afpkt-traffic.txt';YMAX=2000000; PLOT_TITLE='$PLAT:AF_Packet only'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
+else
+    gnuplot -e "FILENAME='afpkt-traffic.txt';FILENAME2='afxdp-traffic.txt';" $DIR/../common/latency_dual.gnu -p 2> /dev/null &
+fi
 
 while [[ ! -s plot_pic.png ]]; do sleep 5; done
-cp plot_pic.png results-$ID/plot-$(basename $0 .sh)-$NUMPKTS-$SIZE-$INTERVAL-$XDP_INTERVAL-$IDD.png
+cp plot_pic.png results-$ID/$PLAT-plot-$(basename $0 .sh)-$NUMPKTS-$SIZE-$INTERVAL-$XDP_INTERVAL-$IDD.png
+
+exit 0

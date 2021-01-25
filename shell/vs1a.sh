@@ -77,6 +77,13 @@ sleep $SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
+# If AF_XDP is not available/not supported for the platform, we will exit.
+if [[ "$XDP_MODE" == "NA" ]]; then
+    echo "Currently $PLAT support AF_PACKET transmit only"
+    echo "Done!"
+    exit 0
+fi
+
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 run_iperf3_bg_client
 sleep 5
@@ -99,5 +106,5 @@ sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
-echo Done!
-exit
+echo "Done!"
+exit 0
