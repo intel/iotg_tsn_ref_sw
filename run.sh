@@ -32,16 +32,23 @@
 set -a # enable variable export
 RUNSH_DEBUG_MODE="YES"
 
+TSNREFSW_PACKAGE_VERSION="v0.8.3"
+
 main() {
     #if [ $USER != "root" ]; then
     #    echo "Please run as root"
     #    exit
     #fi
 
+    if [[ "$1" == "--version" &&  $# -eq 1 ]]; then
+        echo -e "TSN REF SW version : $TSNREFSW_PACKAGE_VERSION"
+        exit 0
+    fi
+
     # Check for minimum inputs
-    if [ $# -eq 3 ]; then
+    if [[ "$1" == "--help" || $# -lt 4 ]]; then
         echo -e "Error: invalid input. Examples on how to run:\n" \
-            "Format: ./run.sh <PLAT> <IFACE> [IFACE2] <CONFIG> [OPCUA-ACTION]\n" \
+            "Format: ./run.sh <PLAT> <IFACE> [IFACE2] <CONFIG> [ACTION]\n" \
             "For tsq*: \n" \
             "    ./run.sh ehl  eth0 tsq1a setup\n" \
             "    ./run.sh ehl  eth0 tsq1a run\n" \
@@ -52,10 +59,14 @@ main() {
             "    ./run.sh ehl  eth0 opcua-pkt1a init\n"\
             "    ./run.sh ehl  eth0 opcua-pkt1a setup\n"\
             "    ./run.sh ehl  eth0 opcua-pkt1a run\n"\
-            "For 2-port-ethernet opcua-pkt/xdp*, add a 2 to the end, and extra i\nface:"\
+            "For 2-port-ethernet opcua-pkt/xdp*, add a 2 to the end, and extra interface:"\
             "    ./run.sh ehl2 eth0 eth1 opcua-pkt2a init\n"\
             "    ./run.sh ehl2 eth0 eth1 opcua-pkt2a setup\n"\
-            "    ./run.sh ehl2 eth0 eth1 opcua-pkt2a run\n";
+            "    ./run.sh ehl2 eth0 eth1 opcua-pkt2a run\n"\
+            "For tsn_ref_sw version:\n"\
+            "    ./run.sh --version\n"\
+            "For tsn_ref_sw help:\n"\
+            "    ./run.sh --help";
         exit 1
     fi
 
@@ -72,7 +83,7 @@ main() {
         CONFIG=$4
         ACTION=$5
     else
-        LIST=$(ls -d shell/*/ | rev | cut -c 2- | rev | cut -c 8- | sort)
+        LIST=$(ls -d shell/*/ | rev | cut -c 2- | rev | cut -c 7- | sort)
         LIST+=$(echo -ne " \n")
         echo -e "Run.sh invalid <PLAT>: $PLAT\n\nList of supported platforms for sh:"
         echo $LIST
@@ -81,6 +92,7 @@ main() {
         LIST+=$(echo -ne " \n")
         echo -e "\nList of supported platforms for json:"
         echo $LIST
+        echo -e "\nPlease run ./run.sh --help for more info."
         exit 1
     fi
 
@@ -124,7 +136,7 @@ main() {
         ./shell/$CONFIG.sh $IFACE
 
     else
-        echo "Error: run.sh invalid commands"
+        echo "Error: run.sh invalid commands. Please run ./run.sh --help for more info."
         exit 1
     fi
 

@@ -294,17 +294,15 @@ save_result_files(){
         rm plot_pic.png -f
 
         CONFIG=$1
-        NUMPKTS=$2
-        SIZE=$3
-        INTERVAL=$4
+        PLAT=$2
 
         case "$CONFIG" in
 
         opcua-pkt0b | opcua-pkt1b | opcua-pkt2a | opcua-pkt2b | opcua-pkt3a | opcua-pkt3b)
-                cp afpkt-rxtstamps.txt results-$ID/afpkt-$CONFIG-rxtstamps-$IDD.txt
+                cp afpkt-rxtstamps.txt results-$ID/$PLAT-afpkt-$CONFIG-rxtstamps-$IDD.txt
         ;;
         opcua-xdp0b | opcua-xdp1b | opcua-xdp2a | opcua-xdp2b | opcua-xdp3a | opcua-xdp3b)
-                cp afxdp-rxtstamps.txt results-$ID/afxdp-$CONFIG-rxtstamps-$IDD.txt
+                cp afxdp-rxtstamps.txt results-$ID/$PLAT-afxdp-$CONFIG-rxtstamps-$IDD.txt
         ;;
         *)
                 echo "Error: save_results_files() invalid config: $CONFIG"

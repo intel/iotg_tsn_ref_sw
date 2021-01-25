@@ -50,7 +50,7 @@ set_irq_smp_affinity(){
         echo "Setting IRQ affinity based on $AFFINITY_FILE"
 
         while IFS=, read -r CSV_Q CSV_CORE CSV_COMMENTS; do
-                IRQ_NUM=$(cat /proc/interrupts | grep $IFACE.*$CSV_Q | awk '{print $1}' | rev | cut -c 2- | rev)
+                IRQ_NUM=$(cat /proc/interrupts | grep $IFACE.*$CSV_Q | awk '{print $1}' | tr -d ":")
                 echo "Echo-ing 0x$CSV_CORE > /proc/irq/$IRQ_NUM/smp_affinity --> $IFACE:$CSV_Q "
                 if [ -z $IRQ_NUM ]; then
                         echo "Error: invalid IRQ NUM"; exit 1;
@@ -69,7 +69,8 @@ init_interface(){
         elif [[ -z $IFACE_MAC_ADDR || -z $IFACE_VLAN_ID ||
                 -z $IFACE_IP_ADDR || -z $IFACE_BRC_ADDR ||
                 -z $IFACE_VLAN_IP_ADDR || -z $IFACE_VLAN_BRC_ADDR ||
-                -z "$IRQ_AFFINITY_FILE" ||
+                -z "$VLAN_PRIORITY_SUPPORT" || -z "$VLAN_STRIP_SUPPORT" ||
+                -z "$EEE_TURNOFF" || -z "$IRQ_AFFINITY_FILE" ||
                 -z $TX_Q_COUNT || -z $RX_Q_COUNT ]]; then
                 echo "Source config file first"
                 exit 1
@@ -81,17 +82,17 @@ init_interface(){
         tc qdisc add dev $IFACE ingress
 
         # Set an even queue pair. Minimum is 4 rx 4 tx.
-        if [ $RX_Q_COUNT == $TX_Q_COUNT ]; then
+        if [[ "$RX_Q_COUNT" == "$TX_Q_COUNT" ]]; then
                 ethtool -L $IFACE rx $RX_Q_COUNT tx $TX_Q_COUNT
         else
                 echo "Error: use even queue count";
                 exit 1
         fi
 
-        RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==8{ print $2}')
-        TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==9{ print $2}')
+        RXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i RX | awk '{print $2}')
+        TXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i TX | awk '{print $2}')
 
-        if [ $RXQ_COUNT != $TXQ_COUNT ]; then
+        if [[ "$RXQ_COUNT" != "$TXQ_COUNT" ]]; then
                 echo "Error: TXQ and RXQ count do not match."; exit 1;
         fi
 
@@ -116,23 +117,32 @@ init_interface(){
         ip addr add $IFACE_VLAN_IP_ADDR/24 brd $IFACE_VLAN_BRC_ADDR dev $IFACE.vlan
 
         # Map socket priority N to VLAN priority N
-        ip link set $IFACE.vlan type vlan egress-qos-map 1:1
-        ip link set $IFACE.vlan type vlan egress-qos-map 2:2
-        ip link set $IFACE.vlan type vlan egress-qos-map 3:3
-        ip link set $IFACE.vlan type vlan egress-qos-map 4:4
-        ip link set $IFACE.vlan type vlan egress-qos-map 5:5
-        ip link set $IFACE.vlan type vlan egress-qos-map 6:6
-        ip link set $IFACE.vlan type vlan egress-qos-map 7:7
+        if [[ "$VLAN_PRIORITY_SUPPORT" == "YES" ]]; then
+                echo "Mapping socket priority N to VLAN priority N for $IFACE"
+                ip link set $IFACE.vlan type vlan egress-qos-map 1:1
+                ip link set $IFACE.vlan type vlan egress-qos-map 2:2
+                ip link set $IFACE.vlan type vlan egress-qos-map 3:3
+                ip link set $IFACE.vlan type vlan egress-qos-map 4:4
+                ip link set $IFACE.vlan type vlan egress-qos-map 5:5
+                ip link set $IFACE.vlan type vlan egress-qos-map 6:6
+                ip link set $IFACE.vlan type vlan egress-qos-map 7:7
+        fi
 
         # Flush neighbours, just in case
         ip neigh flush all dev $IFACE
         ip neigh flush all dev $IFACE.vlan
 
         # Turn off VLAN Stripping
-        ethtool -K $IFACE rxvlan off
+        if [[ "$VLAN_STRIP_SUPPORT" == "YES" ]]; then
+                echo "Turning off vlan stripping"
+                ethtool -K $IFACE rxvlan off
+        fi
 
-        # Disable EEE - off by default
-        # ethtool --set-eee $IFACE eee off &> /dev/null
+        # Disable EEE option is set in config file
+        if [[ "$EEE_TURNOFF" == "YES" ]]; then
+                echo "Turning off EEE"
+                ethtool --set-eee $IFACE eee off &> /dev/null
+        fi
 
         # Set irq affinity
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
@@ -178,7 +188,7 @@ setup_taprio(){
                 "queues $QUEUE_OFFSETS " \
                 "base-time $BASE" \
                 "${TAPRIO_SCHED[@]}" \
-                "flags 0x2 $TAPRIO_FLAGS")
+                "$TAPRIO_FLAGS")
 
         echo "Run: $CMD"; $CMD;
 }
@@ -243,7 +253,7 @@ setup_vlanrx(){
         if [ -z $IFACE ]; then echo "Error: please specify interface."; exit 1; fi
 
         if [ -z "$VLAN_RX_MAP" ]; then
-                echo "Error: VLAN_RX_MAP not defined"; exit 1;
+                echo "Warning: VLAN_RX_MAP not defined. Vlan rx queue steering is NOT set."; exit 1;
         fi
 
         NUM_ENTRY=$(expr ${#VLAN_RX_MAP[@]} - 1)
@@ -424,12 +434,16 @@ save_result_files(){
         NUMPKTS=$2
         SIZE=$3
         INTERVAL=$4
+        XDP_MODE=$5
+        PLAT=$6
 
         case "$CONFIG" in
 
         vs1b)
-                cp afxdp-rxtstamps.txt results-$ID/afxdp-$CONFIG-$NUMPKTS-$SIZE-$XDP_INTERVAL-rxtstamps-$IDD.txt
-                cp afpkt-rxtstamps.txt results-$ID/afpkt-$CONFIG-$NUMPKTS-$SIZE-$INTERVAL-rxtstamps-$IDD.txt
+                if [[ "$XDP_MODE" != "NA" ]]; then
+                    cp afxdp-rxtstamps.txt results-$ID/$PLAT-afxdp-$CONFIG-$NUMPKTS-$SIZE-$XDP_INTERVAL-rxtstamps-$IDD.txt
+                fi
+                cp afpkt-rxtstamps.txt results-$ID/$PLAT-afpkt-$CONFIG-$NUMPKTS-$SIZE-$INTERVAL-rxtstamps-$IDD.txt
         ;;
 
         *)
