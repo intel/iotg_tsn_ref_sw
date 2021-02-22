@@ -48,7 +48,7 @@ fi
 PLAT="$1"
 IFACE="$2"
 
-if [[ "$PLAT" = "ehl2" ]];then
+if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" ]];then
     IFACE2="$3"
     CONFIG="$4"
     MODE="$5"
@@ -89,7 +89,7 @@ cp -f $INTERIM_TSN_JSON $NEW_TSN_JSON
 #Replace interface on .json
 sed -i -e "s/_PREPROCESS_STR_interface/$IFACE/gi" $NEW_JSON $NEW_TSN_JSON
 
-if [[ "$PLAT" = "ehl2" || "$PLAT" = "tgl2" ]];then
+if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" ]];then
     sed -i -e "s/_PREPROCESS_STR_2nd_interface/$IFACE2/gi" $NEW_JSON $NEW_TSN_JSON
 fi
 

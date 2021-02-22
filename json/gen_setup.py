@@ -365,12 +365,12 @@ def process_custom_a(obj):
     # ptp4l -mP2Hi eth0 -f common/gPTP.cfg --step_threshold=2 --socket_priority 1
     arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '--step_threshold=2']
     arglist += ['-f', gptp_filepath]
-    arglist += ['--socket_priority', '1']
+    arglist += ['--socket_priority', socket_prio]
     run_with_out(arglist, '/var/log/ptp4l.log')
 
     arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface2, '--step_threshold=2']
     arglist += ['-f', gptp_filepath]
-    arglist += ['--socket_priority', '1']
+    arglist += ['--socket_priority', socket_prio]
     run_with_out(arglist, '/var/log/ptp4l2.log')
 
     #print("Give 30 secs for ptp to sync")
@@ -409,7 +409,7 @@ def process_custom_b(obj):
     # ptp4l -mP2Hi eth0 -i eth2 -f common/gPTP.cfg --step_threshold=2 \
     #   --socket_priority 1 --boundary_clock_jbod=1
     arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '-i', iface2 , '-f',  'common/gPTP.cfg', '--step_threshold=2']
-    arglist += ['--socket_priority', '1']
+    arglist += ['--socket_priority', socket_prio]
     arglist += ['--boundary_clock_jbod=1']
     run_with_out(arglist, '/var/log/ptp4l.log')
     arglist += ['-f', gptp_filepath]
