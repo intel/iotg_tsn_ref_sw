@@ -5,4 +5,4 @@ rx-2,02,ptp-rx
 tx-3,04,afpkt-p3/afxdp-q1
 rx-3,08,afpkt-p3
 rx-1,08,afxdp-q1
-tx-1,01,not-used
+tx-1,02,ptp-tx-xdp-mode
