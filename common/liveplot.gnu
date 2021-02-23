@@ -29,7 +29,12 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 set xrange[0:100]
-set yrange[-50:50]
+set yrange[-YMAX:YMAX]
+
+set title PLOT_TITLE
+set ylabel "PHC difference (ns)"
+set xlabel "t(s)"
+
 plot filename using ($3) with lines title "nano-seconds"
 pause 1
 reread
