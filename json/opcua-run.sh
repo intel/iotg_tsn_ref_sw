@@ -138,6 +138,11 @@ case "$MODE" in
             echo "gen_setup.py returned non-zero. Abort" && exit
         fi
         sh ./setup-generated.sh
+
+        # Extra Delay to stabilize gPTP
+        echo "Wait 30 sec for gPTP to sync properly after setting the queues."
+        sleep 30
+
         exit 0
         ;;
 
@@ -168,20 +173,31 @@ fi
 
 # Workaround for delays spikes after the first init-setup
 if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ]]; then
-    echo "Workaround A"
+    echo "Workaround A to flush queue"
     sleep 5
-    ./txrx-tsn -Pti $IFACE -q 2 -n 10000 -y 200000 > someTX.txt &
+    if [[ "$PLAT" = "ehl2" ]]; then
+        ./txrx-tsn -Pti $IFACE -q 2 -n 10000 -y 200000 > someTX.txt &
+    elif [[ "$PLAT" = "tglh2" ]]; then
+        ./txrx-tsn -Pti $IFACE -q 1 -n 10000 -y 200000 > someTX.txt &
+    fi
     sleep 5 && pkill txrx-tsn
 
 elif [[ "$CONFIG" == "opcua-pkt2b" || "$CONFIG" == "opcua-pkt3b" ]]; then
-    echo "Workaround B"
-    ./txrx-tsn -Pri $IFACE -q 2 > someRX.txt &
+    echo "Workaround B to flush queue"
+    if [[ "$PLAT" = "ehl2" ]]; then
+        ./txrx-tsn -Pri $IFACE -q 2 > someRX.txt &
+    elif [[ "$PLAT" = "tglh2" ]]; then
+        ./txrx-tsn -Pri $IFACE -q 1 > someRX.txt &
+    fi
     sleep 10 && pkill txrx-tsn
 
 else
     echo "" # Nothing
 fi
 
+# Extra Delay to stabilize test environment
+echo "Wait 20 sec for test environment to stabilize before running opcua server."
+sleep 20
 
 # Execute the server and pass it opcua-*.json
 ./opcua-server "$NEW_JSON"
