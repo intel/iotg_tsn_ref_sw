@@ -76,12 +76,10 @@ fi
 while [[ ! -s tsq-listener-data.txt ]]; do sleep 1 && echo "Waiting for data"; done
 if [[ $DISPLAY ]]; then
 	echo "Starting plotting"
-	gnuplot -e "filename='tsq-listener-data.txt'" $DIR/../common/liveplot.gnu &
+	gnuplot -e "PLOT_TITLE='$PLAT: $IFACE: Time sync Quality Measurement';YMAX=50; filename='tsq-listener-data.txt'" $DIR/../common/liveplot.gnu &
 fi
 
 # Let listener, talker and gnuplot run until the test_period is over.
 sleep $TEST_PERIOD
-kill -9 $( pgrep -x tsq-talker ) > /dev/null #do you need twice?
-kill -9 $( pgrep -x tsq-listener ) > /dev/null
 
 exit 0
