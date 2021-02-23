@@ -39,9 +39,11 @@ TXRX-TSN & OPCUA-SERVER)
 #### Queue count
 
 There are 2 versions of the integrated controller, differentiated only by the
-number of queues it has (6rx/4tx or 8rx/8tx)
+number of queues it has (6rx/4tx or 8rx/8tx).
 
-Note: some controllers, say i210, have "combined" queues which may require
+For example, TGL-U/H is 6rx/4tx and EHl is 8rx/tx.
+
+Note: some controllers, say i210/i225, have "combined" queues which may require
 different handling (not the scope of this project).
 
 #### Integrated Ethernet controller specific constraints.
@@ -60,7 +62,7 @@ different handling (not the scope of this project).
     | ------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
     | TX & RX | Q0    | Q1    | Q2    | Q3    | Q4    | Q5    | Q6    | Q7    |
 
-    TX & RX queue hardware mapping when in AF XDP ZC mode:
+    TX & RX queue hardware mapping when in AF XDP ZC mode (this applies to EHL):
 
     |     | HW Q0  | HW Q1  | HW Q2  | HW Q3  | HW Q4  | HW Q5  | HW Q6  | HW Q7  |
     | --- | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
@@ -70,6 +72,13 @@ different handling (not the scope of this project).
     When a queue is used with XDP, all packets (including ping etc) on that queue
     will be forwarded to the XDP application assigned to that queue. Hence, Q0
     should be be used for XDP.
+
+    For example with TGL-U/H, we are only using 4 TX and 4 RX:
+
+    |     | HW Q0  | HW Q1  | HW Q2  | HW Q3  |
+    | --- | ------ | ------ | ------ | ------ |
+    | TX  | Q0     | Q1     | XDP Q0 | XDP Q1 |
+    | RX  | XDP Q0 | XDP Q1 | Q3     | Q4     |
 
 ### Optimization
 
@@ -94,6 +103,7 @@ we isolated CPU1, 2 & 3. CPU 0 is the general-purpose core. "Real-time" tasks ca
 then be assinged to each CPU as follows.
 
 ```
+EHL 1 port(1-way latency) and 2 port(2-way latency) configuration:
 +---------+---------+---------+---------+---------+
 | EHL     |  CPU0   |  CPU1   |  CPU2   |  CPU3   |
 |         |         |         |         |         |
@@ -109,18 +119,51 @@ then be assinged to each CPU as follows.
 |         |         |         |         |         |
 +---------+---------+---------+---------+---------+
 
+TGL-U 1 port(1-way latency test) configuration:
 +---------+---------+---------+---------+---------+
-|  TGL    |  CPU0   |  CPU1   |  CPU2   | CPU3    |
+|  TGLU   |  CPU0   |  CPU1   |  CPU2   | CPU3    |
 |         |         |         |         |         |
 +=========+=========+=========+=========+=========+
 | App     | iperf   | PTP     | TX/RX   |         |
 |         | others  |         |         |         |
 |         |         |         |         |         |
 +---------+---------+---------+---------+---------+
-| XDPQ    |         |         | XDP Q1  |         |
-|         |         |         |         |         |
+| XDPQ    |         |         | XDP TXQ1|         |
+|         |         |         | XDP RXQ1|         |
 +---------+---------+---------+---------+---------+
 | IRQ/TXQ | TX0 RX0 | TX2 RX2 | TX3 RX1 |         |
+|         |         |         |         |         |
++---------+---------+---------+---------+---------+
+
+TGL-H 1 port(1-way latency test) configuration:
++---------+---------+---------+---------+---------+
+|  TGLH   |  CPU0   |  CPU1   |  CPU2   | CPU3    |
+|         |         |         |         |         |
++=========+=========+=========+=========+=========+
+| App     | iperf   | PTP     | TX/RX   |         |
+|         | others  |         |         |         |
+|         |         |         |         |         |
++---------+---------+---------+---------+---------+
+| XDPQ    |         |         | XDP TXQ1|         |
+|         |         |         | XDP RXQ1|         |
++---------+---------+---------+---------+---------+
+| IRQ/TXQ | TX0 RX0 | TX2 RX2 | TX3 RX1 |         |
+|         |         |         |         |         |
++---------+---------+---------+---------+---------+
+
+TGL-H 2 port(2-way/return latency test) configuration:
++---------+---------+---------+---------+---------+
+|  TGLH   |  CPU0   |  CPU1   |  CPU2   | CPU3    |
+|         |         |         |         |         |
++=========+=========+=========+=========+=========+
+| App     | iperf   | PTP     | TX      |  RX     |
+|         | others  |         |         |         |
+|         |         |         |         |         |
++---------+---------+---------+---------+---------+
+| XDPQ    |         |         | XDP TXQ1| XDP RXQ1|
+|         |         |         | (TxQ3)  | (RxQ1)  |
++---------+---------+---------+---------+---------+
+| IRQ/TXQ | TX0 RX0 | TX1 RX2 | TX3     | RX3     |
 |         |         |         |         |         |
 +---------+---------+---------+---------+---------+
 
