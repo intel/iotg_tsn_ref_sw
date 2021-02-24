@@ -49,7 +49,10 @@ $DIR/clock-setup.sh $IFACE
 sleep 30 #Give some time for clock daemons to start.
 
 setup_taprio    $IFACE
+sleep 10
 
 setup_etf       $IFACE
+sleep 10
 
 setup_vlanrx    $IFACE
+sleep 10
