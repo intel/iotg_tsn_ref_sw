@@ -83,14 +83,23 @@ init_interface(){
 
         # Set an even queue pair. Minimum is 4 rx 4 tx.
         if [[ "$RX_Q_COUNT" == "$TX_Q_COUNT" ]]; then
-                ethtool -L $IFACE rx $RX_Q_COUNT tx $TX_Q_COUNT
+                if [[ "$PLAT" == "i225-tglu" ]]; then
+                        ethtool -L $IFACE combined $TX_Q_COUNT
+                else
+                        ethtool -L $IFACE rx $RX_Q_COUNT tx $TX_Q_COUNT
+                fi
         else
                 echo "Error: use even queue count";
                 exit 1
         fi
 
-        RXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i RX | awk '{print $2}')
-        TXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i TX | awk '{print $2}')
+        if [[ "$PLAT" == "i225-tglu" ]]; then
+                RXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i Combined | awk '{print $2}')
+                TXQ_COUNT=$RXQ_COUNT
+        else
+                RXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i RX | awk '{print $2}')
+                TXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i TX | awk '{print $2}')
+        fi
 
         if [[ "$RXQ_COUNT" != "$TXQ_COUNT" ]]; then
                 echo "Error: TXQ and RXQ count do not match."; exit 1;
@@ -181,7 +190,12 @@ setup_taprio(){
 
         NUM_TC=$(expr $NUM_TC + 1)
 
-        BASE=$(expr $(date +%s) + 5)000000000
+        # i225 does not support basetime in the future
+        if [[ "$PLAT" == "i225-tglu" ]]; then
+                BASE=$(date +%s%N)
+        else
+                BASE=$(expr $(date +%s) + 5)000000000
+        fi
 
         CMD=$(echo "tc qdisc replace dev $IFACE parent root handle 100 taprio" \
                 "num_tc $NUM_TC map $TAPRIO_MAP" \
