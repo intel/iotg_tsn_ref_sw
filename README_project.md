@@ -167,6 +167,8 @@ TGL-H 2 port(2-way/return latency test) configuration:
 |         |         |         |         |         |
 +---------+---------+---------+---------+---------+
 
+Note : ADL should use the same configuration as TGL-H
+
 #Not shown: TAPRIO tx-queue & VLAN RX steering mapping
 ```
 
