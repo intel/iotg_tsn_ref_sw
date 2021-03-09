@@ -83,7 +83,7 @@ init_interface(){
 
         # Set an even queue pair. Minimum is 4 rx 4 tx.
         if [[ "$RX_Q_COUNT" == "$TX_Q_COUNT" ]]; then
-                if [[ "$PLAT" == "i225-tglu" ]]; then
+                if [[ $PLAT == i225* ]]; then
                         ethtool -L $IFACE combined $TX_Q_COUNT
                 else
                         ethtool -L $IFACE rx $RX_Q_COUNT tx $TX_Q_COUNT
@@ -93,7 +93,7 @@ init_interface(){
                 exit 1
         fi
 
-        if [[ "$PLAT" == "i225-tglu" ]]; then
+        if [[ $PLAT == i225* ]]; then
                 RXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i Combined | awk '{print $2}')
                 TXQ_COUNT=$RXQ_COUNT
         else
@@ -191,7 +191,7 @@ setup_taprio(){
         NUM_TC=$(expr $NUM_TC + 1)
 
         # i225 does not support basetime in the future
-        if [[ "$PLAT" == "i225-tglu" ]]; then
+        if [[ $PLAT == i225* ]]; then
                 BASE=$(date +%s%N)
         else
                 BASE=$(expr $(date +%s) + 5)000000000
@@ -290,7 +290,7 @@ enable_extts(){
         echo "Enabling extts on $IFACE ($PCLK)"
 
         if [[ $PLAT == i225* ]]; then
-                #Set the pin configuration
+                #Set the SDP1 to input for extts
                 echo 1 0 > /sys/class/ptp/$PCLK/pins/SDP1
         fi
 

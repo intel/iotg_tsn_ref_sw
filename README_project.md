@@ -167,6 +167,25 @@ TGL-H 2 port(2-way/return latency test) configuration:
 |         |         |         |         |         |
 +---------+---------+---------+---------+---------+
 
+i225 1-port (1-way latency test) configuration:
+
+Note: i225 has combined 4 TxRx queues.
+
++---------+---------+---------+---------+---------+
+|  i225   |  CPU0   |  CPU1   |  CPU2   | CPU3    |
+|         |         |         |         |         |
++=========+=========+=========+=========+=========+
+| App     | iperf   | PTP     | TX/RX   |         |
+|         | others  |         |         |         |
+|         |         |         |         |         |
++---------+---------+---------+---------+---------+
+| XDPQ    |         |         |         |         |
+|         |         |         |         |         |
++---------+---------+---------+---------+---------+
+| IRQ/TXQ | TxRx-0  | TxRx-2  | TxRx-3  |         |
+|         |         |         |         |         |
++---------+---------+---------+---------+---------+
+
 Note : ADL should use the same configuration as TGL-H
 
 #Not shown: TAPRIO tx-queue & VLAN RX steering mapping
