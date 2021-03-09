@@ -74,7 +74,7 @@ main() {
     IFACE=$2
 
     # Check for valid <PLAT>
-    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225-tglu" || "$1" == "adl" ]]; then #TODO: i210-ehl, i210-ehl2, i210-tglu etc
+    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225" || "$1" == "adl" ]]; then
         IFACE2=""
         CONFIG=$3
         ACTION=$4

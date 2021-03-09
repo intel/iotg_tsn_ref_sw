@@ -51,7 +51,7 @@ sleep 30 #Give some time for clock daemons to start.
 setup_mqprio $IFACE
 sleep 10
 
-if [[ "$PLAT" == "i225-tglu" ]]; then
+if [[ $PLAT == i225* ]]; then
         RULES31=$(ethtool -n enp169s0 | grep "Filter: 31")
         if [[ ! -z $RULES31 ]]; then
                 echo "Deleting filter rule 31"

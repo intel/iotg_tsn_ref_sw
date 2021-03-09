@@ -72,7 +72,7 @@ pmc -u -b 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248
 
 sleep 3
 
-if [[ "$PLAT" == "i225-tglu" ]]; then
+if [[ $PLAT == i225* ]]; then
     taskset -c 1 phc2sys -s $IFACE -c CLOCK_REALTIME --step_threshold=1 \
         --transportSpecific=1 -O 0 --first_step_threshold=0.0 \
         -w -ml 7 &> /var/log/phc2sys.log &
