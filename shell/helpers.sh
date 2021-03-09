@@ -289,6 +289,11 @@ enable_extts(){
         PCLK=ptp$CLK
         echo "Enabling extts on $IFACE ($PCLK)"
 
+        if [[ $PLAT == i225* ]]; then
+                #Set the pin configuration
+                echo 1 0 > /sys/class/ptp/$PCLK/pins/SDP1
+        fi
+
         # enable ext timestamping
         echo 0 1 > /sys/class/ptp/$PCLK/extts_enable
 }
@@ -304,6 +309,11 @@ enable_pps(){
         CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
         PCLK=ptp$CLK
         echo "Enabling pps on $IFACE ($PCLK)"
+
+        if [[ $PLAT == i225* ]]; then
+                 #Set the SDP0 as PPS output
+                echo 2 0 > /sys/class/ptp/$PCLK/pins/SDP0
+        fi
 
         # configure pps
         # echo <idx> <ts> <tns> <ps> <pns> > /sys/class/ptp/ptpX/period
