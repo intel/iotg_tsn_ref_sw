@@ -82,6 +82,8 @@ pkill iperf3
 if [ "$XDP_MODE" = "NA" ]; then
     echo "PHASE 2: Skipped. Currently $PLAT does not support AF_XDP."
 else
+    sleep 20
+
     echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
     run_iperf3_bg_server
     sleep 5

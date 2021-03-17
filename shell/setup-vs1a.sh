@@ -45,9 +45,6 @@ fi
 
 init_interface  $IFACE
 
-$DIR/clock-setup.sh $IFACE
-sleep 30 #Give some time for clock daemons to start.
-
 setup_taprio    $IFACE
 sleep 10
 
@@ -73,5 +70,8 @@ else
 fi
 
 sleep 10
+
+$DIR/clock-setup.sh $IFACE
+sleep 30 #Give some time for clock daemons to start.
 
 exit 0
