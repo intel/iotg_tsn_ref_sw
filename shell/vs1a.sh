@@ -84,6 +84,8 @@ if [[ "$XDP_MODE" == "NA" ]]; then
     exit 0
 fi
 
+sleep 20
+
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 run_iperf3_bg_client
 sleep 5
