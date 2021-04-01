@@ -52,19 +52,20 @@ setup_etf       $IFACE
 sleep 10
 
 if [[ $PLAT == i225* ]]; then
-        RULES31=$(ethtool -n enp169s0 | grep "Filter: 31")
+        RULES31=$(ethtool -n $IFACE | grep "Filter: 31")
         if [[ ! -z $RULES31 ]]; then
                 echo "Deleting existing filter rule 31"
-                ethtool -N enp169s0 delete 31
+                ethtool -N $IFACE delete 31
         fi
-        RULES30=$(ethtool -n enp169s0 | grep "Filter: 30")
+        RULES30=$(ethtool -n $IFACE | grep "Filter: 30")
         if [[ ! -z $RULES30 ]]; then
                 echo "Deleting existing filter rule 30"
-                ethtool -N enp169s0 delete 30
+                ethtool -N $IFACE delete 30
         fi
         # Use flow-type to push ptp packet to $PTP_RX_Q
-        ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
         echo "Adding flow-type filter for ptp packet to q-$PTP_RX_Q"
+        echo "ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q"
+        ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
 else
         setup_vlanrx $IFACE
 fi

@@ -49,33 +49,46 @@ setup_mqprio $IFACE
 sleep 10
 
 if [[ $PLAT == i225* ]]; then
-        RULES31=$(ethtool -n enp169s0 | grep "Filter: 31")
+        RULES31=$(ethtool -n $IFACE | grep "Filter: 31")
         if [[ ! -z $RULES31 ]]; then
                 echo "Deleting filter rule 31"
-                ethtool -N enp169s0 delete 31
+                ethtool -N $IFACE delete 31
         fi
-        RULES30=$(ethtool -n enp169s0 | grep "Filter: 30")
+        RULES30=$(ethtool -n $IFACE | grep "Filter: 30")
         if [[ ! -z $RULES30 ]]; then
                 echo "Deleting filter rule 30"
-                ethtool -N enp169s0 delete 30
+                ethtool -N $IFACE delete 30
         fi
-        RULES29=$(ethtool -n enp169s0 | grep "Filter: 29")
-        if [[ ! -z $RULES30 ]]; then
+        RULES29=$(ethtool -n $IFACE | grep "Filter: 29")
+        if [[ ! -z $RULES29 ]]; then
                 echo "Deleting filter rule 29"
-                ethtool -N enp169s0 delete 29
+                ethtool -N $IFACE delete 29
+        fi
+        RULES28=$(ethtool -n $IFACE | grep "Filter: 28")
+        if [[ ! -z $RULES28 ]]; then
+                echo "Deleting filter rule 28"
+                ethtool -N $IFACE delete 28
         fi
 
         # Use flow-type to push ptp packet to $PTP_RX_Q
-        ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
         echo "Adding flow-type for ptp packet to q-$PTP_RX_Q"
+        echo "ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q"
+        ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
 
-        # Use flow-type to push txrx-tsn packet packet to $RX_PKT_Q
+        # Use flow-type to push txrx-tsn packet VLAN PRIORITY 3 to $RX_PKT_Q
+        echo "Adding flow-type for txrx-tsn packet (vlan priority 3) to q-$RX_PKT_Q"
+        echo "ethtool -N $IFACE flow-type ether vlan 0x6000 vlan-mask 0x1FFF action $RX_PKT_Q"
         ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action $RX_PKT_Q
-        echo "Adding flow-type for txrx-tsn packet to q-$RX_PKT_Q"
+
+        # Use flow-type to push txrx-tsn packet VLAN PRIORITY 1 to $RX_XDP_Q
+        echo "Adding flow-type for txrx-tsn packet (vlan priority 1) to q-$RX_XDP_Q"
+        echo "ethtool -N $IFACE flow-type ether vlan 0x2000 vlan-mask 0x1FFF action $RX_XDP_Q"
+        ethtool -N $IFACE flow-type ether vlan 0x2000 vlan-mask 0x1FFF action $RX_XDP_Q
 
         # Use flow-type to push iperf3 packet to 0
-        ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
         echo "Adding flow-type for iperf3 packet to q-0"
+        echo "ethtool -N $IFACE flow-type ether proto 0x0800 queue 0"
+        ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
 
 else
         setup_vlanrx $IFACE
