@@ -40,7 +40,8 @@ if [ -z $1 ]; then
 elif [[ -z $INTERVAL || -z $XDP_INTERVAL ||
        -z $EARLY_OFFSET || -z $XDP_EARLY_OFFSET ||
        -z $TXTIME_OFFSET || -z $NUMPKTS || -z $SIZE ||
-       -z $RX_PKT_Q || -z $RX_XDP_Q || -z $XDP_MODE ]]; then
+       -z $RX_PKT_Q || -z $RX_XDP_Q || -z $XDP_MODE ||
+       -z $TEMP_DIR ]]; then
         echo "Source config file first"; exit
 fi
 
@@ -49,8 +50,8 @@ pkill txrx-tsn
 pkill iperf3
 
 # Improve performance/consistency by logging to tmpfs (system memory)
-ln -sfv /tmp/afpkt-rxtstamps.txt .
-ln -sfv /tmp/afxdp-rxtstamps.txt .
+ln -sfv $TEMP_DIR/afpkt-rxtstamps.txt .
+ln -sfv $TEMP_DIR/afxdp-rxtstamps.txt .
 
 echo 0 > afpkt-rxtstamps.txt
 echo 0 > afxdp-rxtstamps.txt
