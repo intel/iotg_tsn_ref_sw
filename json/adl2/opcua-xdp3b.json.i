@@ -31,6 +31,7 @@
         "subscribed_writer_group_id": 101,
         "offset_ns": 5000,
         "subscriber_output_file": "afxdp-rxtstamps.txt",
+        "temp_file_dir": "/dev/shm",
         "two_way_data": false,
         "cpu_affinity": 3,
         "xdp_queue": 1

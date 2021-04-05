@@ -168,7 +168,19 @@ fi
 OUTPUT_FILE=$(grep -s subscriber_output_file $NEW_JSON | awk '{print $2}' | sed 's/,//' | sed 's/\"//g')
 if [[ ! -z $OUTPUT_FILE ]]; then
     rm -f ./$OUTPUT_FILE
-    ln -sfv /tmp/$OUTPUT_FILE .
+    TEMP_DIR=$(grep -s temp_file_dir $NEW_JSON | awk '{print $2}' | sed 's/,//' | sed 's/\"//g')
+    if [[ -z $TEMP_DIR ]]; then
+        echo "temp_file_dir is not defined in $NEW_JSON. Falling back to /tmp !!!"
+        TEMP_DIR="/tmp"
+    fi
+
+    if [[ ! -d "$TEMP_DIR" ]]; then
+        echo "Output temp dir for output file: $TEMP_DIR - inexistent. Exiting."
+        exit 1
+    else
+        echo -n "" > $TEMP_DIR/$OUTPUT_FILE
+        ln -sfv $TEMP_DIR/$OUTPUT_FILE .
+    fi
 fi
 
 # Workaround for delays spikes after the first init-setup

@@ -34,6 +34,7 @@ automatically.
 | Subscriber        | subscribed_writer_group_id   | Int     | 0      | 99999    |
 | Subscriber        | offset_ns                    | Int     | 0      | 10000000 |
 | Subscriber        | subscriber_output_file       | String  |        |          |
+| Subscriber        | temp_file_dir                | String  |        |          |
 | Subscriber        | two_way_data                 | Boolean |        |          |
 | Subscriber        | cpu_affinity                 | Int     | 0      | 3        |
 | Subscriber        | xdp_queue                    | Int     | 1      | 3        |
