@@ -88,6 +88,12 @@ fi
 sleep 20
 
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
+
+if [[ $PLAT != i225* ]]; then
+        setup_vlanrx_xdp $IFACE
+        sleep 20
+fi
+
 run_iperf3_bg_client
 sleep 5
 
