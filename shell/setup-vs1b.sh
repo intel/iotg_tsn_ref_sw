@@ -94,9 +94,9 @@ else
         setup_vlanrx $IFACE
 fi
 
-sleep 10
+sleep 20
 
 $DIR/clock-setup.sh $IFACE
-sleep 30 #Give some time for clock daemons to start.
+sleep 50 #Give some time for clock daemons to start.
 
 exit 0
