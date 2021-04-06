@@ -264,11 +264,14 @@ setup_vlanrx(){
         local CMD;
         IFACE=$1
 
-        if [ -z $IFACE ]; then echo "Error: please specify interface."; exit 1; fi
+        if [ -z $IFACE ]; then echo "Error setup_vlanrx: please specify interface."; exit 1; fi
 
         if [ -z "$VLAN_RX_MAP" ]; then
                 echo "Warning: VLAN_RX_MAP not defined. Vlan rx queue steering is NOT set."; exit 1;
         fi
+
+        tc qdisc del dev $IFACE ingress
+        tc qdisc add dev $IFACE ingress
 
         NUM_ENTRY=$(expr ${#VLAN_RX_MAP[@]} - 1)
         for i in $(seq 0 $NUM_ENTRY ); do
@@ -276,6 +279,31 @@ setup_vlanrx(){
                            " protocol 802.1Q flower ${VLAN_RX_MAP[$i]}")
                 echo "Run: $CMD"; $CMD;
         done
+
+        tc filter show dev $IFACE ingress
+}
+
+setup_vlanrx_xdp(){
+        local CMD;
+        IFACE=$1
+
+        if [ -z $IFACE ]; then echo "Error setup_vlanrx_xdp: please specify interface."; exit 1; fi
+
+        if [ -z "$VLAN_RX_MAP_XDP" ]; then
+                echo "Warning: VLAN_RX_MAP for XDP not defined. Vlan rx queue steering XDP is NOT set."; exit 1;
+        fi
+
+        tc qdisc del dev $IFACE ingress
+        tc qdisc add dev $IFACE ingress
+
+        NUM_ENTRY=$(expr ${#VLAN_RX_MAP_XDP[@]} - 1)
+        for i in $(seq 0 $NUM_ENTRY ); do
+                CMD=$(echo "tc filter add dev $IFACE parent ffff:" \
+                           " protocol 802.1Q flower ${VLAN_RX_MAP_XDP[$i]}")
+                echo "Run: $CMD"; $CMD;
+        done
+
+        tc filter show dev $IFACE ingress
 }
 
 enable_extts(){
