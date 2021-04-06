@@ -89,17 +89,25 @@ sleep 20
 
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 
-if [[ $PLAT != i225* ]]; then
-        setup_vlanrx_xdp $IFACE
-        sleep 20
-fi
-
 run_iperf3_bg_client
 sleep 5
+#sleep 20 # sleep longer to allow rx vlan in rx side to set.
 
-./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
+# ADL alpha does not support launch time
+if [[ $PLAT != adl* ]]; then
+        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
                 -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
+        #echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
+else
+        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL > afxdp-txtstamps.txt &
+        #echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
+fi
 TXRX_PID=$!
+
+if [[ $PLAT != i225* ]]; then
+        setup_vlanrx_xdp $IFACE
+        #sleep 20
+fi
 
 if ! ps -p $TXRX_PID > /dev/null; then
 	echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."

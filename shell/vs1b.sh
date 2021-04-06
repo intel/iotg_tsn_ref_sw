@@ -87,16 +87,15 @@ else
 
     echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
 
-    if [[ $PLAT != i225* ]]; then
-        setup_vlanrx_xdp $IFACE
-        sleep 20
-    fi
-
     run_iperf3_bg_server
     sleep 5
 
-    ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt &
+    ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt & 
     TXRX_PID=$!
+
+    if [[ $PLAT != i225* ]]; then
+        setup_vlanrx_xdp $IFACE
+    fi
 
     if ! ps -p $TXRX_PID > /dev/null; then
         echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
