@@ -56,27 +56,31 @@ ln -sfv $TEMP_DIR/afxdp-txtstamps.txt .
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
 
-echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
-run_iperf3_bg_client
-sleep 5
+if [ "$AFP_PACKET_TEST" = "y" ]; then
+        echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
+        run_iperf3_bg_client
+        sleep 5
 
-./txrx-tsn -i $IFACE -PtTq $TX_PKT_Q -n $NUMPKTS -l $SIZE -y $INTERVAL \
-                -e $EARLY_OFFSET -o $TXTIME_OFFSET > afpkt-txtstamps.txt &
-TXRX_PID=$!
+        ./txrx-tsn -i $IFACE -PtTq $TX_PKT_Q -n $NUMPKTS -l $SIZE -y $INTERVAL \
+                        -e $EARLY_OFFSET -o $TXTIME_OFFSET > afpkt-txtstamps.txt &
+        TXRX_PID=$!
 
-if ! ps -p $TXRX_PID > /dev/null; then
-	echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
-	kill -9 $( pgrep -x iperf3 ) > /dev/null
-	exit 1
+        if ! ps -p $TXRX_PID > /dev/null; then
+                echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
+                kill -9 $( pgrep -x iperf3 ) > /dev/null
+                exit 1
+        fi
+
+        # Assign to CPU2
+        taskset -p 4 $TXRX_PID
+        chrt --fifo -p 90 $TXRX_PID
+
+        sleep $SLEEP_SEC
+        pkill iperf3
+        pkill txrx-tsn
+else
+        echo "Currently $PLAT :AF_PACKET is not configured to run."
 fi
-
-# Assign to CPU2
-taskset -p 4 $TXRX_PID
-chrt --fifo -p 90 $TXRX_PID
-
-sleep $SLEEP_SEC
-pkill iperf3
-pkill txrx-tsn
 
 # If AF_XDP is not available/not supported for the platform, we will exit.
 if [[ "$XDP_MODE" == "NA" ]]; then
