@@ -79,7 +79,7 @@ if [ "$AFP_PACKET_TEST" = "y" ]; then
         pkill iperf3
         pkill txrx-tsn
 else
-        echo "Currently $PLAT :AF_PACKET is not configured to run."
+        echo "PHASE 1: AF_PACKET is not configured to run."
 fi
 
 # If AF_XDP is not available/not supported for the platform, we will exit.
@@ -107,6 +107,9 @@ else
         #echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
 fi
 TXRX_PID=$!
+
+# Sleep before setting the vlan rx steering for XDP
+sleep 1
 
 if [[ $PLAT != i225* ]]; then
         setup_vlanrx_xdp $IFACE
