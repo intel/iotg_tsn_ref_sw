@@ -61,24 +61,30 @@ echo 0 > afxdp-traffic.txt
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
 
-echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
-run_iperf3_bg_server
-sleep 5
+if [ "$AFP_PACKET_TEST" = "y" ]; then
+    echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
+    run_iperf3_bg_server
+    sleep 5
 
-./txrx-tsn -Pri $IFACE -q $RX_PKT_Q > afpkt-rxtstamps.txt &
-TXRX_PID=$!
+    ./txrx-tsn -Pri $IFACE -q $RX_PKT_Q > afpkt-rxtstamps.txt &
+    TXRX_PID=$!
 
-if ! ps -p $TXRX_PID > /dev/null; then
-	echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
-	kill -9 $( pgrep -x iperf3 ) > /dev/null
-	exit 1
+    if ! ps -p $TXRX_PID > /dev/null; then
+        echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
+        kill -9 $( pgrep -x iperf3 ) > /dev/null
+        exit 1
+    fi
+
+    # Assign to CPU3
+    taskset -p 8 $TXRX_PID
+    sleep $SLEEP_SEC
+    pkill txrx-tsn
+    pkill iperf3
+
+else
+    echo "Currently $PLAT :AF_PACKET is not configured to run."
 fi
 
-# Assign to CPU3
-taskset -p 8 $TXRX_PID
-sleep $SLEEP_SEC
-pkill txrx-tsn
-pkill iperf3
 
 if [ "$XDP_MODE" = "NA" ]; then
     echo "PHASE 2: Skipped. Currently $PLAT does not support AF_XDP."
@@ -113,9 +119,11 @@ fi
 echo "PHASE 3: Calculating.."
 pkill gnuplot
 
-stop_if_empty "afpkt-rxtstamps.txt"
-calc_rx_u2u "afpkt-rxtstamps.txt"
-calc_rx_duploss "afpkt-rxtstamps.txt"
+if [ "$AFP_PACKET_TEST" = "y" ]; then
+    stop_if_empty "afpkt-rxtstamps.txt"
+    calc_rx_u2u "afpkt-rxtstamps.txt"
+    calc_rx_duploss "afpkt-rxtstamps.txt"
+fi
 
 if [ "$XDP_MODE" != "NA" ]; then
     stop_if_empty "afxdp-rxtstamps.txt"
@@ -128,7 +136,12 @@ save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT
 if [ "$XDP_MODE" = "NA" ]; then
     gnuplot -e "FILENAME='afpkt-traffic.txt';YMAX=2000000; PLOT_TITLE='$PLAT:AF_Packet only'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
 else
-    gnuplot -e "FILENAME='afpkt-traffic.txt';FILENAME2='afxdp-traffic.txt';" $DIR/../common/latency_dual.gnu -p 2> /dev/null &
+    if [ "$AFP_PACKET_TEST" = "y" ]; then
+        gnuplot -e "FILENAME='afpkt-traffic.txt';FILENAME2='afxdp-traffic.txt';" $DIR/../common/latency_dual.gnu -p 2> /dev/null &
+    else
+      #Only trace XDP_MODE
+       gnuplot -e "FILENAME='afxdp-traffic.txt';YMAX=2000000; PLOT_TITLE='$PLAT:AF_XDP only'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
+    fi
 fi
 
 while [[ ! -s plot_pic.png ]]; do sleep 5; done
