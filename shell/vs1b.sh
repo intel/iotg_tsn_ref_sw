@@ -59,12 +59,12 @@ echo 0 > afpkt-traffic.txt
 echo 0 > afxdp-traffic.txt
 
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
-XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
+XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 20))
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
     echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
 
-    if [ "$RUN_IPERF" = "y" ]; then
+    if [ "$RUN_IPERF3_AFP" = "y" ]; then
         run_iperf3_bg_server
     fi
     sleep 5
@@ -96,7 +96,7 @@ else
 
     echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
 
-    if [ "$RUN_IPERF" = "y" ]; then
+    if [ "$RUN_IPERF3_XDP" = "y" ]; then
         run_iperf3_bg_server
     fi
     sleep 5
