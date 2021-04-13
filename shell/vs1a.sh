@@ -58,7 +58,10 @@ XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
         echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
-        run_iperf3_bg_client
+
+        if [ "$RUN_IPERF" = "y" ]; then
+                run_iperf3_bg_client
+        fi
         sleep 5
 
         ./txrx-tsn -i $IFACE -PtTq $TX_PKT_Q -n $NUMPKTS -l $SIZE -y $INTERVAL \
@@ -93,7 +96,9 @@ sleep 20
 
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 
-run_iperf3_bg_client
+if [ "$RUN_IPERF" = "y" ]; then
+        run_iperf3_bg_client
+fi
 sleep 5
 #sleep 20 # sleep longer to allow rx vlan in rx side to set.
 
