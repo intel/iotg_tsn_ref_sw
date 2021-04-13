@@ -98,14 +98,14 @@ sleep 5
 #sleep 20 # sleep longer to allow rx vlan in rx side to set.
 
 # ADL alpha does not support launch time
-if [[ $PLAT != adl* ]]; then
+#if [[ $PLAT != adl* ]]; then
         ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
                 -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
-        #echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
-else
-        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL > afxdp-txtstamps.txt &
-        #echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
-fi
+        echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
+#else
+#        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL > afxdp-txtstamps.txt &
+#        echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
+#fi
 TXRX_PID=$!
 
 # Sleep before setting the vlan rx steering for XDP
