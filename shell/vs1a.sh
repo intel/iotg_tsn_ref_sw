@@ -54,12 +54,12 @@ ln -sfv $TEMP_DIR/afpkt-txtstamps.txt .
 ln -sfv $TEMP_DIR/afxdp-txtstamps.txt .
 
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
-XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
+XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 20))
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
         echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
 
-        if [ "$RUN_IPERF" = "y" ]; then
+        if [ "$RUN_IPERF3_AFP" = "y" ]; then
                 run_iperf3_bg_client
         fi
         sleep 5
@@ -96,21 +96,21 @@ sleep 20
 
 echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
 
-if [ "$RUN_IPERF" = "y" ]; then
+if [ "$RUN_IPERF3_XDP" = "y" ]; then
         run_iperf3_bg_client
 fi
 sleep 5
 #sleep 20 # sleep longer to allow rx vlan in rx side to set.
 
-# ADL alpha does not support launch time
-#if [[ $PLAT != adl* ]]; then
+# i225 does not support launch time
+if [[ $PLAT != i225* ]]; then
         ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
                 -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
         echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
-#else
-#        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL > afxdp-txtstamps.txt &
-#        echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
-#fi
+else
+        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL > afxdp-txtstamps.txt &
+        echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
+fi
 TXRX_PID=$!
 
 # Sleep before setting the vlan rx steering for XDP
