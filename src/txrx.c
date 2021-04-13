@@ -382,7 +382,7 @@ int main(int argc, char *argv[])
 
 		switch (opt.mode) {
 		case MODE_TX:
-			usleep(5000000);
+			usleep(7000000);
 			afxdp_send_thread(&opt);
 
 			break;
