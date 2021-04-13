@@ -63,7 +63,10 @@ XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 10))
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
     echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
-    run_iperf3_bg_server
+
+    if [ "$RUN_IPERF" = "y" ]; then
+        run_iperf3_bg_server
+    fi
     sleep 5
 
     ./txrx-tsn -Pri $IFACE -q $RX_PKT_Q > afpkt-rxtstamps.txt &
@@ -93,7 +96,9 @@ else
 
     echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
 
-    run_iperf3_bg_server
+    if [ "$RUN_IPERF" = "y" ]; then
+        run_iperf3_bg_server
+    fi
     sleep 5
 
     ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt & 
