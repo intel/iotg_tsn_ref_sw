@@ -45,6 +45,9 @@ fi
 
 init_interface  $IFACE
 
+$DIR/clock-setup.sh $IFACE
+sleep 50 #Give some time for clock daemons to start.
+
 setup_taprio    $IFACE
 sleep 10
 
@@ -69,10 +72,5 @@ if [[ $PLAT == i225* ]]; then
 else
         setup_vlanrx $IFACE
 fi
-
-sleep 10
-
-$DIR/clock-setup.sh $IFACE
-sleep 50 #Give some time for clock daemons to start.
 
 exit 0
