@@ -90,10 +90,10 @@ if [[ $PLAT == i225* ]]; then
         echo "ethtool -N $IFACE flow-type ether vlan 0x2000 vlan-mask 0x1FFF action $RX_XDP_Q"
         ethtool -N $IFACE flow-type ether vlan 0x2000 vlan-mask 0x1FFF action $RX_XDP_Q
 
-        # Use flow-type to push iperf3 packet to 3
-        echo "Adding flow-type for iperf3 packet to q-3"
-        echo "ethtool -N $IFACE flow-type ether proto 0x0800 queue 3"
-        ethtool -N $IFACE flow-type ether proto 0x0800 queue 3
+        # Use flow-type to push iperf3 packet to $IPERF_Q
+        echo "Adding flow-type for iperf3 packet to q-$IPERF_Q"
+        echo "ethtool -N $IFACE flow-type ether proto 0x0800 queue $IPERF_Q"
+        ethtool -N $IFACE flow-type ether proto 0x0800 queue $IPERF_Q
 
 else
         setup_vlanrx $IFACE
