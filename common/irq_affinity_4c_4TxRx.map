@@ -1,4 +1,4 @@
-TxRx-0,01,general
-TxRx-1,04,tsn ref sw xdp
-TxRx-2,02,ptp-TxRx
-TxRx-3,04,tsn ref sw afp
+TxRx-0,01,PTP (highest priority)
+TxRx-1,02,txrx-tsn
+TxRx-2,04,not use
+TxRx-3,08,iperf3 (least priority)

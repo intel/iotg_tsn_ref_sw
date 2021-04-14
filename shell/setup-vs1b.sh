@@ -45,8 +45,13 @@ fi
 
 init_interface  $IFACE
 
+$DIR/clock-setup.sh $IFACE
+sleep 50 #Give some time for clock daemons to start.
+
 setup_mqprio $IFACE
 sleep 10
+
+sleep 10 # just to make it same delay as vs1a.sh
 
 if [[ $PLAT == i225* ]]; then
         RULES31=$(ethtool -n $IFACE | grep "Filter: 31")
@@ -85,18 +90,13 @@ if [[ $PLAT == i225* ]]; then
         echo "ethtool -N $IFACE flow-type ether vlan 0x2000 vlan-mask 0x1FFF action $RX_XDP_Q"
         ethtool -N $IFACE flow-type ether vlan 0x2000 vlan-mask 0x1FFF action $RX_XDP_Q
 
-        # Use flow-type to push iperf3 packet to 0
-        echo "Adding flow-type for iperf3 packet to q-0"
-        echo "ethtool -N $IFACE flow-type ether proto 0x0800 queue 0"
-        ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
+        # Use flow-type to push iperf3 packet to 3
+        echo "Adding flow-type for iperf3 packet to q-3"
+        echo "ethtool -N $IFACE flow-type ether proto 0x0800 queue 3"
+        ethtool -N $IFACE flow-type ether proto 0x0800 queue 3
 
 else
         setup_vlanrx $IFACE
 fi
-
-sleep 20
-
-$DIR/clock-setup.sh $IFACE
-sleep 50 #Give some time for clock daemons to start.
 
 exit 0
