@@ -1,4 +1,4 @@
 TxRx-0,01,PTP (highest priority)
 TxRx-1,02,txrx-tsn
-TxRx-2,04,not use
+TxRx-2,04,af_xdp
 TxRx-3,08,iperf3 (least priority)
