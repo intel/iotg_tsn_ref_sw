@@ -83,12 +83,12 @@ if [[ $PLAT == i225* ]]; then
         # Use flow-type to push txrx-tsn packet VLAN PRIORITY 3 to $RX_PKT_Q
         echo "Adding flow-type for txrx-tsn packet (vlan priority 3) to q-$RX_PKT_Q"
         echo "ethtool -N $IFACE flow-type ether vlan 0x6000 vlan-mask 0x1FFF action $RX_PKT_Q"
-        ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action $RX_PKT_Q
+        ethtool -N $IFACE flow-type ether vlan $VLAN_PRIOR_PKT vlan-mask 0x1FFF action $RX_PKT_Q
 
         # Use flow-type to push txrx-tsn packet VLAN PRIORITY 2 to $RX_XDP_Q
         echo "Adding flow-type for txrx-tsn packet (vlan priority 2) to q-$RX_XDP_Q"
         echo "ethtool -N $IFACE flow-type ether vlan 0x2000 vlan-mask 0x1FFF action $RX_XDP_Q"
-        ethtool -N $IFACE flow-type ether vlan 0x4000 vlan-mask 0x1FFF action $RX_XDP_Q
+        ethtool -N $IFACE flow-type ether vlan $VLAN_PRIOR_AF_XDP vlan-mask 0x1FFF action $RX_XDP_Q
 
         # Use flow-type to push iperf3 packet to $IPERF_Q
         echo "Adding flow-type for iperf3 packet to q-$IPERF_Q"
