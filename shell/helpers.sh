@@ -92,12 +92,12 @@ init_interface(){
                 echo "Error: use even queue count";
                 exit 1
         fi
-	
-	if [[ $PLAT == i225* ]]; then
-		# set to 1Gbps.
-		ethtool -s $IFACE advertise 32
-		sleep 3
-	fi	
+
+        if [[ $PLAT == i225* ]]; then
+                # Default is 2.5G. We set to 1Gbps
+                ethtool -s $IFACE advertise 32
+                sleep 3
+        fi
 
         if [[ $PLAT == i225* ]]; then
                 RXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i Combined | awk '{print $2}')
