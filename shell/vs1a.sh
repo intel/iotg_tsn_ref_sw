@@ -135,5 +135,10 @@ sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
+if [[ $PLAT == i225* ]]; then
+        echo -e "Resetting the link for i225"
+        setup_link_down_up $IFACE
+fi
+
 echo "Done!"
 exit 0
