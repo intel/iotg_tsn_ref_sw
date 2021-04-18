@@ -510,3 +510,15 @@ save_result_files(){
         ;;
         esac
 }
+
+setup_link_down_up(){
+        IFACE=$1
+
+        if [ -z $IFACE ]; then echo "Error setup_vlanrx: please specify interface."; exit 1; fi
+
+        ip link set $IFACE down
+
+        sleep 3
+
+        ip link set $IFACE up
+}
