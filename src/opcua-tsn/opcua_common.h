@@ -60,6 +60,7 @@ struct PublisherData {
     int xdpQueue;
     int32_t earlyOffsetNs;
     int32_t publishOffsetNs;
+    int32_t publishDelaySec;
     char *url;
     int32_t id;
     int32_t dataSetWriterId;
