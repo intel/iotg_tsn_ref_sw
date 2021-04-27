@@ -93,6 +93,7 @@ if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adl2" ]];then
     sed -i -e "s/_PREPROCESS_STR_2nd_interface/$IFACE2/gi" $NEW_JSON $NEW_TSN_JSON
 fi
 
+KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 case "$MODE" in
 
     # Set the static ip and mac address only. using opcua-*.cfg
@@ -131,6 +132,10 @@ case "$MODE" in
 
     # Run setup using opcua*-tsn.json
     setup) 
+        # Don't run setup on 5.10. Setup runs during "run" step.
+        if [[ "$KERNEL_VER" == "5.10" && ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" ) ]]; then
+            exit 0
+        fi
         rm -f $DIR/../$IPERF3_GEN_CMD
 
         python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
@@ -212,9 +217,32 @@ echo "Wait 20 sec for test environment to stabilize before running opcua server.
 sleep 20
 
 # Execute the server and pass it opcua-*.json
-./opcua-server "$NEW_JSON"
+./opcua-server "$NEW_JSON" &
 
+OPCUA_PID=$!
 RETVAL_OPCUA=$?
+
+# all settings are lost after xdp init on 5.10
+# run setup after running opcua-server
+if [[ "$KERNEL_VER" == "5.10" && ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" ) ]]; then
+    rm -f $DIR/../$IPERF3_GEN_CMD
+
+    python3 $DIR/gen_setup.py --re-init "$NEW_TSN_JSON"
+    if [ $? -ne 0 ]; then
+        echo "gen_setup.py returned non-zero. Abort" && exit
+    fi
+    sh ./setup-generated.sh
+
+    # Extra Delay to stabilize gPTP
+    echo "Wait 30 sec for gPTP to sync properly after setting the queues."
+    sleep 30
+
+    echo "Setup Done."
+    while ps -p $OPCUA_PID >/dev/null
+    do
+        sleep 2
+    done
+fi
 
 # Kill iperf3 client. Leave iperf3 server running."
 IPERF3_CLI_PID=$(pgrep iperf3 -a | grep "iperf3 -c" | awk '{print $1}')

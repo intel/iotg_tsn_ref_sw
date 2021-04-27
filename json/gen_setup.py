@@ -437,11 +437,14 @@ def main():
     parser.add_argument('config_file', help='Path to config file')
     parser.add_argument('-d', '--dry-run', dest='dry', default=False,
             action='store_true', help='Display commands without running them')
+    parser.add_argument('--re-init', dest='reinit', default=False,
+            action='store_true', help='Re Init')
     args = parser.parse_args()
     cfg_path = args.config_file
 
     initialize()
     IS_DRY = args.dry
+    RE_INIT = args.reinit
 
     if not os.path.isfile(cfg_path):
         #print('File {} not found'.format(cfg_path))
@@ -450,19 +453,31 @@ def main():
     with open(cfg_path, 'r') as f:
         data = json.loads(f.read())
 
-    if 'ptp' in data:
-        process_ptp(data['ptp'])
+    if RE_INIT:
+        for each_tc in data["tc_group"]:
+            process_tc_data(each_tc)
 
-    if 'phc2sys' in data:  process_phc2sys(data['phc2sys'])
+        if 'ptp' in data:
+            process_ptp(data['ptp'])
 
-    if 'custom_sync_a' in data:  process_custom_a(data['custom_sync_a'])
-    if 'custom_sync_b' in data:  process_custom_b(data['custom_sync_b'])
+        if 'phc2sys' in data:  process_phc2sys(data['phc2sys'])
 
-    for each_tc in data["tc_group"]:
-        process_tc_data(each_tc)
+        if 'custom_sync_a' in data:  process_custom_a(data['custom_sync_a'])
+        if 'custom_sync_b' in data:  process_custom_b(data['custom_sync_b'])
+    else:
+        if 'ptp' in data:
+            process_ptp(data['ptp'])
 
-    if 'iperf3' in data:
-        process_iperf3(data['iperf3'])
+        if 'phc2sys' in data:  process_phc2sys(data['phc2sys'])
+
+        if 'custom_sync_a' in data:  process_custom_a(data['custom_sync_a'])
+        if 'custom_sync_b' in data:  process_custom_b(data['custom_sync_b'])
+
+        for each_tc in data["tc_group"]:
+            process_tc_data(each_tc)
+
+        if 'iperf3' in data:
+            process_iperf3(data['iperf3'])
 
     teardown()
 

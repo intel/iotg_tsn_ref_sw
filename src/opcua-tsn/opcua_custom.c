@@ -142,6 +142,7 @@ void *pub_thread(void *arg)
     UA_Int32          blank_counter = 0;
     UA_Int32          earlyOffsetNs = 0;
     UA_Int32          publishOffsetNs = 0;
+    UA_Int32          publishDelaySec = 0;
     UA_UInt32         ind = 0;
     UA_UInt64         cycleTimeNs = 0;
     struct PublisherData *pData;
@@ -158,6 +159,7 @@ void *pub_thread(void *arg)
     ind                = threadArgumentsPublisher->data_index;
     earlyOffsetNs      = pData[ind].earlyOffsetNs;
     publishOffsetNs    = pData[ind].publishOffsetNs;
+    publishDelaySec    = pData[ind].publishDelaySec;
     cycleTimeNs        = g_sData->cycleTimeNs;
 
     /* Define Ethernet ETF transport settings */
@@ -179,8 +181,9 @@ void *pub_thread(void *arg)
     /* Get current time and compute the next nanosleeptime to the nearest 5th second */
     clock_gettime(CLOCKID, &temp_t);
     tx_timestamp = ((temp_t.tv_sec + 9) / 10) * 10;
-    /* Add 3 secs delay for publisher (subscriber starts earlier) */
-    tx_timestamp += 3;
+    /* Add delay for publisher (subscriber starts earlier) */
+    tx_timestamp += publishDelaySec;
+
     tx_timestamp *= ONESEC_IN_NSEC;
     /* Add publish offset to tx time*/
     tx_timestamp += publishOffsetNs;
