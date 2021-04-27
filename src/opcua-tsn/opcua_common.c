@@ -210,6 +210,9 @@ struct ServerData *parseJson(struct json_object *json)
         catch_err(pd->publishOffsetNs < 0 || pd->publishOffsetNs > TEN_MSEC_NSEC,
                   "Invalid publish_offset_ns");
 
+        pd->publishDelaySec = getInt(pubJson, "publish_delay_sec");
+        catch_err(pd->publishDelaySec < 0, "Invalid publish_delay_sec");
+
         pd->socketPriority = getInt(pubJson, "socket_prio");
         catch_err(pd->socketPriority < 0 || pd->socketPriority > 7,
                   "Invalid socket_prio");
