@@ -132,21 +132,30 @@ case "$MODE" in
 
     # Run setup using opcua*-tsn.json
     setup) 
-        # Don't run setup on 5.10. Setup runs during "run" step.
-        if [[ "$KERNEL_VER" == "5.10" && ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" ) ]]; then
-            exit 0
-        fi
         rm -f $DIR/../$IPERF3_GEN_CMD
 
-        python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
+        # Work around for 5.10kernel due to reset after xdp init
+        if [[ "$KERNEL_VER" == "5.10" ]]; then
+            if [[ ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3a" || "$CONFIG" == "opcua-xdp3b" ) ]]; then
+                python3 $DIR/gen_setup.py --iperf3 "$NEW_TSN_JSON"
+            else
+                python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
+            fi
+        else
+            python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
+        fi
+
         if [ $? -ne 0 ]; then
             echo "gen_setup.py returned non-zero. Abort" && exit
         fi
         sh ./setup-generated.sh
 
         # Extra Delay to stabilize gPTP
-        echo "Wait 30 sec for gPTP to sync properly after setting the queues."
-        sleep 30
+        PTP_PROCESSES=$(pgrep -c ptp4l)
+        if [ "$PTP_PROCESSES" -ne 0 ]; then
+            echo "Wait 30 sec for gPTP to sync properly after setting the queues."
+            sleep 30
+        fi
 
         exit 0
         ;;
@@ -224,25 +233,31 @@ RETVAL_OPCUA=$?
 
 # all settings are lost after xdp init on 5.10
 # run setup after running opcua-server
-if [[ "$KERNEL_VER" == "5.10" && ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" ) ]]; then
-    rm -f $DIR/../$IPERF3_GEN_CMD
+if [[ "$KERNEL_VER" == "5.10" ]]; then
+    if [[ ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3a" || "$CONFIG" == "opcua-xdp3b" ) ]]; then
+        python3 $DIR/gen_setup.py --re-init "$NEW_TSN_JSON"
+        if [ $? -ne 0 ]; then
+            echo "gen_setup.py returned non-zero. Abort" && exit
+        fi
+        sh ./setup-generated.sh
 
-    python3 $DIR/gen_setup.py --re-init "$NEW_TSN_JSON"
-    if [ $? -ne 0 ]; then
-        echo "gen_setup.py returned non-zero. Abort" && exit
+        # Extra Delay to stabilize gPTP
+        PTP_PROCESSES=$(pgrep -c ptp4l)
+        if [ "$PTP_PROCESSES" -ne 0 ]; then
+            echo "Wait 30 sec for gPTP to sync properly after setting the queues."
+            sleep 30
+        fi
+
+        echo "Setup Done."
     fi
-    sh ./setup-generated.sh
-
-    # Extra Delay to stabilize gPTP
-    echo "Wait 30 sec for gPTP to sync properly after setting the queues."
-    sleep 30
-
-    echo "Setup Done."
-    while ps -p $OPCUA_PID >/dev/null
-    do
-        sleep 2
-    done
 fi
+
+while ps -p $OPCUA_PID >/dev/null
+do
+    sleep 2
+done
+
+echo "Transfer Complete"
 
 # Kill iperf3 client. Leave iperf3 server running."
 IPERF3_CLI_PID=$(pgrep iperf3 -a | grep "iperf3 -c" | awk '{print $1}')
