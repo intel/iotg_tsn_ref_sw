@@ -439,12 +439,15 @@ def main():
             action='store_true', help='Display commands without running them')
     parser.add_argument('--re-init', dest='reinit', default=False,
             action='store_true', help='Re Init')
+    parser.add_argument('--iperf3', dest='iperf3', default=False,
+            action='store_true', help='Generate Iperf3 cmd')
     args = parser.parse_args()
     cfg_path = args.config_file
 
     initialize()
     IS_DRY = args.dry
     RE_INIT = args.reinit
+    IPERF3 = args.iperf3
 
     if not os.path.isfile(cfg_path):
         #print('File {} not found'.format(cfg_path))
@@ -453,7 +456,10 @@ def main():
     with open(cfg_path, 'r') as f:
         data = json.loads(f.read())
 
-    if RE_INIT:
+    if IPERF3:
+        if 'iperf3' in data:
+            process_iperf3(data['iperf3'])
+    elif RE_INIT:
         for each_tc in data["tc_group"]:
             process_tc_data(each_tc)
 
