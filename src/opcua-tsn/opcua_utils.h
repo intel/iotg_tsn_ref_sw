@@ -41,7 +41,10 @@
         fprintf(stderr, "[ERR] %s():%d " M "\n", \
                 __func__, __LINE__, ##__VA_ARGS__)
 
-#define log(M, ...) fprintf(stdout, "[LOG] " M "\n", ##__VA_ARGS__)
+#define log(M, ...) \
+         if(verbose) { \
+                fprintf(stdout, "[LOG] " M "\n", ##__VA_ARGS__); \
+         }
 
 #define catch_err(A, M, ...) \
         if (A) { \
