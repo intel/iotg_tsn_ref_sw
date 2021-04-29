@@ -263,8 +263,13 @@ calc_return_duploss(){
         # Total missing: Same as: packet count - total_packet - total_duplicate
         PACKET_LOSS=$((PACKET_COUNT-PACKET_RX-PACKET_DUPL))
 
-        echo -e "Expected\tReceived\tDuplicates\tLosses\tFwdErrors\n" \
-                "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS\t$PACKET_ERR" > temp0.txt
+        if [[ "$RUNSH_DEBUG_MODE" == "YES" ]]; then
+                echo -e "Expected\tReceived\tDuplicates\tLosses\tFwdErrors\n" \
+                        "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS\t$PACKET_ERR" > temp0.txt
+        else
+                echo -e "Expected\tReceived\tDuplicates\tLosses\n" \
+                        "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS" > temp0.txt
+        fi
         paste saved1.txt temp0.txt | column -t
         rm temp*.txt
 }
