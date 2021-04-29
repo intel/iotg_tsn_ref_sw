@@ -42,6 +42,7 @@
 #include <sys/msg.h>
 
 #include "opcua_utils.h"
+#define MAX_OPCUA_THREAD 6
 
 typedef UA_StatusCode (DSCallbackRead)(UA_Server *server,
         const UA_NodeId *sessionId, void *sessionContext,

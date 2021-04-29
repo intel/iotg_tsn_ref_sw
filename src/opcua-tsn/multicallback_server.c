@@ -62,7 +62,7 @@
 #define MSG_KEY_1 3838
 
 /* Globals */
-struct threadParams *g_thread;
+struct threadParams g_thread[MAX_OPCUA_THREAD];
 UA_UInt16 g_threadRun;
 UA_Boolean g_running = true;
 UA_Boolean g_roundtrip_pubReturn = true;
@@ -226,8 +226,9 @@ int main(int argc, char **argv)
     catch_err(ret == -1, "configureServer() returned -1");
 
     threadCount = sdata->pubCount + sdata->subCount;
+    catch_err(threadCount > MAX_OPCUA_THREAD, "Max total opcua pub+sub is exceeded !!. Exiting.");
     g_threadRun = 0;
-    g_thread = calloc(threadCount, sizeof(struct threadParams));
+
     g_sData = sdata;
 
     /* Pub/sub threads will be started by the WG/RG addRepeatedCallback() */
@@ -256,8 +257,6 @@ int main(int argc, char **argv)
     UA_Server_delete(server);
 
     free_resources(sdata);
-
-    free(g_thread);
 
     return servrun == UA_STATUSCODE_GOOD ? EXIT_SUCCESS : EXIT_FAILURE;
 
