@@ -51,7 +51,7 @@
 #define PUB_THREAD_PRIORITY                   91
 #define SUB_THREAD_PRIORITY                   90
 
-extern struct threadParams *g_thread;
+extern struct threadParams g_thread[MAX_OPCUA_THREAD];
 extern UA_UInt16 g_threadRun;
 extern UA_Boolean g_running, g_roundtrip_pubReturn;
 extern UA_NodeId g_writerGroupIdent;
