@@ -94,30 +94,36 @@ if [ "$XDP_MODE" = "NA" ]; then
 else
     sleep 20
 
-    echo "PHASE 2: AF_XDP receive ($XDP_SLEEP_SEC seconds)"
-
-    if [ "$RUN_IPERF3_XDP" = "y" ]; then
-        run_iperf3_bg_server
-    fi
-    sleep 5
+    echo "PHASE 2: AF_XDP receive ($(($XDP_SLEEP_SEC + 45)) seconds)"
+    KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
     ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt & 
     TXRX_PID=$!
 
-    # Sleep before setting the vlan rx steering for XDP
-    sleep 1
-    if [[ $PLAT != i225* ]]; then
-        setup_vlanrx_xdp $IFACE
-    fi
-
     if ! ps -p $TXRX_PID > /dev/null; then
         echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
-        kill -9 $( pgrep -x iperf3 ) > /dev/null
         exit 1
     fi
 
     # Assign to CPU3
     taskset -p 8 $TXRX_PID
+
+    sleep 5
+    if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
+        init_interface  $IFACE
+        setup_mqprio $IFACE
+        sleep 7
+        setup_vlanrx_xdp $IFACE
+        $DIR/clock-setup.sh $IFACE
+        sleep 25
+    else
+        sleep 40
+    fi
+
+    if [ "$RUN_IPERF3_XDP" = "y" ]; then
+        run_iperf3_bg_server
+    fi
+
     sleep $XDP_SLEEP_SEC
     pkill iperf3
     pkill txrx-tsn
