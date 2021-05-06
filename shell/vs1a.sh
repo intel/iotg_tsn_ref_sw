@@ -94,13 +94,8 @@ fi
 
 sleep 20
 
-echo "PHASE 2: AF_XDP transmit ($XDP_SLEEP_SEC seconds)"
-
-if [ "$RUN_IPERF3_XDP" = "y" ]; then
-        run_iperf3_bg_client
-fi
-sleep 5
-#sleep 20 # sleep longer to allow rx vlan in rx side to set.
+echo "PHASE 2: AF_XDP transmit ($(($XDP_SLEEP_SEC + 45)) seconds)"
+KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
 # i225 does not support launch time
 if [[ $PLAT != i225* ]]; then
@@ -113,23 +108,31 @@ else
 fi
 TXRX_PID=$!
 
-# Sleep before setting the vlan rx steering for XDP
-sleep 1
-
-if [[ $PLAT != i225* ]]; then
-        setup_vlanrx_xdp $IFACE
-        #sleep 20
-fi
-
 if ! ps -p $TXRX_PID > /dev/null; then
 	echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
-	kill -9 $( pgrep -x iperf3 ) > /dev/null
 	exit 1
 fi
 
 # Assign to CPU2
 taskset -p 4 $TXRX_PID
 chrt --fifo -p 90 $TXRX_PID
+
+sleep 5
+if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
+        init_interface  $IFACE
+        setup_taprio $IFACE
+        setup_etf $IFACE
+        sleep 2
+        setup_vlanrx_xdp $IFACE
+        $DIR/clock-setup.sh $IFACE
+        sleep 25
+else
+        sleep 40
+fi
+
+if [ "$RUN_IPERF3_XDP" = "y" ]; then
+        run_iperf3_bg_client
+fi
 
 sleep $XDP_SLEEP_SEC
 pkill iperf3

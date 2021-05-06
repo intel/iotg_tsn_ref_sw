@@ -380,14 +380,15 @@ int main(int argc, char *argv[])
 		signal(SIGTERM, afxdp_sigint_handler);
 		signal(SIGABRT, afxdp_sigint_handler);
 
+		/* Wait 45s for GbE setup and configuration */
+		usleep(45000000);
+
 		switch (opt.mode) {
 		case MODE_TX:
-			usleep(7000000);
 			afxdp_send_thread(&opt);
 
 			break;
 		case MODE_RX:
-			//usleep(3000000);
 			while (!halt_tx_sig)
 				afxdp_recv_pkt(opt.xsk, buff);
 			break;
