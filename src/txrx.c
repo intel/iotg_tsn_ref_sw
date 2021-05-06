@@ -275,6 +275,49 @@ static char summary[] = "  AF_XDP & AF_PACKET Transmit-Receive Application";
 
 static struct argp argp = { options, parser, usage, summary };
 
+void copy_file(char *src_file, char *dst_file, bool clear_src)
+{
+	char ch;
+	FILE *src, *dst;
+
+	/* Open source file for reading */
+	src = fopen(src_file, "r");
+	if (src == NULL)
+		return;
+
+	/* Open destination file for writing in append mode */
+	dst = fopen(dst_file, "w");
+	if (dst == NULL) {
+		fclose(src);
+		return;
+	}
+
+	/* Copy content from source file to destination file */
+	while ((ch = fgetc(src)) != EOF)
+		fputc(ch, dst);
+
+	fclose(src);
+	fclose(dst);
+
+	/* Clear source file */
+	if (clear_src)
+		fclose(fopen(src_file, "w"));
+
+	return;
+}
+
+void ts_log_start()
+{
+	copy_file("/var/log/ptp4l.log", "/var/log/total_ptp4l.log", 1);
+	copy_file("/var/log/phc2sys.log", "/var/log/total_phc2sys.log", 1);
+}
+
+void ts_log_stop()
+{
+	copy_file("/var/log/ptp4l.log", "/var/log/captured_ptp4l.log", 0);
+	copy_file("/var/log/phc2sys.log", "/var/log/captured_phc2sys.log", 0);
+}
+
 int main(int argc, char *argv[])
 {
 	struct pollfd fds[1];
@@ -335,6 +378,8 @@ int main(int argc, char *argv[])
 		};
 		int sockfd;
 
+		ts_log_start();
+
 		switch (opt.mode) {
 		case MODE_TX:
 			ret = init_tx_socket(&opt, &sockfd, &sk_addr);
@@ -367,6 +412,9 @@ int main(int argc, char *argv[])
 			exit_with_error("Invalid AF_XDP mode: Please specify -t, -r, or -f.");
 			break;
 		}
+
+		ts_log_stop();
+
 		close(sockfd);
 		break;
 	case MODE_AFXDP:
@@ -382,6 +430,8 @@ int main(int argc, char *argv[])
 
 		/* Wait 45s for GbE setup and configuration */
 		usleep(45000000);
+
+		ts_log_start();
 
 		switch (opt.mode) {
 		case MODE_TX:
@@ -424,6 +474,9 @@ int main(int argc, char *argv[])
 			exit_with_error("Invalid AF_XDP mode: Please specify -t, -r, -f or -b.");
 			break;
 		}
+
+		ts_log_stop();
+
 		/* Close XDP Application */
 		xdpsock_cleanup();
 		break;
