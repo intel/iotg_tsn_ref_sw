@@ -228,6 +228,16 @@ sleep 20
 # Execute the server and pass it opcua-*.json
 ./opcua-server "$NEW_JSON" &
 
+ts_log_start(){
+    cat /var/log/ptp4l.log >> /var/log/total_ptp4l.log
+    cat /var/log/phc2sys.log >> /var/log/total_phc2sys.log
+
+    echo -n "" > /var/log/ptp4l.log
+    echo -n "" > /var/log/phc2sys.log
+    echo -n "" > /var/log/captured_ptp4l.log
+    echo -n "" > /var/log/captured_phc2sys.log
+}
+
 OPCUA_PID=$!
 RETVAL_OPCUA=$?
 
@@ -250,6 +260,7 @@ if [[ "$KERNEL_VER" == "5.10" ]]; then
 
         echo "Setup Done."
     fi
+    ts_log_start
 fi
 
 while ps -p $OPCUA_PID >/dev/null
