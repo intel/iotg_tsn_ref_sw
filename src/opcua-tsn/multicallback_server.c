@@ -210,6 +210,53 @@ error:
     return NULL;
 }
 
+
+void copy_file(char *src_file, char *dst_file, bool clear_src)
+{
+	char ch;
+	FILE *src, *dst;
+
+	/* Open source file for reading */
+	src = fopen(src_file, "r");
+	if (src == NULL)
+		return;
+
+	/* Open destination file for writing in append mode */
+	dst = fopen(dst_file, "w");
+	if (dst == NULL) {
+		fclose(src);
+		return;
+	}
+
+	/* Copy content from source file to destination file */
+	while ((ch = fgetc(src)) != EOF)
+		fputc(ch, dst);
+
+	fclose(src);
+	fclose(dst);
+
+	/* Clear source file */
+	if (clear_src)
+		fclose(fopen(src_file, "w"));
+
+	return;
+}
+
+
+void ts_log_start()
+{
+	copy_file("/var/log/ptp4l.log", "/var/log/total_ptp4l.log", 1);
+	copy_file("/var/log/phc2sys.log", "/var/log/total_phc2sys.log", 1);
+}
+
+
+void ts_log_stop()
+{
+	copy_file("/var/log/ptp4l.log", "/var/log/captured_ptp4l.log", 0);
+	copy_file("/var/log/phc2sys.log", "/var/log/captured_phc2sys.log", 0);
+}
+
+
 int main(int argc, char **argv)
 {
     (void) argc;
@@ -244,6 +291,8 @@ int main(int argc, char **argv)
             UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
                         "\nPthread Join Failed:%ld\n", g_thread[i].id);
     }
+
+    ts_log_stop();
 
     /* Clear msgq */
     if (g_sData->msqid >= 0){
