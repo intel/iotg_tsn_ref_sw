@@ -161,8 +161,18 @@ ts_log_start(){
 }
 
 ts_log_stop_n_report(){
-    grep -vaP '[\0\200-\377]' /var/log/captured_ptp4l.log > /var/log/temp_ptp4l.log
-    grep -vaP '[\0\200-\377]' /var/log/captured_phc2sys.log > /var/log/temp_phc2sys.log
+    num_ptp_lines=$(cat /var/log/captured_ptp4l.log | wc -l)
+    if [[ num_ptp_lines -gt 2 ]]; then
+        grep -vaP '[\0\200-\377]' /var/log/captured_ptp4l.log > /var/log/temp_ptp4l.log
+    else
+        grep -vaP '[\0\200-\377]' /var/log/ptp4l.log > /var/log/temp_ptp4l.log
+    fi
+    num_phc_lines=$(cat /var/log/captured_phc2sys.log | wc -l)
+    if [[ num_phc_lines -gt 2 ]]; then
+        grep -vaP '[\0\200-\377]' /var/log/captured_phc2sys.log > /var/log/temp_phc2sys.log
+    else
+        grep -vaP '[\0\200-\377]' /var/log/phc2sys.log > /var/log/temp_phc2sys.log
+    fi
 
     echo -e ""
     echo -e "PHC2SYS offset" \
