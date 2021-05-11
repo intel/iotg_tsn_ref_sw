@@ -228,6 +228,9 @@ sleep 20
 # Execute the server and pass it opcua-*.json
 ./opcua-server "$NEW_JSON" &
 
+OPCUA_PID=$!
+RETVAL_OPCUA=$?
+
 ts_log_start(){
     cat /var/log/ptp4l.log >> /var/log/total_ptp4l.log
     cat /var/log/phc2sys.log >> /var/log/total_phc2sys.log
@@ -237,9 +240,6 @@ ts_log_start(){
     echo -n "" > /var/log/captured_ptp4l.log
     echo -n "" > /var/log/captured_phc2sys.log
 }
-
-OPCUA_PID=$!
-RETVAL_OPCUA=$?
 
 # all settings are lost after xdp init on 5.10
 # run setup after running opcua-server
