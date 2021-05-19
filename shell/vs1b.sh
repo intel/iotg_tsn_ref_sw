@@ -116,6 +116,9 @@ else
         setup_vlanrx_xdp $IFACE
         $DIR/clock-setup.sh $IFACE
         sleep 25
+    elif [[ $PLAT != i225* ]]; then
+        setup_vlanrx_xdp $IFACE
+        sleep 40
     else
         sleep 40
     fi
