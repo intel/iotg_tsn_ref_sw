@@ -135,6 +135,8 @@ else
     if [[ $PLAT == i225* ]]; then
         echo -e "Resetting the link for i225"
         setup_link_down_up $IFACE
+        sleep 3
+        sh $DIR/setup-vs1a.sh $IFACE
     fi
 fi
 
