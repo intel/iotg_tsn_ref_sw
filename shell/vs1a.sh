@@ -138,11 +138,12 @@ sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
-if [[ $PLAT == i225* ]]; then
-        echo -e "Resetting the link for i225"
-        setup_link_down_up $IFACE
-        sleep 3
-        sh $DIR/setup-vs1a.sh $IFACE
+if [[ $PLAT == i225* && "$KERNEL_VER" != "5.10" ]]; then
+	# To ensure the AF_XDP socket tear down is complete in i225, interface is reset.
+	echo "Re run vs1a setup for af_xdp operation"
+	setup_link_down_up $IFACE
+	sleep 2
+	sh $DIR/setup-vs1a.sh $IFACE
 fi
 
 echo "Done!"
