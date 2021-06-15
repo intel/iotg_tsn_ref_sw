@@ -514,7 +514,7 @@ save_result_files(){
 setup_link_down_up(){
         IFACE=$1
 
-        if [ -z $IFACE ]; then echo "Error setup_vlanrx: please specify interface."; exit 1; fi
+        if [ -z $IFACE ]; then echo "Error setup_link_down_up: please specify interface."; exit 1; fi
 
         ip link set $IFACE down
 
