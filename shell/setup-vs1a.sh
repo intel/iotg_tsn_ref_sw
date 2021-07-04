@@ -55,15 +55,15 @@ setup_etf       $IFACE
 sleep 10
 
 if [[ $PLAT == i225* ]]; then
-        RULES31=$(ethtool -n $IFACE | grep "Filter: 31")
-        if [[ ! -z $RULES31 ]]; then
-                echo "Deleting existing filter rule 31"
-                ethtool -N $IFACE delete 31
+        RULES63=$(ethtool -n $IFACE | grep "Filter: 63")
+        if [[ ! -z $RULES63 ]]; then
+                echo "Deleting existing filter rule 63"
+                ethtool -N $IFACE delete 63
         fi
-        RULES30=$(ethtool -n $IFACE | grep "Filter: 30")
-        if [[ ! -z $RULES30 ]]; then
-                echo "Deleting existing filter rule 30"
-                ethtool -N $IFACE delete 30
+        RULES62=$(ethtool -n $IFACE | grep "Filter: 62")
+        if [[ ! -z $RULES62 ]]; then
+                echo "Deleting existing filter rule 62"
+                ethtool -N $IFACE delete 62
         fi
         # Use flow-type to push ptp packet to $PTP_RX_Q
         echo "Adding flow-type filter for ptp packet to q-$PTP_RX_Q"

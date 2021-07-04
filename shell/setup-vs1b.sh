@@ -54,25 +54,25 @@ sleep 10
 sleep 10 # just to make it same delay as vs1a.sh
 
 if [[ $PLAT == i225* ]]; then
-        RULES31=$(ethtool -n $IFACE | grep "Filter: 31")
-        if [[ ! -z $RULES31 ]]; then
-                echo "Deleting filter rule 31"
-                ethtool -N $IFACE delete 31
+        RULES63=$(ethtool -n $IFACE | grep "Filter: 63")
+        if [[ ! -z $RULES63 ]]; then
+                echo "Deleting filter rule 63"
+                ethtool -N $IFACE delete 63
         fi
-        RULES30=$(ethtool -n $IFACE | grep "Filter: 30")
-        if [[ ! -z $RULES30 ]]; then
-                echo "Deleting filter rule 30"
-                ethtool -N $IFACE delete 30
+        RULES62=$(ethtool -n $IFACE | grep "Filter: 62")
+        if [[ ! -z $RULES62 ]]; then
+                echo "Deleting filter rule 62"
+                ethtool -N $IFACE delete 62
         fi
-        RULES29=$(ethtool -n $IFACE | grep "Filter: 29")
-        if [[ ! -z $RULES29 ]]; then
-                echo "Deleting filter rule 29"
-                ethtool -N $IFACE delete 29
+        RULES61=$(ethtool -n $IFACE | grep "Filter: 61")
+        if [[ ! -z $RULES61 ]]; then
+                echo "Deleting filter rule 61"
+                ethtool -N $IFACE delete 61
         fi
-        RULES28=$(ethtool -n $IFACE | grep "Filter: 28")
-        if [[ ! -z $RULES28 ]]; then
-                echo "Deleting filter rule 28"
-                ethtool -N $IFACE delete 28
+        RULES60=$(ethtool -n $IFACE | grep "Filter: 60")
+        if [[ ! -z $RULES60 ]]; then
+                echo "Deleting filter rule 60"
+                ethtool -N $IFACE delete 60
         fi
 
         # Use flow-type to push ptp packet to $PTP_RX_Q
