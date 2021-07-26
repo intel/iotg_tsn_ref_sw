@@ -105,6 +105,9 @@ void free_resources(struct ServerData *sdata)
 {
     int i = 0;
 
+    if (sdata == NULL)
+        return;
+
     for (i = 0; i < sdata->pubCount; i++) {
         if (sdata->pubData[i].url)
             free(sdata->pubData[i].url);
@@ -120,8 +123,10 @@ void free_resources(struct ServerData *sdata)
         if (sdata->subData[i].subscriberOutputFileName)
             free(sdata->subData[i].subscriberOutputFileName);
 
-        if (sdata->subData[i].fpSubscriberOutput)
+        if (sdata->subData[i].fpSubscriberOutput != NULL) {
+            fflush(sdata->subData[i].fpSubscriberOutput);
             fclose(sdata->subData[i].fpSubscriberOutput);
+        }
     }
 
     if (sdata->subData)
@@ -130,7 +135,7 @@ void free_resources(struct ServerData *sdata)
     if(sdata->subInterface)
         free(sdata->subInterface);
 
-    if(sdata->subInterface)
+    if(sdata->pubInterface)
         free(sdata->pubInterface);
 
     free(sdata);

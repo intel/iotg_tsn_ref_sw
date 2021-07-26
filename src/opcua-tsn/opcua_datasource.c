@@ -185,6 +185,7 @@ subStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
         if (fpSubscriber != NULL) {
             fflush(fpSubscriber);
             fclose(fpSubscriber);
+            sdata->fpSubscriberOutput = NULL;
         }
         g_running = UA_FALSE;
         debug("[SUB] RX: rx_sequence = packet_count = %ld\n", msgqB.rx_sequence);
@@ -383,6 +384,7 @@ subReturnStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
         if (fpSubscriber != NULL) {
             fflush(fpSubscriber);
             fclose(fpSubscriber);
+            sdata->fpSubscriberOutput = NULL;
         }
         g_running = UA_FALSE;
         debug("\n[SUBR][readCurrentTime]: rx_sequence=packet_count=%ld reached. Exit.\n ",
