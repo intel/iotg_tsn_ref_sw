@@ -146,13 +146,13 @@ pkill gnuplot
 if [ "$AFP_PACKET_TEST" = "y" ]; then
     stop_if_empty "afpkt-rxtstamps.txt"
     calc_rx_u2u "afpkt-rxtstamps.txt"
-    calc_rx_duploss "afpkt-rxtstamps.txt"
+    calc_rx_duploss "afpkt-rxtstamps.txt" $NUMPKTS
 fi
 
 if [ "$XDP_MODE" != "NA" ]; then
     stop_if_empty "afxdp-rxtstamps.txt"
     calc_rx_u2u "afxdp-rxtstamps.txt"
-    calc_rx_duploss "afxdp-rxtstamps.txt"
+    calc_rx_duploss "afxdp-rxtstamps.txt" $NUMPKTS
 fi
 
 save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT

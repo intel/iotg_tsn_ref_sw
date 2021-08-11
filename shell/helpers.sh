@@ -438,28 +438,25 @@ calc_rx_u2u(){
 
 calc_rx_duploss(){
         local XDP_RX_FILENAME=$1 #*-txtstamps.txt
+        local PACKET_COUNT=$2 #Number of packets
 
-        # Total packets
-        cat $XDP_RX_FILENAME \
+        # Total packets received
+        PACKET_RX=$(cat $XDP_RX_FILENAME \
                 | awk '{print $2}' \
                 | grep -x -E '[0-9]+' \
-                | wc -l > temp1.txt
+                | wc -l)
 
         # Total duplicate
-        cat $XDP_RX_FILENAME \
+        PACKET_DUPL=$(cat $XDP_RX_FILENAME \
                 | awk '{print $2}' \
                 | uniq -D \
-                | wc -l | paste temp1.txt - > temp2.txt
+                | wc -l)
 
-        # Total missing: Same as: total_packet - total_unique (uniq -c)
-        cat $XDP_RX_FILENAME \
-                | awk '{print $2}' \
-                | grep -x -E '[0-9]+' \
-                | awk '{for(i=p+1; i<$1; i++) print i} {p=$1}' \
-                | wc -l | paste temp2.txt - > temp3.txt
+        # Total missing: Same as: packet count - total_packet - total_duplicate
+        PACKET_LOSS=$((PACKET_COUNT-PACKET_RX-PACKET_DUPL))
 
-        echo -e "Total\tDuplicates\tLosses" > temp0.txt
-        cat temp3.txt >> temp0.txt
+        echo -e "Expected\tReceived\tDuplicates\tLosses\n" \
+                "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS" > temp0.txt
         paste saved1.txt temp0.txt | column -t
 
         rm temp*.txt
