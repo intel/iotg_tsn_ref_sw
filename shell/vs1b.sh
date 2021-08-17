@@ -59,7 +59,7 @@ echo 0 > afpkt-traffic.txt
 echo 0 > afxdp-traffic.txt
 
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
-XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 20))
+XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 100))
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
     echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
@@ -69,7 +69,8 @@ if [ "$AFP_PACKET_TEST" = "y" ]; then
     fi
     sleep 5
 
-    ./txrx-tsn -Pri $IFACE -q $RX_PKT_Q > afpkt-rxtstamps.txt &
+    echo "CMD: ./txrx-tsn -Pri $IFACE -q $RX_PKT_Q -n $NUMPKTS"
+    ./txrx-tsn -Pri $IFACE -q $RX_PKT_Q -n $NUMPKTS > afpkt-rxtstamps.txt &
     TXRX_PID=$!
 
     if ! ps -p $TXRX_PID > /dev/null; then
@@ -94,10 +95,11 @@ if [ "$XDP_MODE" = "NA" ]; then
 else
     sleep 20
 
-    echo "PHASE 2: AF_XDP receive ($(($XDP_SLEEP_SEC + 45)) seconds)"
+    echo "PHASE 2: AF_XDP receive $XDP_SLEEP_SEC seconds)"
     KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
-    ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q > afxdp-rxtstamps.txt & 
+    echo "CMD: ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS"
+    ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS > afxdp-rxtstamps.txt &
     TXRX_PID=$!
 
     if ! ps -p $TXRX_PID > /dev/null; then

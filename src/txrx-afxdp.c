@@ -73,6 +73,7 @@
 extern uint32_t glob_xdp_flags;
 extern int glob_ifindex;
 extern int verbose;
+extern uint32_t glob_rx_seq;
 
 /* User Defines */
 #define BATCH_SIZE 64	//for l2fwd only
@@ -472,6 +473,7 @@ void afxdp_recv_pkt(struct xsk_info *xsk, void *rbuff)
 					payload->tx_timestampA,
 					*(uint64_t *)(pkt - sizeof(uint64_t)),
 					rx_timestampD);
+			glob_rx_seq = payload->seq;
 		} else if (verbose) {
 			fprintf(stderr, "Info: packet received type: 0x%x\n",
 				tsn_pkt->eth_hdr);

@@ -58,6 +58,8 @@
 #define MSG_BUFLEN  1500
 #define RCVBUF_SIZE (MSG_BUFLEN * MAX_PACKETS)
 
+extern uint32_t glob_rx_seq;
+
 /* Signal handler */
 void afpkt_sigint_handler(int signum)
 {
@@ -575,5 +577,7 @@ int afpkt_recv_pkt(int sock, struct user_opt *opt)
 			rx_timestampC,
 			rx_timestampD);
 	fflush(stdout);
+	glob_rx_seq = payload->seq;
+
 	return 0;
 }
