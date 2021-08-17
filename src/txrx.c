@@ -66,6 +66,7 @@ uint32_t glob_xdp_flags;
 int glob_ifindex;
 int halt_tx_sig;
 int verbose;
+uint32_t glob_rx_seq;
 
 uint64_t get_time_nanosec(clockid_t clkid)
 {
@@ -275,10 +276,15 @@ static char summary[] = "  AF_XDP & AF_PACKET Transmit-Receive Application";
 
 static struct argp argp = { options, parser, usage, summary };
 
-void copy_file(char *src_file, char *dst_file, bool clear_src)
+static void copy_file(char *src_file, char *dst_file, bool clear_src)
 {
 	char ch;
 	FILE *src, *dst;
+
+	if (src_file == NULL || dst_file == NULL) {
+		fprintf(stderr, "ERROR: copy_file: src_file and/or dst_file is not given. This will impact phc2sys and ptp4l stat.\n");
+		return;
+	}
 
 	/* Open source file for reading */
 	src = fopen(src_file, "r");
@@ -402,9 +408,13 @@ int main(int argc, char *argv[])
 			if (ret != 0)
 				perror("initrx_socket failed");
 
-			while (!halt_tx_sig)
+			glob_rx_seq = 0;
+			while (!halt_tx_sig) {
 				afpkt_recv_pkt(sockfd, &opt);
-
+				if (glob_rx_seq >= opt.frames_to_send) {
+					break;
+				}
+			}
 			close(sockfd);
 			break;
 		case MODE_FWD: /* FALLTHRU */
@@ -439,8 +449,13 @@ int main(int argc, char *argv[])
 
 			break;
 		case MODE_RX:
-			while (!halt_tx_sig)
+			glob_rx_seq = 0;
+			while (!halt_tx_sig) {
 				afxdp_recv_pkt(opt.xsk, buff);
+				if (glob_rx_seq >= opt.frames_to_send) {
+					break;
+				}
+			}
 			break;
 		case MODE_FWD:
 			memset(fds, 0, sizeof(fds));

@@ -49,12 +49,19 @@ pkill gnuplot
 pkill txrx-tsn
 pkill iperf3
 
+# Remove logging files and its links
+rm -f $TEMP_DIR/afpkt-txtstamps.txt
+rm -f $TEMP_DIR/afxdp-txtstamps.txt
+rm -f ./afpkt-txtstamps.txt
+rm -f ./afxdp-txtstamps.txt
+sync
+
 # Improve performance/consistency by logging to tmpfs (system memory)
 ln -sfv $TEMP_DIR/afpkt-txtstamps.txt .
 ln -sfv $TEMP_DIR/afxdp-txtstamps.txt .
 
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
-XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 20))
+XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 50))
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
         echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
@@ -64,6 +71,7 @@ if [ "$AFP_PACKET_TEST" = "y" ]; then
         fi
         sleep 5
 
+        echo "CMD: ./txrx-tsn -i $IFACE -PtTq $TX_PKT_Q -n $NUMPKTS -l $SIZE -y $INTERVAL -e $EARLY_OFFSET -o $TXTIME_OFFSET"
         ./txrx-tsn -i $IFACE -PtTq $TX_PKT_Q -n $NUMPKTS -l $SIZE -y $INTERVAL \
                         -e $EARLY_OFFSET -o $TXTIME_OFFSET > afpkt-txtstamps.txt &
         TXRX_PID=$!
@@ -94,17 +102,17 @@ fi
 
 sleep 20
 
-echo "PHASE 2: AF_XDP transmit ($(($XDP_SLEEP_SEC + 45)) seconds)"
+echo "PHASE 2: AF_XDP transmit $XDP_SLEEP_SEC seconds)"
 KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
 # i225 does not support launch time
 if [[ $PLAT != i225* ]]; then
+        echo "CMD: ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
         ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
                 -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
-        echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
 else
+        echo "CMD: ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
         ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL > afxdp-txtstamps.txt &
-        echo "./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL"
 fi
 TXRX_PID=$!
 
