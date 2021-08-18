@@ -2,7 +2,7 @@ tx-0,01,general
 rx-0,01,general
 tx-2,02,ptp-tx
 rx-2,02,ptp-rx
-tx-3,04,afpkt-p3/afxdp-tx-q1(5.4)
-rx-3,04,afpkt-p3
+tx-3,04,afpkt-p3/afxdp-tx-q1(5.4)/afxdp-tx-q3(5.10)
+rx-3,04,afpkt-p3/afxdp-rx-q3(5.10)
 rx-1,04,afxdp-rx-q1(5.10 & 5.4)
 tx-1,04,afxdp-tx-q1(5.10)
