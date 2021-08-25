@@ -16,8 +16,8 @@
         "time_elapsed": 3,
         "mapping": {
           "default": 0,
-          "p1": 2,
-          "p2": 1,
+          "p1": 1,
+          "p2": 2,
           "p3": 3
         },
       "schedule": [
@@ -58,8 +58,8 @@
         "queues": "1@0 1@1 1@2 1@3",
         "mapping": {
           "default": 0,
-          "p1": 2,
-          "p2": 1,
+          "p1": 1,
+          "p2": 2,
           "p3": 3
         }
       },
