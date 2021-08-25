@@ -62,6 +62,16 @@ DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source $DIR/helpers.sh
 JSONDIR="$DIR/$PLAT/"
 
+ts_log_start(){
+    cat /var/log/ptp4l.log >> /var/log/total_ptp4l.log
+    cat /var/log/phc2sys.log >> /var/log/total_phc2sys.log
+
+    echo -n "" > /var/log/ptp4l.log
+    echo -n "" > /var/log/phc2sys.log
+    echo -n "" > /var/log/captured_ptp4l.log
+    echo -n "" > /var/log/captured_phc2sys.log
+}
+
 # Parse and check if its valid: e.g. opcua-pkt-1a
 LIST=$(ls $JSONDIR | grep 'opcua' | grep 'json.i' | rev | cut -c 8- | rev | sort)
 if [[ $LIST =~ (^|[[:space:]])"$CONFIG"($|[[:space:]]) ]] ; then
@@ -94,10 +104,20 @@ if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adl2" ]];then
 fi
 
 KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
+
+# Work around for 5.10 kernel due to interface reset after xdp init
+# This means, the setup will only take place after the interface is up again (after entering XDP mode)
+SKIP_SETUP="n"
+if [[ "$KERNEL_VER" == "5.10" ]]; then
+    if [[ ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3a" || "$CONFIG" == "opcua-xdp3b" ) ]]; then
+        SKIP_SETUP="y"
+    fi
+fi
+
 case "$MODE" in
 
     # Set the static ip and mac address only. using opcua-*.cfg
-    init) 
+    init)
         case "$CONFIG" in
             # .config: A/B used for single-trip, C/D added for round-trip
             #
@@ -134,27 +154,24 @@ case "$MODE" in
     setup) 
         rm -f $DIR/../$IPERF3_GEN_CMD
 
-        # Work around for 5.10kernel due to reset after xdp init
-        if [[ "$KERNEL_VER" == "5.10" ]]; then
-            if [[ ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3a" || "$CONFIG" == "opcua-xdp3b" ) ]]; then
-                python3 $DIR/gen_setup.py --iperf3 "$NEW_TSN_JSON"
-            else
-                python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
-            fi
-        else
-            python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
-        fi
-
+        python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
         if [ $? -ne 0 ]; then
             echo "gen_setup.py returned non-zero. Abort" && exit
         fi
+
+        # Work around for 5.10 kernel due to reset after xdp init
+        if [[ "$SKIP_SETUP" == "y" ]]; then
+                echo "[KERNEL_5.10_XDP] gen_setup.py is parsed, ./setup-generated.sh generated but will only run after opcua server starts."
+                exit 0
+        fi
+
         sh ./setup-generated.sh
 
         # Extra Delay to stabilize gPTP
         PTP_PROCESSES=$(pgrep -c ptp4l)
         if [ "$PTP_PROCESSES" -ne 0 ]; then
-            echo "Wait 30 sec for gPTP to sync properly after setting the queues."
-            sleep 30
+            echo "Wait 60 sec for gPTP to sync properly after setting the queues."
+            sleep 60
         fi
 
         exit 0
@@ -170,12 +187,15 @@ case "$MODE" in
 esac
 
 # If the client iperf3 generated cmd file exists
-if [[ -f "$IPERF3_GEN_CMD" ]]; then
-    CMD="$(cat $DIR/../$IPERF3_GEN_CMD)"
-    echo "Running: $CMD"
-    $CMD &
-else
-    echo "Not running iperf3."
+# In the case of XDP in 5.10, we will only start iperf after the interface restart and setup is finished
+if [[ "$SKIP_SETUP" == "n" ]]; then
+    if [[ -f "$IPERF3_GEN_CMD" ]]; then
+        CMD="$(cat $DIR/../$IPERF3_GEN_CMD)"
+        echo "Running: $CMD"
+        $CMD &
+    else
+        echo "Not running iperf3."
+    fi
 fi
 
 # Create soft link to output file in /tmp
@@ -231,36 +251,64 @@ sleep 20
 OPCUA_PID=$!
 RETVAL_OPCUA=$?
 
-ts_log_start(){
-    cat /var/log/ptp4l.log >> /var/log/total_ptp4l.log
-    cat /var/log/phc2sys.log >> /var/log/total_phc2sys.log
-
-    echo -n "" > /var/log/ptp4l.log
-    echo -n "" > /var/log/phc2sys.log
-    echo -n "" > /var/log/captured_ptp4l.log
-    echo -n "" > /var/log/captured_phc2sys.log
-}
-
 # all settings are lost after xdp init on 5.10
 # run setup after running opcua-server
-if [[ "$KERNEL_VER" == "5.10" ]]; then
-    if [[ ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3a" || "$CONFIG" == "opcua-xdp3b" ) ]]; then
-        python3 $DIR/gen_setup.py --re-init "$NEW_TSN_JSON"
-        if [ $? -ne 0 ]; then
-            echo "gen_setup.py returned non-zero. Abort" && exit
-        fi
+if [[ "$SKIP_SETUP" == "y" ]]; then
+
+        echo "[KERNEL_5.10_XDP] Reapply init after interface reset"
+        sleep 10
+
+        case "$CONFIG" in
+            # .config: A/B used for single-trip, C/D added for round-trip
+            #
+            #   opcua-A --------------> opcua-B
+            #                             |
+            #                             V
+            #   opcua-D <-------------- opcua-C
+            #
+            #   Board A                 Board B
+            #
+            opcua-*a)
+                init_interface $IFACE $DIR/$PLAT/opcua-A.config
+                if [[ ! -z "$IFACE2" ]];then
+                    init_interface $IFACE2 $DIR/$PLAT/opcua-D.config;
+                fi
+                ;;
+            opcua-*b)
+                init_interface $IFACE $DIR/$PLAT/opcua-B.config
+                if [[ ! -z "$IFACE2" ]];then
+                    init_interface $IFACE2 $DIR/$PLAT/opcua-C.config;
+                fi
+                ;;
+            "")
+                ;&
+            *)
+                echo "Invalid config $CONFIG"
+                exit 1
+                ;;
+        esac
+
+        echo "[KERNEL5.10_XDP] Run previously generated ./setup-generated.sh"
         sh ./setup-generated.sh
+
+        if [[ -f "$IPERF3_GEN_CMD" ]]; then
+            CMD="$(cat $DIR/../$IPERF3_GEN_CMD)"
+            echo "Running: $CMD"
+            $CMD &
+        else
+            echo "Not running iperf3."
+        fi
 
         # Extra Delay to stabilize gPTP
         PTP_PROCESSES=$(pgrep -c ptp4l)
         if [ "$PTP_PROCESSES" -ne 0 ]; then
-            echo "Wait 30 sec for gPTP to sync properly after setting the queues."
-            sleep 30
+            echo "Wait 60 sec for gPTP to sync properly after setting the queues."
+            sleep 60
         fi
 
-        echo "Setup Done."
-    fi
-    ts_log_start
+        echo "[KERNEL5.10_XDP] Setup Done. Opcua transmision will start shortly."
+
+        ts_log_start
 fi
 
 while ps -p $OPCUA_PID >/dev/null
@@ -305,7 +353,7 @@ else
     exit 0
 fi
 
-save_result_files $CONFIG $PLAT #this file's name aka config.
+save_result_files $CONFIG $PLAT "$NEW_JSON" #this file's name aka config.
 
 if [[ "$TYPE" == "afxdp" ]]; then
 	gnuplot -e "FILENAME='afxdp-traffic.txt'; YMAX=2000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AFXDP)'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
@@ -318,6 +366,6 @@ else
 fi
 
 while [[ ! -s plot_pic.png ]] && [[ $RETRY -lt 30 ]]; do sleep 5; let $(( RETRY++ )); done
-cp plot_pic.png results-$ID/$PLAT-plot-$CONFIG-$NUMPKTS-$SIZE-$INTERVAL-$IDD.png # Backup
+cp plot_pic.png results-$ID/$PLAT-plot-$CONFIG-$KERNEL_VER-$NUMPKTS-$INTERVAL-$IDD.png # Backup
 
 exit 0
