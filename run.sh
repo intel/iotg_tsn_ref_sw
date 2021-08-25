@@ -32,7 +32,7 @@
 set -a # enable variable export
 RUNSH_DEBUG_MODE="NO"
 
-TSNREFSW_PACKAGE_VERSION="v0.8.15"
+TSNREFSW_PACKAGE_VERSION="v0.8.16"
 
 main() {
     #if [ $USER != "root" ]; then
@@ -133,6 +133,7 @@ main() {
         ./shell/setup-$CONFIG.sh $IFACE
 
     elif [ "$ACTION" == "run" ]; then
+        export PLAT=$PLAT
         ./shell/$CONFIG.sh $IFACE
 
     else

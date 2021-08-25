@@ -481,6 +481,7 @@ save_result_files(){
 
         ID=$(date +%Y%m%d)
         IDD=$(date +%Y%m%d-%H%M)
+        KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
         mkdir -p results-$ID
 
         rm -f plot_pic.png #remove existing plot files.
@@ -496,9 +497,9 @@ save_result_files(){
 
         vs1b)
                 if [[ "$XDP_MODE" != "NA" ]]; then
-                    cp afxdp-rxtstamps.txt results-$ID/$PLAT-afxdp-$CONFIG-$NUMPKTS-$SIZE-$XDP_INTERVAL-rxtstamps-$IDD.txt
+                    cp afxdp-rxtstamps.txt results-$ID/$PLAT-afxdp-$CONFIG-$KERNEL_VER-$NUMPKTS-$SIZE-$XDP_INTERVAL-rxtstamps-$IDD.txt
                 fi
-                cp afpkt-rxtstamps.txt results-$ID/$PLAT-afpkt-$CONFIG-$NUMPKTS-$SIZE-$INTERVAL-rxtstamps-$IDD.txt
+                cp afpkt-rxtstamps.txt results-$ID/$PLAT-afpkt-$CONFIG-$KERNEL_VER-$NUMPKTS-$SIZE-$INTERVAL-rxtstamps-$IDD.txt
         ;;
 
         *)
