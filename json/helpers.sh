@@ -294,20 +294,25 @@ save_result_files(){
 
         ID=$(date +%Y%m%d)
         IDD=$(date +%Y%m%d-%H%M)
+        KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
         mkdir -p results-$ID
 
         rm plot_pic.png -f
 
         CONFIG=$1
         PLAT=$2
+        JSON_FILE=$3 #Json configuration file
+        # Packet count from json file
+        NUMPKTS=$(grep -s packet_count $JSON_FILE | awk '{print $2}' | sed 's/,//')
+        INTERVAL=$(grep -s cycle_time_ns $JSON_FILE | awk '{print $2}' | sed 's/,//')
 
         case "$CONFIG" in
 
         opcua-pkt0b | opcua-pkt1b | opcua-pkt2a | opcua-pkt2b | opcua-pkt3a | opcua-pkt3b)
-                cp afpkt-rxtstamps.txt results-$ID/$PLAT-afpkt-$CONFIG-rxtstamps-$IDD.txt
+                cp afpkt-rxtstamps.txt results-$ID/$PLAT-afpkt-$CONFIG-$KERNEL_VER-$NUMPKTS-$INTERVAL-rxtstamps-$IDD.txt
         ;;
         opcua-xdp0b | opcua-xdp1b | opcua-xdp2a | opcua-xdp2b | opcua-xdp3a | opcua-xdp3b)
-                cp afxdp-rxtstamps.txt results-$ID/$PLAT-afxdp-$CONFIG-rxtstamps-$IDD.txt
+                cp afxdp-rxtstamps.txt results-$ID/$PLAT-afxdp-$CONFIG-$KERNEL_VER-$NUMPKTS-$INTERVAL-rxtstamps-$IDD.txt
         ;;
         *)
                 echo "Error: save_results_files() invalid config: $CONFIG"
