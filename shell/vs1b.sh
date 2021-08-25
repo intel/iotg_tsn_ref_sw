@@ -60,6 +60,7 @@ echo 0 > afxdp-traffic.txt
 
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 100))
+KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
     echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
@@ -171,6 +172,6 @@ else
 fi
 
 while [[ ! -s plot_pic.png ]]; do sleep 5; done
-cp plot_pic.png results-$ID/$PLAT-plot-$(basename $0 .sh)-$NUMPKTS-$SIZE-$INTERVAL-$XDP_INTERVAL-$IDD.png
+cp plot_pic.png results-$ID/$PLAT-plot-$(basename $0 .sh)-$KERNEL_VER-$NUMPKTS-$SIZE-$INTERVAL-$XDP_INTERVAL-$IDD.png
 
 exit 0
