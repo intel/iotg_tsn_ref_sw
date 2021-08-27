@@ -62,6 +62,10 @@ SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 100))
 KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
+# Make sure napi defer is at 0
+echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
+
 if [ "$AFP_PACKET_TEST" = "y" ]; then
     echo "PHASE 1: AF_PACKET receive ($SLEEP_SEC seconds)"
 
@@ -118,7 +122,14 @@ else
         sleep 7
         setup_vlanrx_xdp $IFACE
         $DIR/clock-setup.sh $IFACE
-        sleep 25
+        sleep 20
+
+        # Workaround for XDP latency : activate napi busy polling
+        echo "[Kernel5.10_XDP] Activate napi busy polling."
+        echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+        echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+        sleep 5
+
     elif [[ $PLAT != i225* ]]; then
         setup_vlanrx_xdp $IFACE
         sleep 40
@@ -141,6 +152,12 @@ else
 		sleep 2
 		sh $DIR/setup-vs1b.sh $IFACE
 	fi
+
+    if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
+        echo "[Kernel5.10_XDP] De-activate napi busy polling."
+        echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+        echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
+    fi
 fi
 
 echo "PHASE 3: Calculating.."
