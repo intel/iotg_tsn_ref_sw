@@ -74,11 +74,11 @@ main() {
     IFACE=$2
 
     # Check for valid <PLAT>
-    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225" || "$1" == "adl" ]]; then
+    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225" || "$1" == "adl" || "$1" == "rpl" ]]; then
         IFACE2=""
         CONFIG=$3
         ACTION=$4
-    elif [[ "$1" == "tglh2" || "$1" == "ehl2" || "$1" == "adl2" ]]; then
+    elif [[ "$1" == "tglh2" || "$1" == "ehl2" || "$1" == "adl2" || "$1" == "rpl2" ]]; then
         IFACE2=$3
         CONFIG=$4
         ACTION=$5
