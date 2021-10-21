@@ -379,6 +379,7 @@ run_iperf3_bg_client(){
 
         if [ ! -z "$SSH_CLIENT" ]; then
                 # Headless mode, use ssh root@127.0.0.1 to trigger loopback if required
+                echo "[CMD] iperf3 -c $TARGET_IP_ADDR -u -b $IPERF_BITRATE -l 1440 -f m -i 10 -t 30000 -A $CPU_AFFINITY &"
                 iperf3 -c $TARGET_IP_ADDR -u -b $IPERF_BITRATE -l 1440 -f m -i 10 -t 30000 -A $CPU_AFFINITY &
         else
                 # UI, X-server mode. Opens dedicated window

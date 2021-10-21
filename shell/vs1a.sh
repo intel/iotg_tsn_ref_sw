@@ -125,6 +125,7 @@ if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
         init_interface  $IFACE
         setup_taprio $IFACE
         setup_etf $IFACE
+        ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
         sleep 2
         setup_vlanrx_xdp $IFACE
         $DIR/clock-setup.sh $IFACE

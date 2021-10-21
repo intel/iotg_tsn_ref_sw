@@ -121,6 +121,8 @@ else
         setup_mqprio $IFACE
         sleep 7
         setup_vlanrx_xdp $IFACE
+        ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
+        sleep 2
         $DIR/clock-setup.sh $IFACE
         sleep 20
 
