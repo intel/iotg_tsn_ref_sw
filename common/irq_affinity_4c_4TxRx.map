@@ -1,4 +1,3 @@
 TxRx-0,01,PTP (highest priority)
-TxRx-1,02,txrx-tsn
-TxRx-2,04,af_xdp
+TxRx-2,04,af_xdp/af_packet
 TxRx-3,08,iperf3 (least priority)
