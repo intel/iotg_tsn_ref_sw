@@ -129,7 +129,7 @@ if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
         sleep 2
         setup_vlanrx_xdp $IFACE
         $DIR/clock-setup.sh $IFACE
-        sleep 25
+        sleep 30
 else
         sleep 40
 fi
