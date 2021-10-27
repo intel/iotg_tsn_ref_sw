@@ -135,6 +135,7 @@ void *pub_thread(void *arg)
 {
     struct timespec   nextnanosleeptime;
     struct timespec   temp_t;
+    struct timespec   delay;
     UA_UInt64         tx_timestamp;
     UA_ServerCallback pubCallback;
     UA_Server         *server;
@@ -161,6 +162,8 @@ void *pub_thread(void *arg)
     publishOffsetNs    = pData[ind].publishOffsetNs;
     publishDelaySec    = pData[ind].publishDelaySec;
     cycleTimeNs        = g_sData->cycleTimeNs;
+    delay.tv_sec       = 0;
+    delay.tv_nsec      = 10;
 
     /* Define Ethernet ETF transport settings */
     UA_EthernetETFWriterGroupTransportDataType ethernetETFtransportSettings;
@@ -218,9 +221,14 @@ void *pub_thread(void *arg)
          */
         if (!g_roundtrip_pubReturn)
             blank_counter++; //Do nothing
-        else
+        else {
             pubCallback(server, currentWriterGroup);
-
+            /* There is a problem of increased delay in 5.10 kernel if there is
+             * no sleep after pubCallback.
+             * Suspicion of unyielding process in pub/sub API in open62541.
+             */
+            clock_nanosleep(CLOCKID, 0, &delay, NULL);
+        }
         tx_timestamp += cycleTimeNs;
         ethernetETFtransportSettings.transmission_time = tx_timestamp;
     }
@@ -237,6 +245,7 @@ void *sub_thread(void *arg)
     UA_ReaderGroup    *currentReaderGroup;
     UA_ServerCallback subCallback;
     struct timespec   nextnanosleeptimeSub;
+    struct timespec   delay;
     UA_UInt64         cycleTimeNs = 0;
     UA_UInt32         offsetNs = 0;
     UA_UInt32         ind = 0;
@@ -250,6 +259,8 @@ void *sub_thread(void *arg)
     sData              = (struct SubscriberData *)g_sData->subData;
     ind                = threadArgumentsSubscriber->data_index;
     offsetNs           = sData[ind].offsetNs;
+    delay.tv_sec       = 0;
+    delay.tv_nsec      = 10;
 
     /* Get current time and compute the next nanosleeptime to the nearest 5th second */
     clock_gettime(CLOCKID, &nextnanosleeptimeSub);
@@ -263,6 +274,11 @@ void *sub_thread(void *arg)
     while (g_running) {
         clock_nanosleep(CLOCKID, TIMER_ABSTIME, &nextnanosleeptimeSub, NULL);
         subCallback(server, currentReaderGroup);
+        /* There is a problem of increased delay in 5.10 kernel if there is
+        * no sleep after subCallback.
+        * Suspicion of unyielding process in pub/sub API in open62541.
+        */
+        clock_nanosleep(CLOCKID, 0, &delay, NULL);
         nextnanosleeptimeSub.tv_nsec += cycleTimeNs;
         normalize(&nextnanosleeptimeSub);
     }
