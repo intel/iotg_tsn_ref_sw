@@ -32,7 +32,7 @@
 set -a # enable variable export
 RUNSH_DEBUG_MODE="NO"
 
-TSNREFSW_PACKAGE_VERSION="v0.8.19"
+TSNREFSW_PACKAGE_VERSION="v0.8.20"
 
 main() {
     #if [ $USER != "root" ]; then
