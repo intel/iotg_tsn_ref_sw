@@ -130,6 +130,12 @@ if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
         setup_vlanrx_xdp $IFACE
         $DIR/clock-setup.sh $IFACE
         sleep 30
+
+elif [[ $PLAT == i225* && "$KERNEL_VER" == "5.10" ]]; then
+        # Disable the coalesce
+        echo "[Kernel5.10_XDP_i225] Disable coalescence."
+        ethtool -C $IFACE rx-usecs 0
+        sleep 50
 else
         sleep 40
 fi

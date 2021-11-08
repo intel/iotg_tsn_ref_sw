@@ -116,6 +116,7 @@ else
     taskset -p 8 $TXRX_PID
 
     sleep 5
+
     if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
         init_interface  $IFACE
         setup_mqprio $IFACE
@@ -131,10 +132,20 @@ else
         echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
         echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
         sleep 5
-
     elif [[ $PLAT != i225* ]]; then
+        # Kernel 5.4
         setup_vlanrx_xdp $IFACE
         sleep 40
+    elif [[ $PLAT == i225* && "$KERNEL_VER" == "5.10" ]]; then
+        # Disable the coalesce
+        echo "[Kernel5.10_XDP_i225] Disable coalescence."
+        ethtool -C $IFACE rx-usecs 0
+        sleep 2
+        # Workaround for XDP latency : activate napi busy polling in i225
+        echo "[Kernel5.10_XDP_i225] Activate napi busy polling."
+        echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+        echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+        sleep 38
     else
         sleep 40
     fi
@@ -155,7 +166,7 @@ else
 		sh $DIR/setup-vs1b.sh $IFACE
 	fi
 
-    if [[ $PLAT != i225* && "$KERNEL_VER" == "5.10" ]]; then
+    if [[ "$KERNEL_VER" == "5.10" ]]; then
         echo "[Kernel5.10_XDP] De-activate napi busy polling."
         echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
         echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
