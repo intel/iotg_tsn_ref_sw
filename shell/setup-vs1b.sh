@@ -99,4 +99,7 @@ else
         setup_vlanrx $IFACE
 fi
 
+echo "Wait 30 sec for PTP to sync"
+sleep 30 #Give some time for gPTP clock to sync
+
 exit 0
