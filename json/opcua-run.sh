@@ -269,15 +269,15 @@ if [[ "$SKIP_SETUP" == "y" ]]; then
             #   Board A                 Board B
             #
             opcua-*a)
-                init_interface $IFACE $DIR/$PLAT/opcua-A.config
+                init_interface $IFACE $DIR/$PLAT/opcua-A.config "n"
                 if [[ ! -z "$IFACE2" ]];then
-                    init_interface $IFACE2 $DIR/$PLAT/opcua-D.config;
+                    init_interface $IFACE2 $DIR/$PLAT/opcua-D.config "y";
                 fi
                 ;;
             opcua-*b)
-                init_interface $IFACE $DIR/$PLAT/opcua-B.config
+                init_interface $IFACE $DIR/$PLAT/opcua-B.config "y"
                 if [[ ! -z "$IFACE2" ]];then
-                    init_interface $IFACE2 $DIR/$PLAT/opcua-C.config;
+                    init_interface $IFACE2 $DIR/$PLAT/opcua-C.config "n";
                 fi
                 ;;
             "")
@@ -322,6 +322,18 @@ echo "Transfer Complete"
 IPERF3_CLI_PID=$(pgrep iperf3 -a | grep "iperf3 -c" | awk '{print $1}')
 if [[ ! -z "$IPERF3_CLI_PID" ]];then
     kill -9 $IPERF3_CLI_PID
+fi
+
+if [[ "$SKIP_SETUP" == "y" ]]; then
+    echo "[Kernel5.10_XDP] De-Activate napi busy polling for inf:$IFACE"
+    echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
+    echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+    if [[ ! -z "$IFACE2" ]];then
+        echo "[Kernel5.10_XDP] De-Activate napi busy polling for 2nd inf:$IFACE2"
+        echo 0 > /sys/class/net/$IFACE2/gro_flush_timeout
+        echo 0 > /sys/class/net/$IFACE2/napi_defer_hard_irqs
+    fi
+    sleep 5
 fi
 
 if [[ "$RETVAL_OPCUA" -ne 0 ]]; then

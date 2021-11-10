@@ -37,8 +37,8 @@
 
 set_irq_smp_affinity(){
 
-        IFACE=$1
-        AFFINITY_FILE=$2
+        local IFACE=$1
+        local AFFINITY_FILE=$2
         if [ -z $AFFINITY_FILE ]; then
                 echo "Error: AFFINITY_FILE not defined"; exit 1;
         fi
@@ -62,8 +62,10 @@ set_irq_smp_affinity(){
 init_interface(){
         # Static IP and MAC addresses are hardcoded here
 
-        IFACE=$1
-        INIT_CONFIG_FILE=$2
+        local IFACE=$1
+        local INIT_CONFIG_FILE=$2
+        local SKIP_SETUP=$3
+        KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
         source $INIT_CONFIG_FILE
         if [ ! $? ]; then echo "Error: config file invalid."; exit 1; fi
@@ -138,6 +140,32 @@ init_interface(){
 
         # Set irq affinity
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
+
+        # Disable coalescence for kernel 5.10
+        if [[ $KERNEL_VER == 5.1* ]]; then
+                echo "[Kernel5.10 or above] Disable coalescence for inf:$IFACE"
+                ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
+                sleep 2
+                if [[ "$SKIP_SETUP" == "y" ]]; then
+                        # Workaround for XDP latency : activate napi busy polling
+                        echo "[Kernel5.10_XDP] Activate napi busy polling for inf:$IFACE"
+                        echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+                        echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+                else
+                        echo "[Kernel5.10] Reset napi busy polling and gro for inf:$IFACE to 0"
+                        echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+                        echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
+                fi
+        else
+                # For kernel 5.4
+                echo "[Kernel5.4] Disable coalescence for inf:$IFACE"
+                ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
+                sleep 2
+                echo "[Kernel5.4] Reset gro for inf:$IFACE to 0"
+                echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
+        fi
+
+        sleep 5
 
 }
 
