@@ -62,9 +62,10 @@ set_irq_smp_affinity(){
 init_interface(){
         # Static IP and MAC addresses are hardcoded here
 
-        local IFACE=$1
-        local INIT_CONFIG_FILE=$2
-        local SKIP_SETUP=$3
+        local PLAT=$1
+        local IFACE=$2
+        local INIT_CONFIG_FILE=$3
+        local SKIP_SETUP=$4
         KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
         source $INIT_CONFIG_FILE
@@ -89,7 +90,12 @@ init_interface(){
 
         # Set an even queue pair. Minimum is 4 rx 4 tx.
         if [[ "$RX_Q_COUNT" == "$TX_Q_COUNT" ]]; then
-                ethtool -L $IFACE rx $RX_Q_COUNT tx $TX_Q_COUNT
+                # i225 supports combined option
+                if [[ $PLAT == i225* ]]; then
+                        ethtool -L $IFACE combined $RX_Q_COUNT
+                else
+                        ethtool -L $IFACE rx $RX_Q_COUNT tx $TX_Q_COUNT
+                fi
         fi
 
         RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==8{ print $2}')
@@ -144,7 +150,11 @@ init_interface(){
         # Disable coalescence for kernel 5.10
         if [[ $KERNEL_VER == 5.1* ]]; then
                 echo "[Kernel5.10 or above] Disable coalescence for inf:$IFACE"
-                ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
+                if [[ $PLAT == i225* ]]; then
+                        ethtool -C $IFACE rx-usecs 0
+                else
+                        ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
+		fi
                 sleep 2
                 if [[ "$SKIP_SETUP" == "y" ]]; then
                         # Workaround for XDP latency : activate napi busy polling

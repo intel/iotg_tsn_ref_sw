@@ -25,10 +25,6 @@
           },
         "schedule": [
           {
-            "gate_mask": "0e",
-            "duration": 500000
-          },
-          {
             "gate_mask": "0f",
             "duration": 500000
           }

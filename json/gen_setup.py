@@ -249,7 +249,11 @@ def process_tc_data(data):
 
         if use_scheduler == 'taprio':
             time_elapsed = data['taprio']['time_elapsed']
-            base_time = '$(expr $(date +%s) + 5)000000000'
+            # i225 doesn't support base time in future
+            if data['plat'] == 'i225':
+                base_time = '$(date +%s%N)'
+            else:
+                base_time = '$(expr $(date +%s) + 5)000000000'
             #print('Base time set to {}s from now'.format(time_elapsed))
             set_taprio(interface, maps, data["taprio"], base_time, clock_id)
 
@@ -434,6 +438,7 @@ def process_custom_b(obj):
 
 def main():
     parser = argparse.ArgumentParser(description='Configures the interface')
+    parser.add_argument('plat', help='Platform to setup for')
     parser.add_argument('config_file', help='Path to config file')
     parser.add_argument('-d', '--dry-run', dest='dry', default=False,
             action='store_true', help='Display commands without running them')
@@ -451,6 +456,7 @@ def main():
         data = json.loads(f.read())
 
     for each_tc in data["tc_group"]:
+        each_tc['plat'] = args.plat
         process_tc_data(each_tc)
 
     if 'ptp' in data:
