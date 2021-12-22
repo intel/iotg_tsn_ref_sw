@@ -129,15 +129,15 @@ case "$MODE" in
             #   Board A                 Board B
             #
             opcua-*a)
-                init_interface $IFACE $DIR/$PLAT/opcua-A.config
+                init_interface $PLAT $IFACE $DIR/$PLAT/opcua-A.config
                 if [[ ! -z "$IFACE2" ]];then
-                    init_interface $IFACE2 $DIR/$PLAT/opcua-D.config;
+                    init_interface $PLAT $IFACE2 $DIR/$PLAT/opcua-D.config;
                 fi
                 ;;
             opcua-*b)
-                init_interface $IFACE $DIR/$PLAT/opcua-B.config
+                init_interface $PLAT $IFACE $DIR/$PLAT/opcua-B.config
                 if [[ ! -z "$IFACE2" ]];then
-                    init_interface $IFACE2 $DIR/$PLAT/opcua-C.config;
+                    init_interface $PLAT $IFACE2 $DIR/$PLAT/opcua-C.config;
                 fi
                 ;;
             "")
@@ -154,7 +154,7 @@ case "$MODE" in
     setup) 
         rm -f $DIR/../$IPERF3_GEN_CMD
 
-        python3 $DIR/gen_setup.py "$NEW_TSN_JSON"
+        python3 $DIR/gen_setup.py $PLAT "$NEW_TSN_JSON"
         if [ $? -ne 0 ]; then
             echo "gen_setup.py returned non-zero. Abort" && exit
         fi
@@ -269,15 +269,15 @@ if [[ "$SKIP_SETUP" == "y" ]]; then
             #   Board A                 Board B
             #
             opcua-*a)
-                init_interface $IFACE $DIR/$PLAT/opcua-A.config "n"
+                init_interface $PLAT $IFACE $DIR/$PLAT/opcua-A.config "n"
                 if [[ ! -z "$IFACE2" ]];then
-                    init_interface $IFACE2 $DIR/$PLAT/opcua-D.config "y";
+                    init_interface $PLAT $IFACE2 $DIR/$PLAT/opcua-D.config "y";
                 fi
                 ;;
             opcua-*b)
-                init_interface $IFACE $DIR/$PLAT/opcua-B.config "y"
+                init_interface $PLAT $IFACE $DIR/$PLAT/opcua-B.config "y"
                 if [[ ! -z "$IFACE2" ]];then
-                    init_interface $IFACE2 $DIR/$PLAT/opcua-C.config "n";
+                    init_interface $PLAT $IFACE2 $DIR/$PLAT/opcua-C.config "n";
                 fi
                 ;;
             "")
