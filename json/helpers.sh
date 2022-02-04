@@ -147,9 +147,9 @@ init_interface(){
         # Set irq affinity
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
 
-        # Disable coalescence for kernel 5.10
+        # Disable coalescence for kernel 5.10 and above
         if [[ $KERNEL_VER == 5.1* ]]; then
-                echo "[Kernel5.10 or above] Disable coalescence for inf:$IFACE"
+                echo "[Kernel 5.10 or above] Disable coalescence for inf:$IFACE"
                 if [[ $PLAT == i225* ]]; then
                         ethtool -C $IFACE rx-usecs 0
                 else
@@ -158,11 +158,11 @@ init_interface(){
                 sleep 2
                 if [[ "$SKIP_SETUP" == "y" ]]; then
                         # Workaround for XDP latency : activate napi busy polling
-                        echo "[Kernel5.10_XDP] Activate napi busy polling for inf:$IFACE"
+                        echo "[Kernel5.1x_XDP] Activate napi busy polling for inf:$IFACE"
                         echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
                         echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
                 else
-                        echo "[Kernel5.10] Reset napi busy polling and gro for inf:$IFACE to 0"
+                        echo "[Kernel5.1x] Reset napi busy polling and gro for inf:$IFACE to 0"
                         echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
                         echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
                 fi

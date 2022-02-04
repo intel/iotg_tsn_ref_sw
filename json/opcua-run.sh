@@ -105,10 +105,10 @@ fi
 
 KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
-# Work around for 5.10 kernel due to interface reset after xdp init
+# Work around for 5.10 and above kernel due to interface reset after xdp init
 # This means, the setup will only take place after the interface is up again (after entering XDP mode)
 SKIP_SETUP="n"
-if [[ "$KERNEL_VER" == "5.10" ]]; then
+if [[ $KERNEL_VER == 5.1* ]]; then
     if [[ ( "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3a" || "$CONFIG" == "opcua-xdp3b" ) ]]; then
         SKIP_SETUP="y"
     fi
@@ -159,9 +159,9 @@ case "$MODE" in
             echo "gen_setup.py returned non-zero. Abort" && exit
         fi
 
-        # Work around for 5.10 kernel due to reset after xdp init
+        # Work around for 5.10 and above kernel due to reset after xdp init
         if [[ "$SKIP_SETUP" == "y" ]]; then
-                echo "[KERNEL_5.10_XDP] gen_setup.py is parsed, ./setup-generated.sh generated but will only run after opcua server starts."
+                echo "[KERNEL_5.1x_XDP] gen_setup.py is parsed, ./setup-generated.sh generated but will only run after opcua server starts."
                 exit 0
         fi
 
@@ -187,7 +187,7 @@ case "$MODE" in
 esac
 
 # If the client iperf3 generated cmd file exists
-# In the case of XDP in 5.10, we will only start iperf after the interface restart and setup is finished
+# In the case of XDP in 5.10 and above, we will only start iperf after the interface restart and setup is finished
 if [[ "$SKIP_SETUP" == "n" ]]; then
     if [[ -f "$IPERF3_GEN_CMD" ]]; then
         CMD="$(cat $DIR/../$IPERF3_GEN_CMD)"
@@ -251,11 +251,11 @@ sleep 20
 OPCUA_PID=$!
 RETVAL_OPCUA=$?
 
-# all settings are lost after xdp init on 5.10
+# all settings are lost after xdp init on 5.10 and above.
 # run setup after running opcua-server
 if [[ "$SKIP_SETUP" == "y" ]]; then
 
-        echo "[KERNEL_5.10_XDP] Reapply init after interface reset"
+        echo "[KERNEL_5.1x_XDP] Reapply init after interface reset"
         sleep 10
 
         case "$CONFIG" in
@@ -288,7 +288,7 @@ if [[ "$SKIP_SETUP" == "y" ]]; then
                 ;;
         esac
 
-        echo "[KERNEL5.10_XDP] Run previously generated ./setup-generated.sh"
+        echo "[KERNEL5.1x_XDP] Run previously generated ./setup-generated.sh"
         sh ./setup-generated.sh
 
         if [[ -f "$IPERF3_GEN_CMD" ]]; then
@@ -306,7 +306,7 @@ if [[ "$SKIP_SETUP" == "y" ]]; then
             sleep 60
         fi
 
-        echo "[KERNEL5.10_XDP] Setup Done. Opcua transmision will start shortly."
+        echo "[KERNEL5.1x_XDP] Setup Done. Opcua transmision will start shortly."
 
         ts_log_start
 fi
@@ -325,11 +325,11 @@ if [[ ! -z "$IPERF3_CLI_PID" ]];then
 fi
 
 if [[ "$SKIP_SETUP" == "y" ]]; then
-    echo "[Kernel5.10_XDP] De-Activate napi busy polling for inf:$IFACE"
+    echo "[Kernel5.1x_XDP] De-Activate napi busy polling for inf:$IFACE"
     echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
     echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
     if [[ ! -z "$IFACE2" ]];then
-        echo "[Kernel5.10_XDP] De-Activate napi busy polling for 2nd inf:$IFACE2"
+        echo "[Kernel5.1x_XDP] De-Activate napi busy polling for 2nd inf:$IFACE2"
         echo 0 > /sys/class/net/$IFACE2/gro_flush_timeout
         echo 0 > /sys/class/net/$IFACE2/napi_defer_hard_irqs
     fi
