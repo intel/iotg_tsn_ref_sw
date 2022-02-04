@@ -223,9 +223,9 @@ void *pub_thread(void *arg)
             blank_counter++; //Do nothing
         else {
             pubCallback(server, currentWriterGroup);
-            /* There is a problem of increased delay in 5.10 kernel if there is
+            /* There is a problem of increased delay in 5.10 and above kernel if there is
              * no sleep after pubCallback.
-             * Suspicion of unyielding process in pub/sub API in open62541.
+             * Suspicion of unyielding process in pub/sub API in open62541-iotg.
              */
             clock_nanosleep(CLOCKID, 0, &delay, NULL);
         }
@@ -274,9 +274,9 @@ void *sub_thread(void *arg)
     while (g_running) {
         clock_nanosleep(CLOCKID, TIMER_ABSTIME, &nextnanosleeptimeSub, NULL);
         subCallback(server, currentReaderGroup);
-        /* There is a problem of increased delay in 5.10 kernel if there is
+        /* There is a problem of increased delay in 5.10 and above kernel if there is
         * no sleep after subCallback.
-        * Suspicion of unyielding process in pub/sub API in open62541.
+        * Suspicion of unyielding process in pub/sub API in open62541-iotg.
         */
         clock_nanosleep(CLOCKID, 0, &delay, NULL);
         nextnanosleeptimeSub.tv_nsec += cycleTimeNs;

@@ -4,5 +4,5 @@ tx-2,02,ptp-tx
 rx-2,02,ptp-rx
 tx-3,04,afpkt-p3/afxdp-txq1(5.4)
 rx-3,08,afpkt-p3
-rx-1,08,afxdp-rxq1(5.4 & 5.10)
-tx-1,04,ptp-tx-xdp-mode(5.4)(change core to 02 for 5.4)/afxdp-txq1(5.10)
+rx-1,08,afxdp-rxq1(5.4 & 5.1x)
+tx-1,04,ptp-tx-xdp-mode(5.4)(change core to 02 for 5.4)/afxdp-txq1(5.1x)
