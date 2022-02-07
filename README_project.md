@@ -54,7 +54,8 @@ different handling (not the scope of this project).
   RX queue-steering (e.g. VLAN priority) is configured.
 
 - XDP Zero-Copy has its own queue numbering. Only the upper half of TX queues and the
-  lower half of RX queues is XDP-compatible. For example:
+  lower half of RX queues is XDP-compatible (for kernel 5.4). For kernel 5.10 and
+  above, all the queues are available for tx and rx. For example:
 
     TX & RX queue hardware mapping normally:
 
@@ -62,12 +63,19 @@ different handling (not the scope of this project).
     | ------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
     | TX & RX | Q0    | Q1    | Q2    | Q3    | Q4    | Q5    | Q6    | Q7    |
 
-    TX & RX queue hardware mapping when in AF XDP ZC mode (this applies to EHL):
+    5.4 kernel - TX & RX queue hardware mapping when in AF XDP ZC mode (this applies to EHL):
 
     |     | HW Q0  | HW Q1  | HW Q2  | HW Q3  | HW Q4  | HW Q5  | HW Q6  | HW Q7  |
     | --- | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
     | TX  | Q0     | Q1     | Q2     | Q3     | XDP Q0 | XDP Q1 | XDP Q2 | XDP Q3 |
     | RX  | XDP Q0 | XDP Q1 | XDP Q2 | XDP Q3 | Q4     | Q5     | Q6     | Q7     |
+
+    >=5.10 kernel - TX & RX queue hardware mapping when in AF XDP ZC mode (this applies to EHL):
+
+    |     | HW Q0  | HW Q1  | HW Q2  | HW Q3  | HW Q4  | HW Q5  | HW Q6  | HW Q7  |
+    | --- | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
+    | TX  | XDP Q0 | XDP Q1 | XDP Q2 | XDP Q3 | XDP Q4 | XDP Q5 | XDP Q6 | XDP Q7 |
+    | RX  | XDP Q0 | XDP Q1 | XDP Q2 | XDP Q3 | XDP Q4 | XDP Q5 | XDP Q6 | XDP Q7 |
 
     When a queue is used with XDP, all packets (including ping etc) on that queue
     will be forwarded to the XDP application assigned to that queue. Hence, Q0
@@ -75,10 +83,17 @@ different handling (not the scope of this project).
 
     For example with TGL-U/H, we are only using 4 TX and 4 RX:
 
+    5.4 kernel XDP queue numbering for TGLU/H:
     |     | HW Q0  | HW Q1  | HW Q2  | HW Q3  |
     | --- | ------ | ------ | ------ | ------ |
     | TX  | Q0     | Q1     | XDP Q0 | XDP Q1 |
     | RX  | XDP Q0 | XDP Q1 | Q3     | Q4     |
+
+    >=5.10 kernel XDP queue numbering for TGLU/H:
+    |     | HW Q0  | HW Q1  | HW Q2  | HW Q3  |
+    | --- | ------ | ------ | ------ | ------ |
+    | TX  | XDP Q0 | XDP Q1 | XDP Q2 | XDP Q3 |
+    | RX  | XDP Q0 | XDP Q1 | XDP Q3 | XDP Q4 |
 
 ### Optimization
 
