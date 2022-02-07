@@ -56,11 +56,11 @@
         },
         "schedule": [
           {
-            "gate_mask": "43",
+            "gate_mask": "7",
             "duration": 200000
           },
           {
-            "gate_mask": "42",
+            "gate_mask": "6",
             "duration": 200000
           }
         ],
@@ -69,7 +69,7 @@
       "etf": [
         {
           "delta": 100000,
-          "queue": 6,
+          "queue": 2,
           "offload": true
         }
       ],
