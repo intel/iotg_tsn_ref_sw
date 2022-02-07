@@ -16,7 +16,7 @@
         "writer_group_id": 101,
         "early_offset_ns": 100000,
         "publish_offset_ns": 1000,
-        "publish_delay_sec": 3,
+        "publish_delay_sec": 150,
         "socket_prio": 2,
         "two_way_data": false,
         "cpu_affinity": 2,
