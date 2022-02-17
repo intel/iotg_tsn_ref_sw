@@ -367,6 +367,13 @@ fi
 
 save_result_files $CONFIG $PLAT "$NEW_JSON" #this file's name aka config.
 
+GNUPLOT_PATH=$(which gnuplot)
+
+if [[ -z $GNUPLOT_PATH ]]; then
+    echo "INFO: gnuplot is not available in this system. No graph will be created."
+    exit 0
+fi
+
 if [[ "$TYPE" == "afxdp" ]]; then
 	gnuplot -e "FILENAME='afxdp-traffic.txt'; YMAX=2000000; PLOT_TITLE='Transmission latency from TX User-space to RX User-space (AFXDP)'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
 elif [[ "$CONFIG" == "opcua-pkt1b" ]]; then

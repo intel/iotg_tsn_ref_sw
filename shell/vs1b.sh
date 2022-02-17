@@ -190,6 +190,13 @@ fi
 
 save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT
 
+GNUPLOT_PATH=$(which gnuplot)
+
+if [[ -z $GNUPLOT_PATH ]]; then
+    echo "INFO: gnuplot is not available in this system. No graph will be created."
+    exit 0
+fi
+
 if [ "$XDP_MODE" = "NA" ]; then
     gnuplot -e "FILENAME='afpkt-traffic.txt';YMAX=2000000; PLOT_TITLE='$PLAT:AF_Packet only'" $DIR/../common/latency_single.gnu -p 2> /dev/null &
 else
