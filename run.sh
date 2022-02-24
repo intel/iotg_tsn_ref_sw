@@ -30,9 +30,10 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 set -a # enable variable export
-RUNSH_DEBUG_MODE="NO"
 
-TSNREFSW_PACKAGE_VERSION="v0.8.22"
+RUNSH_DEBUG_MODE="YES"
+RUNSH_QDISC_DEBUG_MODE="NO"
+TSNREFSW_PACKAGE_VERSION="v0.8.23"
 
 main() {
     #if [ $USER != "root" ]; then
@@ -123,6 +124,32 @@ main() {
         ts_log_start
     fi
 
+    # Store the script's dir as variable before change dir
+    LOCAL_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+    # Check for log directory availability
+    VAR_DIR="/var"
+    LOG_DIR="log"
+
+    if [[ ! -d $VAR_DIR/$LOG_DIR ]]; then
+        echo "$VAR_DIR/$LOG_DIR does not exist or it is a broken link. Checking further."
+        cd $VAR_DIR
+        if [[ -L $LOG_DIR && ! -e $LOG_DIR ]]; then
+            LOGDIR_LINK=$(readlink $LOG_DIR)
+            echo "$LOG_DIR is pointing to a broken link : $LOGDIR_LINK"
+            mkdir -p $LOGDIR_LINK
+            [[ -d $LOGDIR_LINK ]] && echo "$LOGDIR_LINK has been created."
+        else
+            mkdir -p $LOG_DIR
+            [[ -d $LOG_DIR ]] && echo "$LOG_DIR has been created."
+        fi
+    else
+            echo "$VAR_DIR/$LOG_DIR folder for logging exists."
+    fi
+
+    # Return to TSN Ref Sw App directory for script execution
+    cd $LOCAL_DIR
+
     # Execute: redirect to opcua if opcua config, otherwise execute shell scripts
     CHECK=$(echo $CONFIG | cut -c -5 )
     if [ "$CHECK" == "opcua" ]; then
@@ -200,14 +227,16 @@ ts_log_stop_n_report(){
     echo -e "\ttemporal:       $(grep "temporal" /var/log/temp_ptp4l.log | wc -l)"
     echo -e "\tUTCoffset:       $(grep "updating UTC offset to 0" /var/log/temp_ptp4l.log | wc -l)"
 
-    if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ||
-          "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp3a" ]]; then
-        tc -s qdisc show dev $IFACE
-    elif [[ "$CONFIG" == "opcua-pkt2b" || "$CONFIG" == "opcua-pkt3b" ||
-            "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3b" ]]; then
-        tc -s qdisc show dev $IFACE2
-    else
-        echo "" # Nothing
+    if [[ "$RUNSH_QDISC_DEBUG_MODE" == "YES" ]]; then
+        if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ||
+            "$CONFIG" == "opcua-xdp2a" || "$CONFIG" == "opcua-xdp3a" ]]; then
+            tc -s qdisc show dev $IFACE
+        elif [[ "$CONFIG" == "opcua-pkt2b" || "$CONFIG" == "opcua-pkt3b" ||
+                "$CONFIG" == "opcua-xdp2b" || "$CONFIG" == "opcua-xdp3b" ]]; then
+            tc -s qdisc show dev $IFACE2
+        else
+            echo "" # Nothing
+        fi
     fi
 }
 
