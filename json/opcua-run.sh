@@ -353,18 +353,26 @@ fi
 
 stop_if_empty "$TYPE-rxtstamps.txt"
 
+echo "---------------------------------------------------------------------------------------"
 CONFIGNUM="$(echo $CONFIG | cut -c 10)"
 if [ $CONFIGNUM -lt 2 ]; then
     calc_rx_u2u "$TYPE-rxtstamps.txt"
+    calc_stddev_u2u FALSE "$TYPE-rxtstamps.txt"
     calc_rx_duploss "$TYPE-rxtstamps.txt" "$NEW_JSON"
+    echo "---------------------------------------------------------------------------------------"
+    calc_tbs_stddev "$TYPE-rxtstamps.txt"
 elif [ $CONFIGNUM -lt 4 ]; then
     calc_return_u2u "$TYPE-rxtstamps.txt"
+    calc_stddev_u2u YES "$TYPE-rxtstamps.txt"
     calc_return_duploss "$TYPE-rxtstamps.txt" "$NEW_JSON"
+    echo "---------------------------------------------------------------------------------------"
+    calc_tbs_stddev "$TYPE-rxtstamps.txt"
 else
     # echo "Nothing to calculate"
     exit 0
 fi
 
+echo "---------------------------------------------------------------------------------------"
 save_result_files $CONFIG $PLAT "$NEW_JSON" #this file's name aka config.
 
 GNUPLOT_PATH=$(which gnuplot)
