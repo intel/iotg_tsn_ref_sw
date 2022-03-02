@@ -237,6 +237,42 @@ calc_return_u2u(){
                          awk '{ print $14 "\t" $2 }' > $SHORTNAME-traffic.txt
 }
 
+calc_stddev_u2u(){
+        # Output format (return traffic ):
+        # a2bLatency, seqA, sdata->id, txPubA, RXhwTS, rxSubB, processingLatency,
+        # b2aLatency, seqB, sdata->id, txPubB, RXhwTS, rxSubA, returnLatency
+        # Output format (1 way):
+        # latency, rx_sequence, sdata->id, txTime, RXhwTS, rxTime
+
+        local RETURN_TRAFFIC=$1
+        local RX_FILENAME=$2 #*-rxtstamps.txt
+
+        if [[ RETURN_TRAFFIC == "YES" ]]; then
+           STDDEV_U2U=$(cat $RX_FILENAME | \
+                        awk '{ print $14 }' | \
+                        awk '{sum+=$1; array[NR]=$1}
+                        END { for(x=1;x<=NR;x++) {
+                                sumsq+=((array[x]-(sum/NR))**2);
+                                }
+                                print sqrt(sumsq/NR)
+                                }')
+        else
+           STDDEV_U2U=$(cat $RX_FILENAME | \
+                        awk '{ print $1 }' | \
+                        awk '{sum+=$1; array[NR]=$1}
+                        END { for(x=1;x<=NR;x++) {
+                                sumsq+=((array[x]-(sum/NR))**2);
+                                }
+                                print sqrt(sumsq/NR)
+                                }')
+        fi
+        echo -e "Stddev\n" \
+                "$STDDEV_U2U" > temp0.txt
+
+        paste saved1.txt temp0.txt | column -t > temp1.txt
+        cat temp1.txt > saved1.txt
+        rm temp*.txt
+}
 
 calc_rx_duploss(){
         # Output format (1 way):
@@ -301,7 +337,7 @@ calc_return_duploss(){
         # Total missing: Same as: packet count - total_packet - total_duplicate
         PACKET_LOSS=$((PACKET_COUNT-PACKET_RX-PACKET_DUPL))
 
-        if [[ "$RUNSH_DEBUG_MODE" == "YES" ]]; then
+        if [[ "$RUNSH_RESULT_DEBUG_MODE" == "YES" ]]; then
                 echo -e "Expected\tReceived\tDuplicates\tLosses\tFwdErrors\n" \
                         "$PACKET_COUNT\t$PACKET_RX\t$PACKET_DUPL\t$PACKET_LOSS\t$PACKET_ERR" > temp0.txt
         else
@@ -312,6 +348,46 @@ calc_return_duploss(){
         rm temp*.txt
 }
 
+calc_tbs_stddev(){
+        # Input parameter pattern used :
+        # a2bLatency, seqA, sdata->id, txPubA, RXhwTS, rxSubB, processingLatency,
+        # b2aLatency, seqB, sdata->id, txPubB, RXhwTS, rxSubA, returnLatency
+        # The TBS analysis will be calculated based on array of rxSubB(n)-rxSubB(n-1)
+
+        local RX_FILENAME=$1 #*-rxtstamps.txt
+        local TIME_DELTA_FILE=time_delta.txt
+
+        [[ -f $TIME_DELTA_FILE ]] && rm -f $TIME_DELTA_FILE
+
+        #time delta stats
+        cat $RX_FILENAME | \
+                awk '{  print $6  }' | \
+                awk '{  delta=""
+                        if(rx1==""){
+                              rx1=$1;
+                         }
+                        else{
+                               delta=$1-rx1;
+                               rx1=$1;
+                               print delta
+                        }
+                      }' >> $TIME_DELTA_FILE
+
+        cat $TIME_DELTA_FILE | \
+                awk '{sum+=$1; array[NR]=$1}
+                     END { tbs_avg=sum/NR;
+                           for(x=1;x<=NR;x++) {
+                              sumsq+=((array[x]-tbs_avg)**2);
+                           }
+                           tbs_stddev=sqrt(sumsq/NR);
+                           print "TBS\t"tbs_avg,"\t"tbs_stddev;
+                         }' > temp1.txt
+
+        echo -e "Results\tAvg\tStdDev" > temp0.txt
+        column -t temp0.txt temp1.txt > saved_tbs.txt
+        cat saved_tbs.txt
+        rm temp*.txt
+}
 
 stop_if_empty(){
         wc -l $1 > /dev/null
