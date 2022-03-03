@@ -348,6 +348,7 @@ elif [[ "$CONFIG" == "opcua-xdp0b"  || "$CONFIG" == "opcua-xdp1b" ||
     TYPE="afxdp"
 else
     # echo "Nothing to plot"
+    save_gcl_info
     exit 0
 fi
 
@@ -359,20 +360,20 @@ if [ $CONFIGNUM -lt 2 ]; then
     calc_rx_u2u "$TYPE-rxtstamps.txt"
     calc_stddev_u2u FALSE "$TYPE-rxtstamps.txt"
     calc_rx_duploss "$TYPE-rxtstamps.txt" "$NEW_JSON"
-    echo "---------------------------------------------------------------------------------------"
     calc_tbs_stddev "$TYPE-rxtstamps.txt"
 elif [ $CONFIGNUM -lt 4 ]; then
     calc_return_u2u "$TYPE-rxtstamps.txt"
     calc_stddev_u2u YES "$TYPE-rxtstamps.txt"
     calc_return_duploss "$TYPE-rxtstamps.txt" "$NEW_JSON"
-    echo "---------------------------------------------------------------------------------------"
     calc_tbs_stddev "$TYPE-rxtstamps.txt"
 else
     # echo "Nothing to calculate"
+    save_gcl_info
     exit 0
 fi
 
-echo "---------------------------------------------------------------------------------------"
+save_gcl_info
+
 save_result_files $CONFIG $PLAT "$NEW_JSON" #this file's name aka config.
 
 GNUPLOT_PATH=$(which gnuplot)

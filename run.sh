@@ -203,30 +203,37 @@ ts_log_stop_n_report(){
         grep -vaP '[\0\200-\377]' /var/log/phc2sys.log > /var/log/temp_phc2sys.log
     fi
 
-    echo -e ""
-    echo -e "PHC2SYS offset" \
-        "\tmin\t $(grep offset /var/log/temp_phc2sys.log | sort -nk 5 | head -n 1 | awk '{print $5}')" \
-        "\n\t\tmax\t $(grep offset /var/log/temp_phc2sys.log | sort -nk 5 | tail -n 1 | awk '{print $5}')"
+    echo -e "---------------------------------------------------------------------------------------"
+    PHC2SYS_MIN=$(grep offset /var/log/temp_phc2sys.log | sort -nk 5 | head -n 1 | awk '{print $5}')
+    PHC2SYS_MAX=$(grep offset /var/log/temp_phc2sys.log | sort -nk 5 | tail -n 1 | awk '{print $5}')
+    if [[ ! -z $PHC2SYS_MAX && ! -z $PHC2SYS_MIN ]]; then
+        echo -e "PHC2SYS offset" \
+            "\tmin\t $PHC2SYS_MIN" \
+            "\n\t\tmax\t $PHC2SYS_MAX"
 
-    echo -e "\tdelay " \
-        "\tmin\t $(grep delay /var/log/temp_phc2sys.log | sort -nk 10 | head -n 1 | awk '{print $10}')" \
-        "\n\t\tmax\t $(grep delay /var/log/temp_phc2sys.log | sort -nk 10 | tail -n 1 | awk '{print $10}')"
+        echo -e "\tdelay " \
+            "\tmin\t $(grep delay /var/log/temp_phc2sys.log | sort -nk 10 | head -n 1 | awk '{print $10}')" \
+            "\n\t\tmax\t $(grep delay /var/log/temp_phc2sys.log | sort -nk 10 | tail -n 1 | awk '{print $10}')"
 
-    echo -e "\twaiting:         $(grep -i waiting /var/log/temp_phc2sys.log | wc -l)"
-    echo -e "\tfailed:          $(grep failed /var/log/temp_phc2sys.log | wc -l)"
+        echo -e "\twaiting:         $(grep -i waiting /var/log/temp_phc2sys.log | wc -l)"
+        echo -e "\tfailed:          $(grep failed /var/log/temp_phc2sys.log | wc -l)"
+    fi
 
-    echo -e "PTP4L   rms   "  \
-        "\tmin\t $(grep rms /var/log/temp_ptp4l.log | sort -nk 3 | head -n 1 | awk '{print $3}')" \
-        "\n\t\tmax\t $(grep rms /var/log/temp_ptp4l.log | sort -nk 3 | tail -n 1 | awk '{print $3}')"
-
-    echo -e "\tMCLK_SELECTED:   $(grep MASTER_CLOCK_SELECTED /var/log/temp_ptp4l.log | wc -l)"
-    echo -e "\tINIT_COMPLETE:   $(grep FAULT_DETECTED /var/log/temp_ptp4l.log | wc -l)"
-    echo -e "\tFAULT_DETECTED:  $(grep FAULT_DETECTED /var/log/temp_ptp4l.log | wc -l)"
-    echo -e "\tUNCALIBRATED:    $(grep UNCALIBRATED /var/log/temp_ptp4l.log | wc -l)"
-    echo -e "\tlink down:       $(grep "link down" /var/log/temp_ptp4l.log | wc -l)"
-    echo -e "\ttimed out:       $(grep "timed out" /var/log/temp_ptp4l.log | wc -l)"
-    echo -e "\ttemporal:       $(grep "temporal" /var/log/temp_ptp4l.log | wc -l)"
-    echo -e "\tUTCoffset:       $(grep "updating UTC offset to 0" /var/log/temp_ptp4l.log | wc -l)"
+    PTP_RMS_MIN=$(grep rms /var/log/temp_ptp4l.log | sort -nk 3 | head -n 1 | awk '{print $3}')
+    PTP_RMS_MAX=$(grep rms /var/log/temp_ptp4l.log | sort -nk 3 | tail -n 1 | awk '{print $3}')
+    if [[ ! -z $PTP_RMS_MIN && ! -z $PTP_RMS_MAX ]]; then
+        echo -e "PTP4L   rms   "  \
+        "\tmin\t $PTP_RMS_MIN" \
+        "\n\t\tmax\t $PTP_RMS_MAX"
+        echo -e "\tMCLK_SELECTED:   $(grep MASTER_CLOCK_SELECTED /var/log/temp_ptp4l.log | wc -l)"
+        echo -e "\tINIT_COMPLETE:   $(grep FAULT_DETECTED /var/log/temp_ptp4l.log | wc -l)"
+        echo -e "\tFAULT_DETECTED:  $(grep FAULT_DETECTED /var/log/temp_ptp4l.log | wc -l)"
+        echo -e "\tUNCALIBRATED:    $(grep UNCALIBRATED /var/log/temp_ptp4l.log | wc -l)"
+        echo -e "\tlink down:       $(grep "link down" /var/log/temp_ptp4l.log | wc -l)"
+        echo -e "\ttimed out:       $(grep "timed out" /var/log/temp_ptp4l.log | wc -l)"
+        echo -e "\ttemporal:       $(grep "temporal" /var/log/temp_ptp4l.log | wc -l)"
+        echo -e "\tUTCoffset:       $(grep "updating UTC offset to 0" /var/log/temp_ptp4l.log | wc -l)\n"
+    fi
 
     if [[ "$RUNSH_QDISC_DEBUG_MODE" == "YES" ]]; then
         if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ||
@@ -239,6 +246,32 @@ ts_log_stop_n_report(){
             echo "" # Nothing
         fi
     fi
+}
+
+get_taprio_setting(){
+    local IFACE="$1"
+    local OUTPUTFILE="$2"
+    if [ ! -z "$IFACE" ]; then
+        echo -e "\nInterface: $IFACE" >> "${OUTPUTFILE}"
+        TAPRIO_SETTING=$(tc -s qdisc show dev "$IFACE" | \
+                        sed '/qdisc taprio/,/index 1/!d')
+        if [[ ! -z "$TAPRIO_SETTING" ]]; then
+            echo -e "$TAPRIO_SETTING" >> "${OUTPUTFILE}"
+        else
+            echo -e "No taprio set for this interface." >> "${OUTPUTFILE}"
+        fi
+    fi
+}
+
+save_gcl_info() {
+    rm -rf gclinfo.txt
+    touch gclinfo.txt
+    echo -n "" > gclinfo.txt
+    get_taprio_setting "$IFACE" gclinfo.txt
+    get_taprio_setting "$IFACE2" gclinfo.txt
+    echo "---------------------------------------------------------------------------------------"
+    echo "GATE CONFIGURATION LIST:"
+    cat gclinfo.txt
 }
 
 save_board_info(){
