@@ -383,6 +383,7 @@ calc_tbs_stddev(){
                            print "TBS\t"tbs_avg,"\t"tbs_stddev;
                          }' > temp1.txt
 
+        echo "---------------------------------------------------------------------------------------"
         echo -e "Results\tAvg\tStdDev" > temp0.txt
         column -t temp0.txt temp1.txt > saved_tbs.txt
         cat saved_tbs.txt
