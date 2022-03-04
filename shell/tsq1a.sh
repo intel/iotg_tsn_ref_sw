@@ -74,11 +74,15 @@ fi
 
 GNUPLOT_PATH=$(which gnuplot)
 
+# Check if the data is available
+while [[ ! -s tsq-listener-data.txt ]]; do sleep 1 && echo "Waiting for data"; done
+echo "Data is now available"
+
+# Check if the gnuplot is available
 if [[ -z $GNUPLOT_PATH ]]; then
 	echo "INFO: gnuplot is not available in this system. No live plot will be available."
 else
 	# Start the liveplot
-	while [[ ! -s tsq-listener-data.txt ]]; do sleep 1 && echo "Waiting for data"; done
 	if [[ $DISPLAY ]]; then
 		echo "Starting plotting"
 		gnuplot -e "PLOT_TITLE='$PLAT: $IFACE: Time sync Quality Measurement';YMAX=50; filename='tsq-listener-data.txt'" $DIR/../common/liveplot.gnu &
