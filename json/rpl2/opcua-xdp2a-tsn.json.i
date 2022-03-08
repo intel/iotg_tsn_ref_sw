@@ -47,6 +47,10 @@
         {
           "vlan_priority": 2,
           "rx_hw_q": 2
+        },
+        {
+          "vlan_priority": 3,
+          "rx_hw_q": 3
         }
       ]
     },
@@ -71,6 +75,10 @@
         {
           "vlan_priority": 2,
           "rx_hw_q": 2
+        },
+        {
+          "vlan_priority": 3,
+          "rx_hw_q": 3
         }
       ],
       "run_sh": [
