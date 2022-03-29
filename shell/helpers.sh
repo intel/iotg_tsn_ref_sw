@@ -124,6 +124,7 @@ init_interface(){
         # Set VLAN ID to 3, all traffic fixed to one VLAN ID, but vary the VLAN Priority
         ip link delete dev $IFACE.vlan 2> /dev/null
         ip link add link $IFACE name $IFACE.vlan type vlan id $IFACE_VLAN_ID
+        ip link set dev $IFACE.vlan up
 
         # Provide static ip address for interfaces
         ip addr flush dev $IFACE
