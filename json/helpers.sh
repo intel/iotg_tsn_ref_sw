@@ -118,6 +118,7 @@ init_interface(){
         # Set VLAN ID to 3, all traffic fixed to one VLAN ID, but vary the VLAN Priority
         ip link delete dev $IFACE.vlan 2> /dev/null
         ip link add link $IFACE name $IFACE.vlan type vlan id $IFACE_VLAN_ID
+        ip link set dev $IFACE.vlan up
 
         # Provide static ip address for interfaces
         ip addr flush dev $IFACE
@@ -252,7 +253,7 @@ calc_stddev_u2u(){
                         awk '{ print $14 }' | \
                         awk '{sum+=$1; array[NR]=$1}
                         END { for(x=1;x<=NR;x++) {
-                                sumsq+=((array[x]-(sum/NR))**2);
+                                sumsq+=((array[x]-(sum/NR))^2);
                                 }
                                 print sqrt(sumsq/NR)
                                 }')
@@ -261,7 +262,7 @@ calc_stddev_u2u(){
                         awk '{ print $1 }' | \
                         awk '{sum+=$1; array[NR]=$1}
                         END { for(x=1;x<=NR;x++) {
-                                sumsq+=((array[x]-(sum/NR))**2);
+                                sumsq+=((array[x]-(sum/NR))^2);
                                 }
                                 print sqrt(sumsq/NR)
                                 }')
@@ -377,7 +378,7 @@ calc_tbs_stddev(){
                 awk '{sum+=$1; array[NR]=$1}
                      END { tbs_avg=sum/NR;
                            for(x=1;x<=NR;x++) {
-                              sumsq+=((array[x]-tbs_avg)**2);
+                              sumsq+=((array[x]-tbs_avg)^2);
                            }
                            tbs_stddev=sqrt(sumsq/NR);
                            print "TBS\t"tbs_avg,"\t"tbs_stddev;

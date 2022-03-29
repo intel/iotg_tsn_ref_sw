@@ -30,6 +30,17 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
+# Check for default shell
+echo -e "\nBUILD.SH: Checking Default Shell"
+default_shell=$(echo $(realpath /usr/bin/sh) | cut -c 10-)
+if [ $default_shell = "bash" -o $default_shell = "sh" ]; then
+    echo "Default Shell: $default_shell (Valid)"
+else
+    echo "Default Shell: $default_shell (Invalid)"
+    echo "Please change default shell to ' bash ' OR ' sh ' to proceed"
+    exit 1
+fi
+
 touch Makefile.am configure.ac
 
 # Ideally, just use git reset HEAD --hard
