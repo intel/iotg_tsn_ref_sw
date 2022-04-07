@@ -13,6 +13,8 @@ test configurations and results before accepting any pull requests.
 So do be prepared to work closely with the maintainers if you have interest to
 contribute to this project.
 
+Please refer to [TODO.md](TODO.md) for list of potential area to contribute on.
+
 ## Pull Request submission
 
 1. Ensure code follows coding conventions of each file.

@@ -11,6 +11,14 @@ For compilation:
 * libelf
 * libjson-c
 
+In order to compile under Ubuntu, these packages need to be installed first:
+* gcc
+* autoconf
+* libjson-c-dev
+* gawk
+* build-essential
+Note : Customized libbpf and libopen62541-iotg is a hard dependencies as per now (sorry). WIP to decouple tsn ref sw from the customized dependencies
+
 For run-time:
 * [Custom linux kernel](https://github.com/intel/linux-intel-lts/tree/5.4/preempt-rt)
 * shell tools including awk/sed

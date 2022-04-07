@@ -49,6 +49,16 @@ optimized for each platform's capabilities.
 
 List of dependencies in [DEPENDENCIES.md](DEPENDENCIES.md)
 
+## Build
+
+To build tsn ref sw, we are currently providing a single script that will build all
+binaries (tsq, txrx-tsn and opcua-server).
+
+    ```sh
+    cd <tsn_ref_sw_directory>
+    ./build.sh
+    ```
+
 ## Documentation
 
 ### Contents
@@ -75,6 +85,7 @@ List of dependencies in [DEPENDENCIES.md](DEPENDENCIES.md)
       * [Usage: 1-port](README_json.md#usage-1-port)
       * [About: 2-port](README_json.md#about-2-port)
       * [Usage: 2-port](README_json.md#usage-2-port)
+* [FAQ](README_faq.md)
 
 ### Disclaimer
 
@@ -107,3 +118,8 @@ Refer to [CONTRIBUTING.md](CONTRIBUTING.md)
 ## License
 
 Refer to [LICENSE.md](LICENSE.md)
+
+## FAQ
+
+For tips on how to run tsn ref sw, please refer to [README_faq.md](README_faq.md)
+It contains example of certain frequently seen run-time error.
