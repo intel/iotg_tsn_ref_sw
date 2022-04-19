@@ -98,6 +98,12 @@ init_interface(){
                 fi
         fi
 
+        if [[ $PLAT == i225* ]]; then
+                # Default is 2.5G. We set to 1Gbps
+                ethtool -s $IFACE advertise 32
+                sleep 3
+        fi
+
         RXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==8{ print $2}')
         TXQ_COUNT=$(ethtool -l $IFACE | awk 'NR==9{ print $2}')
 
