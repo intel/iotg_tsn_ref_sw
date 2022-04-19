@@ -27,3 +27,8 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - GCL/taprio configuration printout
 - timesync stat printout upon ptp4l/phc2sys logs availability
 - XDP opcua queue change to q3 for adl2 and rpl2
+
+## [0.8.25] - 2022-04-19
+- Add README_faq.md (for tips on errors etc)
+- Update all the other readme-s
+- Add default shell checking, set up vlan interface, fix syntax error
