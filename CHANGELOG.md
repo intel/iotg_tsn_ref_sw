@@ -32,3 +32,9 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Add README_faq.md (for tips on errors etc)
 - Update all the other readme-s
 - Add default shell checking, set up vlan interface, fix syntax error
+
+## [0.8.26] - 2022-05-12
+- ISDM: add CODEOWNERS and pull_request_template.md
+- ADL-N enablement
+- Additional column for U2U coefficient variance
+- Additional column for TBS coefficient variance
