@@ -263,6 +263,9 @@ calc_stddev_u2u(){
                                 }
                                 print sqrt(sumsq/NR)
                                 }')
+           AVG=$(cat saved1.txt | \
+                        awk 'NR==2 { print $3 }')
+           COEFVAR=$(awk 'BEGIN{ printf "%.5f\n" '"($STDDEV_U2U / $AVG)"' }')
         else
            STDDEV_U2U=$(cat $RX_FILENAME | \
                         awk '{ print $1 }' | \
@@ -272,9 +275,12 @@ calc_stddev_u2u(){
                                 }
                                 print sqrt(sumsq/NR)
                                 }')
+           AVG=$(cat saved1.txt | \
+                        awk 'NR==2 { print $3 }')
+           COEFVAR=$(awk 'BEGIN{ printf "%.5f\n", '"($STDDEV_U2U/$AVG)"' }')
         fi
-        echo -e "Stddev\n" \
-                "$STDDEV_U2U" > temp0.txt
+        echo -e "Stddev\tCV\n" \
+                "$STDDEV_U2U\t$COEFVAR" > temp0.txt
 
         paste saved1.txt temp0.txt | column -t > temp1.txt
         cat temp1.txt > saved1.txt
@@ -380,21 +386,24 @@ calc_tbs_stddev(){
                         }
                       }' >> $TIME_DELTA_FILE
 
-        cat $TIME_DELTA_FILE | \
-                awk '{sum+=$1; array[NR]=$1}
-                     END { tbs_avg=sum/NR;
-                           for(x=1;x<=NR;x++) {
-                              sumsq+=((array[x]-tbs_avg)^2);
-                           }
-                           tbs_stddev=sqrt(sumsq/NR);
-                           print "TBS\t"tbs_avg,"\t"tbs_stddev;
-                         }' > temp1.txt
+           TBS_STDDEV=$(cat $TIME_DELTA_FILE | \
+                        awk '{sum+=$1; array[NR]=$1}
+                        END { tbs_avg=sum/NR;
+                                for(x=1;x<=NR;x++) {
+                                sumsq+=((array[x]-tbs_avg)^2);
+                                }
+                                print sqrt(sumsq/NR)
+                                }')
+           TBS_AVG=$(cat $TIME_DELTA_FILE | \
+                        awk '{sum+=$1; array[NR]=$1}
+                        END {print (sum/NR)
+                        }')
+           TBS_COEFVAR=$(awk 'BEGIN{ printf "%.5f\n", '"($TBS_STDDEV/$TBS_AVG)"' }')
 
         echo "---------------------------------------------------------------------------------------"
-        echo -e "Results\tAvg\tStdDev" > temp0.txt
-        column -t temp0.txt temp1.txt > saved_tbs.txt
+        echo -e "Results\tAvg\tStdDev\tCV" \
+                "\nTBS\t$TBS_AVG\t$TBS_STDDEV\t$TBS_COEFVAR" > saved_tbs.txt
         cat saved_tbs.txt
-        rm temp*.txt
 }
 
 stop_if_empty(){
