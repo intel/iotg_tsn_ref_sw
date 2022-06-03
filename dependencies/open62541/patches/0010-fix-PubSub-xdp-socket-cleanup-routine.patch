@@ -1,0 +1,34 @@
+From abe5b02573b103b53879c17d38c3ebde37c13baf Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Thu, 9 Jul 2020 09:14:50 +0800
+Subject: [PATCH 10/10] fix(PubSub): xdp socket cleanup routine
+
+Cleanup routine was missing 2 libbpf functions for gracefully
+shutting down the xdpsocket and umem.
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ plugins/ua_pubsub_ethernet_xdp.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/plugins/ua_pubsub_ethernet_xdp.c b/plugins/ua_pubsub_ethernet_xdp.c
+index c429ae68..86b7bfe0 100644
+--- a/plugins/ua_pubsub_ethernet_xdp.c
++++ b/plugins/ua_pubsub_ethernet_xdp.c
+@@ -600,9 +600,12 @@ UA_PubSubChannelEthernetXDP_send(UA_PubSubChannel *channel,
+  */
+ static UA_StatusCode
+ UA_PubSubChannelEthernetXDP_close(UA_PubSubChannel *channel) {
+-    UA_close(channel->sockfd);
+     UA_PubSubChannelDataEthernetXDP *channelDataEthernetXDP =
+         (UA_PubSubChannelDataEthernetXDP *) channel->handle;
++
++    xsk_socket__delete(channelDataEthernetXDP->xdpsocket->xskfd);
++    (void)xsk_umem__delete(channelDataEthernetXDP->xdpsocket->umem->umem);
++
+     bpf_set_link_xdp_fd(channelDataEthernetXDP->ifindex, -1, channelDataEthernetXDP->xdp_flags);
+     UA_free(channelDataEthernetXDP->xdpsocket->umem);
+     UA_free(channelDataEthernetXDP->xdpsocket);
+--
+2.17.0 
+

@@ -1,0 +1,73 @@
+From 358a51302d7788e365d55b9f6415388b1096eb7b Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Fri, 17 Apr 2020 18:02:47 +0800
+Subject: [PATCH] test(PubSub): Configuration used for compile test.
+
+  cmake -DUA_ENABLE_PUBSUB=ON \
+                -DUA_ENABLE_PUBSUB_ETH_UADP=ON \
+                -DUA_BUILD_EXAMPLES=OFF \
+                -DUA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING=ON \
+                -DUA_ENABLE_PUBSUB_ETH_UADP_ETF=ON \
+                -DUA_ENABLE_PUBSUB_ETH_UADP_XDP=ON \
+                -DCMAKE_INSTALL_PREFIX=/usr/ .. \
+                -DBUILD_SHARED_LIBS=ON ..
+        make -j 4
+        make install
+        ldconfig
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/
+
+        gcc pubsub_TSN_publisher.c -o test -lpthread -lopen62541
+
+        gcc pubsub_TSN_loopback.c -o test -lpthread -lopen62541
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ examples/pubsub_realtime/pubsub_TSN_loopback.c  | 3 ++-
+ examples/pubsub_realtime/pubsub_TSN_publisher.c | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/examples/pubsub_realtime/pubsub_TSN_loopback.c b/examples/pubsub_realtime/pubsub_TSN_loopback.c
+index 78eece4b..1ef5b2b0 100644
+--- a/examples/pubsub_realtime/pubsub_TSN_loopback.c
++++ b/examples/pubsub_realtime/pubsub_TSN_loopback.c
+@@ -42,6 +42,7 @@
+ #include <open62541/plugin/pubsub_ethernet.h>
+ #include <open62541/plugin/pubsub_ethernet_etf.h>
+ 
++#define UA_ENABLE_PUBSUB_ETH_UADP_XDP
+ #ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
+ #include <linux/if_link.h>
+ #include "linux/if_xdp.h"
+@@ -59,7 +60,7 @@ UA_DataSetReaderConfig readerConfig;
+ /* Configurable Parameters */
+ /* These defines enables the publisher and subscriber of the OPCUA stack */
+ /* To run only publisher, enable PUBLISHER define alone (comment SUBSCRIBER) */
+-#define             PUBLISHER
++// #define             PUBLISHER
+ /* To run only subscriber, enable SUBSCRIBER define alone (comment PUBLISHER) */
+ #define             SUBSCRIBER
+ //#define             UPDATE_MEASUREMENTS
+diff --git a/examples/pubsub_realtime/pubsub_TSN_publisher.c b/examples/pubsub_realtime/pubsub_TSN_publisher.c
+index e63d2751..702db6fb 100644
+--- a/examples/pubsub_realtime/pubsub_TSN_publisher.c
++++ b/examples/pubsub_realtime/pubsub_TSN_publisher.c
+@@ -42,6 +42,7 @@
+ #include <open62541/plugin/pubsub_ethernet.h>
+ #include <open62541/plugin/pubsub_ethernet_etf.h>
+ 
++#define UA_ENABLE_PUBSUB_ETH_UADP_XDP
+ #ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
+ #include <open62541/plugin/pubsub_ethernet_xdp.h>
+ #include <linux/if_link.h>
+@@ -61,7 +62,7 @@ UA_DataSetReaderConfig readerConfig;
+ /* To run only publisher, enable PUBLISHER define alone (comment SUBSCRIBER) */
+ #define             PUBLISHER
+ /* To run only subscriber, enable SUBSCRIBER define alone (comment PUBLISHER) */
+-#define             SUBSCRIBER
++// #define             SUBSCRIBER
+ //#define             UPDATE_MEASUREMENTS
+ /* Cycle time in milliseconds */
+ #define             CYCLE_TIME                            0.25
+-- 
+2.17.0
+

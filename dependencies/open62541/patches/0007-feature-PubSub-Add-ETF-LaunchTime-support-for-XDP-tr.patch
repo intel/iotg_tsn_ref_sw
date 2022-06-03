@@ -1,0 +1,61 @@
+From a17117b78254a6d9ef280682ccfcef639a134767 Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Tue, 28 Apr 2020 15:49:44 +0800
+Subject: [PATCH] feature(PubSub): Add ETF LaunchTime support for XDP transport
+ layer
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ plugins/ua_pubsub_ethernet_xdp.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/plugins/ua_pubsub_ethernet_xdp.c b/plugins/ua_pubsub_ethernet_xdp.c
+index 9331fb5a..30c5a3fe 100644
+--- a/plugins/ua_pubsub_ethernet_xdp.c
++++ b/plugins/ua_pubsub_ethernet_xdp.c
+@@ -7,6 +7,7 @@
+ 
+ #include <open62541/plugin/log_stdout.h>
+ #include <open62541/plugin/pubsub_ethernet_xdp.h>
++#include <open62541/plugin/pubsub_ethernet_etf.h>
+ #include <open62541/server_pubsub.h>
+ #include <open62541/util.h>
+ 
+@@ -498,6 +499,10 @@ UA_PubSubChannelEthernetXDP_send(UA_PubSubChannel *channel,
+     UA_UInt32 idx;
+     size_t lenBuf;
+     ssize_t rc;
++#ifdef UA_ENABLE_PUBSUB_ETH_UADP_ETF
++    UA_Boolean txTimeEnable;
++    UA_UInt64  transmission_time;
++#endif
+ 
+     channelDataEthernetXDP = (UA_PubSubChannelDataEthernetXDP *) channel->handle;
+     xdp_socket = channelDataEthernetXDP->xdpsocket;
+@@ -547,6 +552,23 @@ UA_PubSubChannelEthernetXDP_send(UA_PubSubChannel *channel,
+     xsk_ring_prod__tx_desc(&xdp_socket->tx_ring, idx)->addr = xdp_socket->cur_tx << XDP_FRAME_SHIFT;
+     xsk_ring_prod__tx_desc(&xdp_socket->tx_ring, idx)->len = (UA_UInt32) lenBuf;
+ 
++#ifdef UA_ENABLE_PUBSUB_ETH_UADP_ETF
++    /* Get ethernet ETF transport settings */
++    UA_EthernetETFWriterGroupTransportDataType *ethernetETFtransportSettings;
++    ethernetETFtransportSettings = (UA_EthernetETFWriterGroupTransportDataType *)transportSettings->content.decoded.data;
++    txTimeEnable = ethernetETFtransportSettings->txtime_enabled;
++
++    if(txTimeEnable)
++        transmission_time = ethernetETFtransportSettings->transmission_time;
++    else
++        transmission_time = 0;
++
++    /* Note: txtime field is from a modified if_xdp.h xdp_desc struct
++     * not available on upstream kernels yet.
++     */
++    xsk_ring_prod__tx_desc(&xdp_socket->tx_ring, idx)->txtime = transmission_time;
++#endif
++
+     xsk_ring_prod__submit(&xdp_socket->tx_ring, 1);
+     xdp_socket->outstanding_tx += 1;
+ 
+-- 
+2.17.0
+

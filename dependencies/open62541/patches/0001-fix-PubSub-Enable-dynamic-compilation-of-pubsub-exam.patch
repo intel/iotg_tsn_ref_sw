@@ -1,0 +1,291 @@
+From 3b295f65c51c8e3ad990aee104cce507cf133c4b Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Mon, 9 Mar 2020 15:18:29 +0800
+Subject: [PATCH] fix(PubSub): Enable dynamic compilation of pubsub examples
+
+- Add internal structures to examples directly
+- Remove internal header files
+- Example compilation for ETF examples:
+    cmake -DUA_ENABLE_PUBSUB=ON \
+            -DUA_ENABLE_PUBSUB_ETH_UADP=ON \
+            -DUA_BUILD_EXAMPLES=OFF \
+            -DUA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING=ON \
+            -DUA_ENABLE_PUBSUB_ETH_UADP_ETF=ON \
+            -DCMAKE_INSTALL_PREFIX=/usr/ .. \
+            -DBUILD_SHARED_LIBS=ON ..
+    make -j 4
+    make install
+    ldconfig
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/
+
+    gcc pubsub_TSN_publisher.c -o test -lpthread -lopen62541
+
+    gcc pubsub_TSN_loopback.c -o test -lpthread -lopen62541
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ CMakeLists.txt                                |  1 +
+ .../pubsub_realtime/pubsub_TSN_loopback.c     | 91 ++++++++++++++++++-
+ .../pubsub_realtime/pubsub_TSN_publisher.c    | 91 ++++++++++++++++++-
+ 3 files changed, 177 insertions(+), 6 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5923786c..10097958 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -856,6 +856,7 @@ if(UA_ENABLE_PUBSUB)
+     list(APPEND default_plugin_headers ${PROJECT_SOURCE_DIR}/plugins/include/open62541/plugin/pubsub_udp.h)
+     list(APPEND default_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_pubsub_udp.c)
+     if(UA_ENABLE_PUBSUB_ETH_UADP_ETF)
++        list(APPEND default_plugin_headers ${PROJECT_SOURCE_DIR}/plugins/include/open62541/plugin/pubsub_ethernet_etf.h)
+         list(APPEND default_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_pubsub_ethernet_etf.c)
+     endif()
+     if(UA_ENABLE_PUBSUB_ETH_UADP)
+diff --git a/examples/pubsub_realtime/pubsub_TSN_loopback.c b/examples/pubsub_realtime/pubsub_TSN_loopback.c
+index b4575f74..d2332d39 100644
+--- a/examples/pubsub_realtime/pubsub_TSN_loopback.c
++++ b/examples/pubsub_realtime/pubsub_TSN_loopback.c
+@@ -22,6 +22,7 @@
+  *         |                                                              |
+  *         ----------------------------------------------------------------
+  */
++#define _GNU_SOURCE
+ #include <sched.h>
+ #include <signal.h>
+ #include <time.h>
+@@ -35,7 +36,6 @@
+ 
+ #include <open62541/server.h>
+ #include <open62541/server_config_default.h>
+-#include <ua_server_internal.h>
+ #include <open62541/plugin/log_stdout.h>
+ #include <open62541/plugin/log.h>
+ #include <open62541/types_generated.h>
+@@ -47,8 +47,6 @@
+ #include <open62541/plugin/pubsub_ethernet_xdp.h>
+ #endif
+ 
+-#include "ua_pubsub.h"
+-
+ UA_NodeId readerGroupIdentifier;
+ UA_NodeId readerIdentifier;
+ 
+@@ -134,6 +132,93 @@ UA_UInt64           *pubCounterData;
+ UA_UInt64           *repeatedCounterData[REPEATED_NODECOUNTS];
+ UA_UInt64           subCounterData         = 0;
+ 
++#define TAILQ_ENTRY(type)                                                      \
++struct {                                                                       \
++    struct type *tqe_next;         /* next element */                          \
++    struct type **tqe_prev;         /* address of previous next element */     \
++}
++
++#define LIST_ENTRY(type)                                                       \
++struct {                                                                       \
++    struct type *le_next;         /* next element */                           \
++    struct type **le_prev;         /* address of previous next element */      \
++}
++
++#define LIST_HEAD(name, type)                                                  \
++struct name {                                                                  \
++    struct type *lh_first;         /* first element */                         \
++}
++
++typedef struct UA_ReaderGroup {
++    UA_ReaderGroupConfig config;
++    UA_NodeId identifier;
++    UA_NodeId linkedConnection;
++    LIST_ENTRY(UA_ReaderGroup) listEntry;
++    LIST_HEAD(UA_ListOfPubSubDataSetReader, UA_DataSetReader) readers;
++    /* for simplified information access */
++    UA_UInt32 readersCount;
++    UA_UInt64 subscribeCallbackId;
++    UA_Boolean subscribeCallbackIsRegistered;
++} UA_ReaderGroup;
++
++/* Offsets for buffered messages in the PubSub fast path. */
++typedef enum {
++    UA_PUBSUB_OFFSETTYPE_DATASETMESSAGE_SEQUENCENUMBER,
++    UA_PUBSUB_OFFSETTYPE_NETWORKMESSAGE_SEQUENCENUMBER,
++    UA_PUBSUB_OFFSETTYPE_TIMESTAMP_PICOSECONDS,
++    UA_PUBSUB_OFFSETTYPE_TIMESTAMP,     /* source pointer */
++    UA_PUBSUB_OFFSETTYPE_TIMESTAMP_NOW, /* no source */
++    UA_PUBSUB_OFFSETTYPE_PAYLOAD_DATAVALUE,
++    UA_PUBSUB_OFFSETTYPE_PAYLOAD_VARIANT,
++    UA_PUBSUB_OFFSETTYPE_PAYLOAD_RAW
++    /* Add more offset types as needed */
++} UA_NetworkMessageOffsetType;
++
++typedef struct {
++    UA_NetworkMessageOffsetType contentType;
++    union {
++        union {
++            UA_DataValue *value;
++            size_t valueBinarySize;
++        } value;
++        UA_DateTime *timestamp;
++    } offsetData;
++    size_t offset;
++} UA_NetworkMessageOffset;
++
++typedef struct UA_PubSubConnection{
++    UA_PubSubConnectionConfig *config;
++    //internal fields
++    UA_PubSubChannel *channel;
++    UA_NodeId identifier;
++    LIST_HEAD(UA_ListOfWriterGroup, UA_WriterGroup) writerGroups;
++    LIST_HEAD(UA_ListOfPubSubReaderGroup, UA_ReaderGroup) readerGroups;
++    size_t readerGroupsSize;
++    TAILQ_ENTRY(UA_PubSubConnection) listEntry;
++    UA_UInt16 configurationFreezeCounter;
++} UA_PubSubConnection;
++
++typedef struct {
++    UA_ByteString buffer; /* The precomputed message buffer */
++    UA_NetworkMessageOffset *offsets; /* Offsets for changes in the message buffer */
++    size_t offsetsSize;
++} UA_NetworkMessageOffsetBuffer;
++
++typedef struct UA_WriterGroup{
++    UA_WriterGroupConfig config;
++    //internal fields
++    LIST_ENTRY(UA_WriterGroup) listEntry;
++    UA_NodeId identifier;
++    UA_PubSubConnection *linkedConnection;
++    LIST_HEAD(UA_ListOfDataSetWriter, UA_DataSetWriter) writers;
++    UA_UInt32 writersCount;
++    UA_UInt64 publishCallbackId;
++    UA_Boolean publishCallbackIsRegistered;
++    UA_PubSubState state;
++    UA_NetworkMessageOffsetBuffer bufferedMessage;
++    UA_UInt16 sequenceNumber; /* Increased after every succressuly sent message */
++} UA_WriterGroup;
++
+ #if defined(PUBLISHER)
+ #if defined(UPDATE_MEASUREMENTS)
+ /* File to store the data and timestamps for different traffic */
+diff --git a/examples/pubsub_realtime/pubsub_TSN_publisher.c b/examples/pubsub_realtime/pubsub_TSN_publisher.c
+index 0b90465f..32058fc9 100644
+--- a/examples/pubsub_realtime/pubsub_TSN_publisher.c
++++ b/examples/pubsub_realtime/pubsub_TSN_publisher.c
+@@ -22,6 +22,7 @@
+  *         |                                                              |
+  *         ----------------------------------------------------------------
+  */
++#define _GNU_SOURCE
+ #include <sched.h>
+ #include <signal.h>
+ #include <time.h>
+@@ -35,15 +36,12 @@
+ 
+ #include <open62541/server.h>
+ #include <open62541/server_config_default.h>
+-#include <ua_server_internal.h>
+ #include <open62541/plugin/log_stdout.h>
+ #include <open62541/plugin/log.h>
+ #include <open62541/types_generated.h>
+ #include <open62541/plugin/pubsub_ethernet.h>
+ #include <open62541/plugin/pubsub_ethernet_etf.h>
+ 
+-#include "ua_pubsub.h"
+-
+ #ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
+ #include <open62541/plugin/pubsub_ethernet_xdp.h>
+ #include <linux/if_link.h>
+@@ -134,6 +132,93 @@ UA_UInt64           *pubCounterData;
+ UA_UInt64           *repeatedCounterData[REPEATED_NODECOUNTS];
+ UA_UInt64           subCounterData = 0;
+ 
++#define TAILQ_ENTRY(type)                                                      \
++struct {                                                                       \
++    struct type *tqe_next;         /* next element */                          \
++    struct type **tqe_prev;         /* address of previous next element */     \
++}
++
++#define LIST_ENTRY(type)                                                       \
++struct {                                                                       \
++    struct type *le_next;         /* next element */                           \
++    struct type **le_prev;         /* address of previous next element */      \
++}
++
++#define LIST_HEAD(name, type)                                                  \
++struct name {                                                                  \
++    struct type *lh_first;         /* first element */                         \
++}
++
++typedef struct UA_ReaderGroup {
++    UA_ReaderGroupConfig config;
++    UA_NodeId identifier;
++    UA_NodeId linkedConnection;
++    LIST_ENTRY(UA_ReaderGroup) listEntry;
++    LIST_HEAD(UA_ListOfPubSubDataSetReader, UA_DataSetReader) readers;
++    /* for simplified information access */
++    UA_UInt32 readersCount;
++    UA_UInt64 subscribeCallbackId;
++    UA_Boolean subscribeCallbackIsRegistered;
++} UA_ReaderGroup;
++
++/* Offsets for buffered messages in the PubSub fast path. */
++typedef enum {
++    UA_PUBSUB_OFFSETTYPE_DATASETMESSAGE_SEQUENCENUMBER,
++    UA_PUBSUB_OFFSETTYPE_NETWORKMESSAGE_SEQUENCENUMBER,
++    UA_PUBSUB_OFFSETTYPE_TIMESTAMP_PICOSECONDS,
++    UA_PUBSUB_OFFSETTYPE_TIMESTAMP,     /* source pointer */
++    UA_PUBSUB_OFFSETTYPE_TIMESTAMP_NOW, /* no source */
++    UA_PUBSUB_OFFSETTYPE_PAYLOAD_DATAVALUE,
++    UA_PUBSUB_OFFSETTYPE_PAYLOAD_VARIANT,
++    UA_PUBSUB_OFFSETTYPE_PAYLOAD_RAW
++    /* Add more offset types as needed */
++} UA_NetworkMessageOffsetType;
++
++typedef struct {
++    UA_NetworkMessageOffsetType contentType;
++    union {
++        union {
++            UA_DataValue *value;
++            size_t valueBinarySize;
++        } value;
++        UA_DateTime *timestamp;
++    } offsetData;
++    size_t offset;
++} UA_NetworkMessageOffset;
++
++typedef struct UA_PubSubConnection{
++    UA_PubSubConnectionConfig *config;
++    //internal fields
++    UA_PubSubChannel *channel;
++    UA_NodeId identifier;
++    LIST_HEAD(UA_ListOfWriterGroup, UA_WriterGroup) writerGroups;
++    LIST_HEAD(UA_ListOfPubSubReaderGroup, UA_ReaderGroup) readerGroups;
++    size_t readerGroupsSize;
++    TAILQ_ENTRY(UA_PubSubConnection) listEntry;
++    UA_UInt16 configurationFreezeCounter;
++} UA_PubSubConnection;
++
++typedef struct {
++    UA_ByteString buffer; /* The precomputed message buffer */
++    UA_NetworkMessageOffset *offsets; /* Offsets for changes in the message buffer */
++    size_t offsetsSize;
++} UA_NetworkMessageOffsetBuffer;
++
++typedef struct UA_WriterGroup{
++    UA_WriterGroupConfig config;
++    //internal fields
++    LIST_ENTRY(UA_WriterGroup) listEntry;
++    UA_NodeId identifier;
++    UA_PubSubConnection *linkedConnection;
++    LIST_HEAD(UA_ListOfDataSetWriter, UA_DataSetWriter) writers;
++    UA_UInt32 writersCount;
++    UA_UInt64 publishCallbackId;
++    UA_Boolean publishCallbackIsRegistered;
++    UA_PubSubState state;
++    UA_NetworkMessageOffsetBuffer bufferedMessage;
++    UA_UInt16 sequenceNumber; /* Increased after every succressuly sent message */
++} UA_WriterGroup;
++
+ #if defined(PUBLISHER)
+ #if defined(UPDATE_MEASUREMENTS)
+ /* File to store the data and timestamps for different traffic */
+-- 
+2.17.0
+
