@@ -1,0 +1,102 @@
+From f0d12f1cd9cc8a03ddbee532429fd1c9ce43d21b Mon Sep 17 00:00:00 2001
+From: "Yong, Jonathan" <jonathan.yong@intel.com>
+Date: Mon, 19 Oct 2020 03:26:00 +0000
+Subject: [PATCH] CMakeLists.txt: Mark as IOTG fork
+
+Currently an incompatible fork.
+
+Upstream-status: Inappropriate, short term fork
+Signed-off-by: Yong, Jonathan <jonathan.yong@intel.com>
+---
+ CMakeLists.txt  | 20 +++++++++++---------
+ open62541.pc.in |  4 ++--
+ 2 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5923786c8..c2299b90d 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1175,7 +1175,7 @@ else()
+ 
+     if(UA_PACK_DEBIAN)
+         add_library(open62541-static STATIC $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-plugins>)
+-        set_target_properties(open62541-static PROPERTIES OUTPUT_NAME open62541)
++        set_target_properties(open62541-static PROPERTIES OUTPUT_NAME open62541-iotg)
+     endif()
+     add_library(open62541 $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-plugins>)
+ 
+@@ -1238,6 +1238,7 @@ if (UA_ENABLE_DISCOVERY_MULTICAST)
+ endif()
+ # Generate properly versioned shared library links on Linux
+ SET_TARGET_PROPERTIES(open62541 PROPERTIES SOVERSION "${OPEN62541_VER_MAJOR}" VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}.${OPEN62541_VER_PATCH}")
++SET_TARGET_PROPERTIES(open62541 PROPERTIES OUTPUT_NAME "open62541-iotg")
+ 
+ ##################################
+ #     Architectures changes      #
+@@ -1309,9 +1310,9 @@ include(linting_target)
+ # specify install location with `-DCMAKE_INSTALL_PREFIX=xyz`
+ # Enable shared library with `-DBUILD_SHARED_LIBS=ON`
+ 
+-set(cmake_configfile_install ${CMAKE_INSTALL_LIBDIR}/cmake/open62541)
+-set(open62541_install_tools_dir share/open62541/tools)
+-set(open62541_install_nodeset_dir share/open62541/tools/ua-nodeset)
++set(cmake_configfile_install ${CMAKE_INSTALL_LIBDIR}/cmake/open62541-iotg)
++set(open62541_install_tools_dir share/open62541-iotg/tools)
++set(open62541_install_nodeset_dir share/open62541-iotg/tools/ua-nodeset)
+ 
+ # This list of components allows to define a find_package requirement.
+ # E.g.:
+@@ -1365,7 +1366,7 @@ install(TARGETS open62541 ${EXTRATARGETS}
+         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+-        INCLUDES DESTINATION include)
++        INCLUDES DESTINATION include/open62541-iotg)
+ 
+ if(UA_ENABLE_AMALGAMATION)
+ # Our default way of installation is the non-amalgamated version.
+@@ -1409,7 +1410,8 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/open62541Config.cmake"
+ 
+ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+     install(FILES "${PROJECT_BINARY_DIR}/src_generated/open62541.pc"
+-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
++            DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
++            RENAME open62541-iotg.pc)
+ endif()
+ 
+ set(UA_install_tools_dirs "tools/certs"
+@@ -1469,16 +1471,16 @@ if(NOT UA_ENABLE_AMALGAMATION)
+ 
+         get_filename_component( dir ${file} DIRECTORY )
+         if(${full_path} MATCHES "deps")
+-            install( FILES ${full_path} DESTINATION include${dir} )
++            install( FILES ${full_path} DESTINATION include/open62541-iotg${dir} )
+         else()
+-            install( FILES ${full_path} DESTINATION include/open62541${dir} )
++            install( FILES ${full_path} DESTINATION include/open62541-iotg/open62541${dir} )
+         endif()
+     endforeach()
+ 
+ else()
+     # Export amalgamated header open62541.h which is generated due to build of 
+     # open62541-object
+-    install(FILES ${PROJECT_BINARY_DIR}/open62541.h DESTINATION include)
++    install(FILES ${PROJECT_BINARY_DIR}/open62541.h DESTINATION include/open62541-iotg)
+ endif()
+ 
+ add_subdirectory(tools/packaging)
+diff --git a/open62541.pc.in b/open62541.pc.in
+index 53d8e8edf..2d6c9b835 100644
+--- a/open62541.pc.in
++++ b/open62541.pc.in
+@@ -11,5 +11,5 @@ includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+ Name: open62541
+ Description: open62541 is an open source C (C99) implementation of OPC UA
+ Version: @OPEN62541_VER_MAJOR@.@OPEN62541_VER_MINOR@.@OPEN62541_VER_PATCH@
+-Libs: -L${libdir} -lopen62541
+-Cflags: -I${includedir}/open62541
++Libs: -L${libdir} -lopen62541-iotg
++Cflags: -I${includedir}/open62541-iotg
+-- 
+2.25.1
+

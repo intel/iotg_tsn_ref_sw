@@ -1,0 +1,72 @@
+From 13cef103e1179414a4607f44a27e4b568bf4327f Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Fri, 17 Apr 2020 13:28:36 +0800
+Subject: [PATCH] fix(PubSub): XDP dynamic compilation
+
+Previous implementations uses statically linked libbpf in a
+specific directory. This patch now lets open62541 link to libbpf
+dynamically, and exports ua_pubsub_ethernet_xdp headers.
+
+c99 compile flag has to be disabled as it would otherwise not be able
+to link with libbpf.
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ CMakeLists.txt       | 11 +++--------
+ tests/CMakeLists.txt |  4 ++--
+ 2 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 10097958..1b3cfc75 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -16,7 +16,6 @@ include(GNUInstallDirs)
+ # Set when installed via make install
+ set(open62541_TOOLS_DIR ${PROJECT_SOURCE_DIR}/tools)
+ set(open62541_NODESET_DIR ${PROJECT_SOURCE_DIR}/deps/ua-nodeset)
+-set(XDP_LIBRARY "/usr/local/src/bpf-next/tools/lib/bpf/libbpf.a")
+ 
+ include(macros_internal)
+ include(macros_public)
+@@ -499,7 +498,6 @@ function(check_add_cc_flag CC_FLAG)
+ endfunction()
+ 
+ if(NOT UA_FORCE_CPP AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang"))
+-    check_add_cc_flag("-std=c99")   # C99 mode
+     check_add_cc_flag("-pipe")      # Avoid writing temporary files (for compiler speed)
+     check_add_cc_flag("-Wall")      # Warnings
+     check_add_cc_flag("-Wextra")    # More warnings
+@@ -864,12 +862,9 @@ if(UA_ENABLE_PUBSUB)
+         list(APPEND default_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_pubsub_ethernet.c)
+     endif()
+     if(UA_ENABLE_PUBSUB_ETH_UADP_XDP)
+-        if(EXISTS "${XDP_LIBRARY}")
+-            list(APPEND open62541_LIBRARIES ${XDP_LIBRARY})
+-            list(APPEND default_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_pubsub_ethernet_xdp.c)
+-        else()
+-            MESSAGE(WARNING "samples in bpf-next directory were not built. Build the bpf-next to use XDP")
+-        endif()
++        list(APPEND open62541_LIBRARIES bpf)
++        list(APPEND default_plugin_headers ${PROJECT_SOURCE_DIR}/plugins/include/open62541/plugin/pubsub_ethernet_xdp.h)
++        list(APPEND default_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_pubsub_ethernet_xdp.c)
+     endif()
+     if(UA_ENABLE_PUBSUB_MQTT)
+         if(WIN32)
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 19ec2d8c..fa55d0d9 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -147,8 +147,8 @@ add_custom_target(test-verbose COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+ 
+ if(UA_ENABLE_PUBSUB)
+     if(UA_ENABLE_PUBSUB_ETH_UADP_XDP)
+-        list(APPEND open62541_LIBRARIES ${XDP_LIBRARY})
+-        list(APPEND LIBS elf)
++        list(APPEND open62541_LIBRARIES)
++        list(APPEND LIBS elf bpf)
+     endif()
+ endif()
+ 
+-- 
+2.17.0
+

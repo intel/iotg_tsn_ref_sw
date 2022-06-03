@@ -1,0 +1,139 @@
+From 0dc5173a6678551e05d14039f91c3eb92a8b7278 Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Fri, 17 Apr 2020 17:55:15 +0800
+Subject: [PATCH] fix(PubSub): update example to set XDP queue/flags
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ .../pubsub_realtime/pubsub_TSN_loopback.c     | 23 +++++++++---------
+ .../pubsub_realtime/pubsub_TSN_publisher.c    | 24 +++++++++----------
+ 2 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/examples/pubsub_realtime/pubsub_TSN_loopback.c b/examples/pubsub_realtime/pubsub_TSN_loopback.c
+index d2332d39..78eece4b 100644
+--- a/examples/pubsub_realtime/pubsub_TSN_loopback.c
++++ b/examples/pubsub_realtime/pubsub_TSN_loopback.c
+@@ -44,6 +44,7 @@
+ 
+ #ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
+ #include <linux/if_link.h>
++#include "linux/if_xdp.h"
+ #include <open62541/plugin/pubsub_ethernet_xdp.h>
+ #endif
+ 
+@@ -67,6 +68,9 @@ UA_DataSetReaderConfig readerConfig;
+ /* Qbv offset */
+ #define             QBV_OFFSET                            25 * 1000
+ #define             SOCKET_PRIORITY                       3
++#define             XDP_QUEUE                             0
++#define             XDP_FLAG                              XDP_FLAGS_SKB_MODE
++#define             XDP_BIND_FLAG                         XDP_ZEROCOPY
+ #if defined(PUBLISHER)
+ #define             PUBLISHER_ID                          2235
+ #define             WRITER_GROUP_ID                       100
+@@ -81,8 +85,6 @@ UA_DataSetReaderConfig readerConfig;
+ #endif
+ #define             REPEATED_NODECOUNTS                   0
+ #define             PORT_NUMBER                           62541
+-#define             RECEIVE_QUEUE                         2
+-#define             XDP_FLAG                              XDP_FLAGS_SKB_MODE
+ #define             PUBSUB_CONFIG_FASTPATH_FIXED_OFFSETS
+ 
+ /* Non-Configurable Parameters */
+@@ -326,15 +328,9 @@ addPubSubConnectionSubscriber(UA_Server *server, UA_NetworkAddressUrlDataType *n
+     connectionConfig.name                                   = UA_STRING("Subscriber Connection");
+     connectionConfig.enabled                                = UA_TRUE;
+ #ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
+-    UA_KeyValuePair connectionOptions[2];
+-    connectionOptions[0].key                  = UA_QUALIFIEDNAME(0, "xdpflag");
+-    UA_UInt32 flags                           = XDP_FLAG;
+-    UA_Variant_setScalar(&connectionOptions[0].value, &flags, &UA_TYPES[UA_TYPES_UINT32]);
+-    connectionOptions[1].key                  = UA_QUALIFIEDNAME(0, "hwreceivequeue");
+-    UA_UInt32 rxqueue                         = RECEIVE_QUEUE;
+-    UA_Variant_setScalar(&connectionOptions[1].value, &rxqueue, &UA_TYPES[UA_TYPES_UINT32]);
+-    connectionConfig.connectionProperties     = connectionOptions;
+-    connectionConfig.connectionPropertiesSize = 2;
++    connectionConfig.xdp_queue = XDP_QUEUE;
++    connectionConfig.xdp_flags |= XDP_FLAG;
++    connectionConfig.xdp_bind_flags |= XDP_BIND_FLAG;
+ #endif
+     UA_NetworkAddressUrlDataType networkAddressUrlsubscribe = *networkAddressUrlSubscriber;
+     connectionConfig.transportProfileUri                    = UA_STRING(ETH_TRANSPORT_PROFILE);
+@@ -506,6 +502,11 @@ addPubSubConnection(UA_Server *server, UA_NetworkAddressUrlDataType *networkAddr
+     UA_Variant_setScalar(&connectionConfig.address, &networkAddressUrl,
+                          &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]);
+     connectionConfig.publisherId.numeric                    = PUBLISHER_ID;
++#ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
++    connectionConfig.xdp_queue = XDP_QUEUE;
++    connectionConfig.xdp_flags |= XDP_FLAG;
++    connectionConfig.xdp_bind_flags |= XDP_BIND_FLAG;
++#endif
+     /* ETF configuration settings */
+     connectionConfig.etfConfiguration.socketPriority        = SOCKET_PRIORITY;
+     connectionConfig.etfConfiguration.sotxtimeEnabled       = UA_TRUE;
+diff --git a/examples/pubsub_realtime/pubsub_TSN_publisher.c b/examples/pubsub_realtime/pubsub_TSN_publisher.c
+index 32058fc9..e63d2751 100644
+--- a/examples/pubsub_realtime/pubsub_TSN_publisher.c
++++ b/examples/pubsub_realtime/pubsub_TSN_publisher.c
+@@ -45,6 +45,7 @@
+ #ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
+ #include <open62541/plugin/pubsub_ethernet_xdp.h>
+ #include <linux/if_link.h>
++#include "linux/if_xdp.h"
+ #endif
+ 
+ UA_NodeId readerGroupIdentifier;
+@@ -67,6 +68,9 @@ UA_DataSetReaderConfig readerConfig;
+ /* Qbv offset */
+ #define             QBV_OFFSET                            25 * 1000
+ #define             SOCKET_PRIORITY                       3
++#define             XDP_QUEUE                             0
++#define             XDP_FLAG                              XDP_FLAGS_SKB_MODE
++#define             XDP_BIND_FLAG                         XDP_ZEROCOPY
+ #if defined(PUBLISHER)
+ #define             PUBLISHER_ID                          2234
+ #define             WRITER_GROUP_ID                       101
+@@ -81,8 +85,6 @@ UA_DataSetReaderConfig readerConfig;
+ #endif
+ #define             REPEATED_NODECOUNTS                   0
+ #define             PORT_NUMBER                           62541
+-#define             RECEIVE_QUEUE                         2
+-#define             XDP_FLAG                              XDP_FLAGS_SKB_MODE
+ #define             PUBSUB_CONFIG_FASTPATH_FIXED_OFFSETS
+ 
+ /* Non-Configurable Parameters */
+@@ -326,16 +328,9 @@ addPubSubConnectionSubscriber(UA_Server *server, UA_NetworkAddressUrlDataType *n
+     connectionConfig.name                                   = UA_STRING("Subscriber Connection");
+     connectionConfig.enabled                                = UA_TRUE;
+ #ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
+-    /* Connection options are given as Key/Value Pairs. */
+-    UA_KeyValuePair connectionOptions[2];
+-    connectionOptions[0].key                  = UA_QUALIFIEDNAME(0, "xdpflag");
+-    UA_UInt32 flags                           = XDP_FLAG;
+-    UA_Variant_setScalar(&connectionOptions[0].value, &flags, &UA_TYPES[UA_TYPES_UINT32]);
+-    connectionOptions[1].key                  = UA_QUALIFIEDNAME(0, "hwreceivequeue");
+-    UA_UInt32 rxqueue                         = RECEIVE_QUEUE;
+-    UA_Variant_setScalar(&connectionOptions[1].value, &rxqueue, &UA_TYPES[UA_TYPES_UINT32]);
+-    connectionConfig.connectionProperties     = connectionOptions;
+-    connectionConfig.connectionPropertiesSize = 2;
++    connectionConfig.xdp_queue = XDP_QUEUE;
++    connectionConfig.xdp_flags |= XDP_FLAG;
++    connectionConfig.xdp_bind_flags |= XDP_BIND_FLAG;
+ #endif
+     UA_NetworkAddressUrlDataType networkAddressUrlsubscribe = *networkAddressUrlSubscriber;
+     connectionConfig.transportProfileUri                    = UA_STRING(ETH_TRANSPORT_PROFILE);
+@@ -510,6 +505,11 @@ addPubSubConnection(UA_Server *server, UA_NetworkAddressUrlDataType *networkAddr
+     UA_Variant_setScalar(&connectionConfig.address, &networkAddressUrl,
+                          &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]);
+     connectionConfig.publisherId.numeric                    = PUBLISHER_ID;
++#ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
++    connectionConfig.xdp_queue = XDP_QUEUE;
++    connectionConfig.xdp_flags |= XDP_FLAGS;
++    connectionConfig.xdp_bind_flags |= XDP_BIND_FLAGS;
++#endif
+     /* ETF configuration settings */
+     connectionConfig.etfConfiguration.socketPriority        = SOCKET_PRIORITY;
+     connectionConfig.etfConfiguration.sotxtimeEnabled       = UA_TRUE;
+-- 
+2.17.0
+

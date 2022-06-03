@@ -1,0 +1,48 @@
+From 2b54fe48764a7af9014a95de1044108a7909560c Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Wed, 2 Sep 2020 16:21:49 +0800
+Subject: [PATCH 12/12] fix(PubSub): remove hardcoded etf layer receive timeout
+
+ua_pubsub_ethernet_etf.c had a hardcoded timeout of 1us which would
+cause missed packets unless the system was very well optimized.
+This was intended to reduce CPU overhead on optimized systems but
+have shown to cause many dropped packets on non-optimized systems.
+
+Removing the hardcoded define will default to a timeout of 1ms from
+ua_pubsub_reader.c - if a user were to use a subscriber from the etf
+transport layer.
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ plugins/ua_pubsub_ethernet_etf.c | 8 --------
+ 1 file changed, 8 deletions(-)
+
+diff --git a/plugins/ua_pubsub_ethernet_etf.c b/plugins/ua_pubsub_ethernet_etf.c
+index 4f2f4715..1dbf9e73 100644
+--- a/plugins/ua_pubsub_ethernet_etf.c
++++ b/plugins/ua_pubsub_ethernet_etf.c
+@@ -41,8 +41,6 @@
+ #define SOCKET_EE_CODE_TRANSMISSION_TIME_MISSED         2
+ #endif
+ 
+-#define TIMEOUT_REALTIME                                1
+-
+ /* Ethernet network layer specific internal data */
+ typedef struct {
+     int ifindex;
+@@ -487,12 +485,6 @@ UA_PubSubChannelEthernetETF_receive(UA_PubSubChannel *channel, UA_ByteString *me
+     msg.msg_iovlen = 2;
+     msg.msg_controllen = 0;
+ 
+-    /* TODO: timeout from receive API should be configurable.
+-     * The parameter should be inside the channel or transport settings.
+-     * For now, timeout value set to 1us as we run in a lower cycle time of 100us
+-     */
+-    timeout = TIMEOUT_REALTIME;
+-
+     /* Sleep in a select call if a timeout was set */
+     if(timeout > 0) {
+         fd_set fdset;
+-- 
+2.17.0
+
