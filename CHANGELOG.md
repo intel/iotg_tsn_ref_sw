@@ -38,3 +38,6 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - ADL-N enablement
 - Additional column for U2U coefficient variance
 - Additional column for TBS coefficient variance
+
+## [0.8.27] - 2022-06-13
+- ADL-X vs1 iperf speed change
