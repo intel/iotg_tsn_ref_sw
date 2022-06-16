@@ -96,8 +96,8 @@ sed -i 's/$(OBJDIR)\/libbpf.pc/$(OBJDIR)\/libbpf-iotg-custom.pc/g' src/Makefile
 sed -i 's/Cflags: -I${includedir}/Cflags: -I${includedir}\/bpf-iotg-custom/g' src/libbpf.pc.template
 
 echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling libbpf"
-NO_PKG_CONFIG=1 make -j 4 -C src
-DESTDIR=/ make install -j 4 -C src
+NO_PKG_CONFIG=1 make -j$(nproc) -C src
+DESTDIR=/ make install -j$(nproc) -C src
 ldconfig
 
 
@@ -204,3 +204,5 @@ echo -e "Please Re-login or source /etc/environment for library to link up"
 # 1. Please configure the proxy according to your proxy setting before git clone
 # 2. Please configure the system date up-to-date before git clone
 # 3. Please reboot your system before git clone
+
+exit 0
