@@ -85,15 +85,22 @@ git checkout $SRCREV_LIBBPF
 echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches to libbpf"
 EMAIL=root@localhost git am ../patches/*.patch
 
-# Modify libbpf MakeFiles to build custom libbpf library
-if [ "$os_distro" == "\"Ubuntu"\" ]; then
-    sed -i 's/LIBDIR ?= $(PREFIX)\/$(LIBSUBDIR)/LIBDIR ?= $(PREFIX)\/lib\/x86_64-linux-gnu/g' src/Makefile
-    sed -i 's/|@LIBDIR@|$(LIBDIR)/|@LIBDIR@|$(LIBDIR)\/libbpf-iotg-custom/g' src/Makefile
+if [[ "$1" == "--overwrite" ]]; then
+    echo -e "\nNOTE: The dependencies installer will overwrite the original libbpf"
+    if [ "$os_distro" == "\"Ubuntu"\" ]; then
+        sed -i 's/LIBDIR ?= $(PREFIX)\/$(LIBSUBDIR)/LIBDIR ?= $(PREFIX)\/lib\/x86_64-linux-gnu/g' src/Makefile
+    fi
+else
+    # Modify libbpf MakeFiles to build custom libbpf library
+    if [ "$os_distro" == "\"Ubuntu"\" ]; then
+        sed -i 's/LIBDIR ?= $(PREFIX)\/$(LIBSUBDIR)/LIBDIR ?= $(PREFIX)\/lib\/x86_64-linux-gnu/g' src/Makefile
+        sed -i 's/|@LIBDIR@|$(LIBDIR)/|@LIBDIR@|$(LIBDIR)\/libbpf-iotg-custom/g' src/Makefile
+    fi
+    sed -i 's/$(SHARED_LIBS),$(LIBDIR)/$(SHARED_LIBS),$(LIBDIR)\/libbpf-iotg-custom/g' src/Makefile
+    sed -i 's/\<bpf,644\>/bpf-iotg-custom,644/g' src/Makefile
+    sed -i 's/$(OBJDIR)\/libbpf.pc/$(OBJDIR)\/libbpf-iotg-custom.pc/g' src/Makefile
+    sed -i 's/Cflags: -I${includedir}/Cflags: -I${includedir}\/bpf-iotg-custom/g' src/libbpf.pc.template
 fi
-sed -i 's/$(SHARED_LIBS),$(LIBDIR)/$(SHARED_LIBS),$(LIBDIR)\/libbpf-iotg-custom/g' src/Makefile
-sed -i 's/\<bpf,644\>/bpf-iotg-custom,644/g' src/Makefile
-sed -i 's/$(OBJDIR)\/libbpf.pc/$(OBJDIR)\/libbpf-iotg-custom.pc/g' src/Makefile
-sed -i 's/Cflags: -I${includedir}/Cflags: -I${includedir}\/bpf-iotg-custom/g' src/libbpf.pc.template
 
 echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling libbpf"
 NO_PKG_CONFIG=1 make -j$(nproc) -C src
@@ -118,16 +125,20 @@ git checkout $SRCREV_LIBOPEN62541
 echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches to open62541"
 EMAIL=root@localhost git am ../patches/*.patch
 
-# Edit open62541 Makefile to build custom open62541 library
-sed -i 's/<bpf/<bpf-iotg-custom/g' plugins/ua_pubsub_ethernet_xdp.c
-sed -i 's/open62541-iotg/open62541-iotg-custom/g' CMakeLists.txt
-sed -i 's/OUTPUT_NAME "open62541-iotg-custom"/OUTPUT_NAME "open62541-iotg"/g' CMakeLists.txt
-sed -i 's/OUTPUT_NAME open62541-iotg-custom/OUTPUT_NAME open62541-iotg/g' CMakeLists.txt
-sed -i 's/LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/DESTINATION ${CMAKE_INSTALL_LIBDIR}\/open62541-iotg-custom\//g' CMakeLists.txt
-sed -i 's/ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/DESTINATION ${CMAKE_INSTALL_LIBDIR}\/open62541-iotg-custom\//g' CMakeLists.txt
-sed -i 's/libdir=${prefix}\/@CMAKE_INSTALL_LIBDIR@/libdir=${prefix}\/@CMAKE_INSTALL_LIBDIR@\/open62541-iotg-custom/g' open62541.pc.in
-sed -i 's/libdir=${prefix}\/@CMAKE_INSTALL_INCLUDEDIR@/libdir=${prefix}\/@CMAKE_INSTALL_INCLUDEDIR@\/open62541-iotg-custom/g' open62541.pc.in
-sed -i 's/Cflags: -I${includedir}\/open62541-iotg/Cflags: -I${includedir}\/open62541-iotg-custom/g' open62541.pc.in
+if [[ "$1" == "--overwrite" ]]; then
+    echo -e "\nNOTE: The dependencies installer will overwrite the original open62541"
+else
+    # Edit open62541 Makefile to build custom open62541 library
+    sed -i 's/<bpf/<bpf-iotg-custom/g' plugins/ua_pubsub_ethernet_xdp.c
+    sed -i 's/open62541-iotg/open62541-iotg-custom/g' CMakeLists.txt
+    sed -i 's/OUTPUT_NAME "open62541-iotg-custom"/OUTPUT_NAME "open62541-iotg"/g' CMakeLists.txt
+    sed -i 's/OUTPUT_NAME open62541-iotg-custom/OUTPUT_NAME open62541-iotg/g' CMakeLists.txt
+    sed -i 's/LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/DESTINATION ${CMAKE_INSTALL_LIBDIR}\/open62541-iotg-custom\//g' CMakeLists.txt
+    sed -i 's/ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/DESTINATION ${CMAKE_INSTALL_LIBDIR}\/open62541-iotg-custom\//g' CMakeLists.txt
+    sed -i 's/libdir=${prefix}\/@CMAKE_INSTALL_LIBDIR@/libdir=${prefix}\/@CMAKE_INSTALL_LIBDIR@\/open62541-iotg-custom/g' open62541.pc.in
+    sed -i 's/libdir=${prefix}\/@CMAKE_INSTALL_INCLUDEDIR@/libdir=${prefix}\/@CMAKE_INSTALL_INCLUDEDIR@\/open62541-iotg-custom/g' open62541.pc.in
+    sed -i 's/Cflags: -I${includedir}\/open62541-iotg/Cflags: -I${includedir}\/open62541-iotg-custom/g' open62541.pc.in
+fi
 
 echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling open62541"
 mkdir build
@@ -173,32 +184,58 @@ check_rpath=$(cat Makefile.am | grep -i "rpath" > /dev/null && echo 0 || echo 1)
 check_txrx_afxdp_c=$(cat src/txrx-afxdp.c | grep -i "bpf-iotg-custom" > /dev/null && echo 0 || echo 1)
 check_txrx_h=$(cat src/txrx.h | grep -i "bpf-iotg-custom" > /dev/null && echo 0 || echo 1)
 
-# Set Dynamic Loader
-if [ "$os_distro" == "\"Ubuntu"\" ]; then
-    if [ "$check_ld" == "1" ]; then
-        echo 'export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu/libbpf-iotg-custom:/usr/lib/x86_64-linux-gnu/open62541-iotg-custom:$LD_LIBRARY_PATH"' >> /etc/environment
+if [[ "$1" == "--overwrite" ]]; then
+    echo -e "\nNOTE: The dependencies installer will link to the original libraries path"
+else
+    # Set Dynamic Loader
+    if [ "$os_distro" == "\"Ubuntu"\" ]; then
+        if [ "$check_ld" == "1" ]; then
+            echo 'export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu/libbpf-iotg-custom:/usr/lib/x86_64-linux-gnu/open62541-iotg-custom:$LD_LIBRARY_PATH"' >> /etc/environment
+        fi
+    else
+        if [ "$check_rpath" == "1" ]; then
+            sed -i 's/-Wl,-z/-Wl,--rpath=\/usr\/lib64\/libbpf-iotg-custom:\/usr\/lib64\/open62541-iotg-custom,-z/g' Makefile.am
+        fi
+    fi
+    if [ "$check_includedir" == "1" ]; then
+        sed -i '/-fno-common/a\\t\t-I/usr/include/bpf-iotg-custom -I/usr/include/open62541-iotg-custom \\' Makefile.am
+    fi
+    sed -i 's/\[libbpf\])/\[libbpf-iotg-custom\])/g' configure.ac
+    sed -i 's/\[open62541-iotg\])/\[open62541-iotg-custom\])/g' configure.ac
+
+    # Edit open62541 header file to redirect to custom library
+    if [ "$check_txrx_afxdp_c" == "1" ]; then
+        sed -i 's/<bpf/<bpf-iotg-custom/g' src/txrx-afxdp.c
+    fi
+    if [ "$check_txrx_h" == "1" ]; then
+        sed -i 's/<bpf/<bpf-iotg-custom/g' src/txrx.h
+    fi
+fi
+
+# Echo libraries path to user
+echo -e "\n============================================="
+echo -e "Installed Libraries Information:"
+echo -e "============================================="
+if [[ "$1" == "--overwrite" ]]; then
+    if [ "$os_distro" == "\"Ubuntu"\" ]; then
+        echo -e "-- libbpf: /usr/lib/x86_64-linux-gnu/libbpf.so.*"
+        echo -e "-- open62541: /usr/lib/x86_64-linux-gnu/libopen62541-iotg.so.*"
+    else
+        echo -e "-- libbpf: /usr/lib64/libbpf.so.*"
+        echo -e "-- open62541: /usr/lib64/libopen62541-iotg.so.*"
     fi
 else
-    if [ "$check_rpath" == "1" ]; then
-        sed -i 's/-Wl,-z/-Wl,--rpath=\/usr\/lib64\/libbpf-iotg-custom:\/usr\/lib64\/open62541-iotg-custom,-z/g' Makefile.am
+    if [ "$os_distro" == "\"Ubuntu"\" ]; then
+        echo -e "-- libbpf: /usr/lib/x86_64-linux-gnu/libbpf-iotg-custom/libbpf.so.*"
+        echo -e "-- open62541: /usr/lib/x86_64-linux-gnu/open62541-iotg-custom/libopen62541-iotg.so.*"
+    else
+        echo -e "-- libbpf: /usr/lib64/libbpf-iotg-custom/libbpf.so.*"
+        echo -e "-- open62541: /usr/lib64/open62541-iotg-custom/libopen62541-iotg.so.*"
     fi
 fi
-if [ "$check_includedir" == "1" ]; then
-    sed -i '/-fno-common/a\\t\t-I/usr/include/bpf-iotg-custom -I/usr/include/open62541-iotg-custom \\' Makefile.am
-fi
-sed -i 's/\[libbpf\])/\[libbpf-iotg-custom\])/g' configure.ac
-sed -i 's/\[open62541-iotg\])/\[open62541-iotg-custom\])/g' configure.ac
 
-# Edit open62541 header file to redirect to custom library
-if [ "$check_txrx_afxdp_c" == "1" ]; then
-    sed -i 's/<bpf/<bpf-iotg-custom/g' src/txrx-afxdp.c
-fi
-if [ "$check_txrx_h" == "1" ]; then
-    sed -i 's/<bpf/<bpf-iotg-custom/g' src/txrx.h
-fi
-
-# Use command 'source /etc/environment'
-echo -e "Please Re-login or source /etc/environment for library to link up"
+echo -e "\nSetup Successful."
+echo -e "Please Re-login or source /etc/environment for libraries to link up"
 
 # Solution for git clone fail
 # 1. Please configure the proxy according to your proxy setting before git clone
