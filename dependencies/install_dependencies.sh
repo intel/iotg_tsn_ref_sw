@@ -212,27 +212,47 @@ else
     fi
 fi
 
+# Libraries path
+if [[ "$1" == "--overwrite" ]]; then
+    if [ "$os_distro" == "\"Ubuntu"\" ]; then
+        libbpf_so_path=$(find /usr/* -maxdepth 2 -name libbpf.so.0)
+        open62541_so_path=$(find /usr/* -maxdepth 2 -name libopen62541-iotg.so.1)
+        libbpf_path=$(find /usr/* -maxdepth 2 -name libbpf.so.0.2.0)
+        open62541_path=$(find /usr/* -maxdepth 2 -name libopen62541-iotg.so.1.1.0)
+    else
+        libbpf_so_path=$(find /usr/* -maxdepth 1 -name libbpf.so.0)
+        open62541_so_path=$(find /usr/* -maxdepth 1 -name libopen62541-iotg.so.1)
+        libbpf_path=$(find /usr/* -maxdepth 1 -name libbpf.so.0.2.0)
+        open62541_path=$(find /usr/* -maxdepth 1 -name libopen62541-iotg.so.1.1.0)
+    fi
+else
+    libbpf_path=$(find /usr/* -name libbpf.so.0.2.0 | grep -i libbpf-iotg-custom)
+    open62541_path=$(find /usr/* -name libopen62541-iotg.so.1.1.0 | grep -i open62541-iotg-custom)
+fi
+
+# Link the libraries path to .so
+if [[ "$1" == "--overwrite" ]]; then
+    ln -sf libbpf.so.0.2.0 $libbpf_so_path
+    ln -sf libopen62541-iotg.so.1.1.0 $open62541_so_path
+fi
+
+
 # Echo libraries path to user
 echo -e "\n============================================="
 echo -e "Installed Libraries Information:"
 echo -e "============================================="
-if [[ "$1" == "--overwrite" ]]; then
-    if [ "$os_distro" == "\"Ubuntu"\" ]; then
-        echo -e "-- libbpf: /usr/lib/x86_64-linux-gnu/libbpf.so.*"
-        echo -e "-- open62541: /usr/lib/x86_64-linux-gnu/libopen62541-iotg.so.*"
-    else
-        echo -e "-- libbpf: /usr/lib64/libbpf.so.*"
-        echo -e "-- open62541: /usr/lib64/libopen62541-iotg.so.*"
-    fi
-else
-    if [ "$os_distro" == "\"Ubuntu"\" ]; then
-        echo -e "-- libbpf: /usr/lib/x86_64-linux-gnu/libbpf-iotg-custom/libbpf.so.*"
-        echo -e "-- open62541: /usr/lib/x86_64-linux-gnu/open62541-iotg-custom/libopen62541-iotg.so.*"
-    else
-        echo -e "-- libbpf: /usr/lib64/libbpf-iotg-custom/libbpf.so.*"
-        echo -e "-- open62541: /usr/lib64/open62541-iotg-custom/libopen62541-iotg.so.*"
-    fi
-fi
+echo -e "===== libbpf ====="
+echo -e "Library Version:"
+echo -e "libbpf.so.0.2.0"
+echo -e "\nLibrary Install Folder:"
+echo -e "$libbpf_path"
+echo -e "\n===== open62541 ====="
+echo -e "Library Version:"
+echo -e "libopen62541.so.1.1.0"
+echo -e "\nLibrary Install Folder:"
+echo -e "$open62541_path"
+
+
 
 echo -e "\nSetup Successful."
 echo -e "Please Re-login or source /etc/environment for libraries to link up"
