@@ -112,11 +112,16 @@ init_interface(){
         fi
 
         # Make sure systemd do not manage the interface
-        mv /lib/systemd/network/80-wired.network . 2> /dev/null
+        check_network_file=$([[ -f /lib/systemd/network/80-wired.network ]]> /dev/null && echo 0 || echo 1)
+        if [[ "$check_network_file" == "0" ]]; then
+                echo "NOTE: /lib/systemd/network/80-wired.network will be removed to disable control by systemd."
+                echo "NOTE: Systemd-networkd will be reloaded/restarted, please restart the system in case of system hang."
+                mv /lib/systemd/network/80-wired.network . 2> /dev/null
+                systemctl try-reload-or-restart systemd-networkd.service
+        fi
 
         # Restart interface and systemd, also set HW MAC address for multicast
         ip link set $IFACE down
-        systemctl restart systemd-networkd.service
         ip link set dev $IFACE address $IFACE_MAC_ADDR
         ip link set dev $IFACE up
         sleep 3
