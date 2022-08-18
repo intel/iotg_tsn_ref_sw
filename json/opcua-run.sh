@@ -357,11 +357,13 @@ stop_if_empty "$TYPE-rxtstamps.txt"
 echo "---------------------------------------------------------------------------------------"
 CONFIGNUM="$(echo $CONFIG | cut -c 10)"
 if [ $CONFIGNUM -lt 2 ]; then
+    filter_result_files "$TYPE-rxtstamps.txt"
     calc_rx_u2u "$TYPE-rxtstamps.txt"
     calc_stddev_u2u FALSE "$TYPE-rxtstamps.txt"
     calc_rx_duploss "$TYPE-rxtstamps.txt" "$NEW_JSON"
     calc_tbs_stddev "$TYPE-rxtstamps.txt"
 elif [ $CONFIGNUM -lt 4 ]; then
+    filter_result_files "$TYPE-rxtstamps.txt"
     calc_return_u2u "$TYPE-rxtstamps.txt"
     calc_stddev_u2u YES "$TYPE-rxtstamps.txt"
     calc_return_duploss "$TYPE-rxtstamps.txt" "$NEW_JSON"

@@ -411,6 +411,16 @@ calc_tbs_stddev(){
         cat saved_tbs.txt
 }
 
+filter_result_files(){
+        local RX_FILENAME=$1 #*-rxtstamps.txt
+
+        #Clone a copy of raw result files before filtering
+        cp $RX_FILENAME raw-$RX_FILENAME
+
+        #Filtering result files
+        sed -i '/ERROR_*/d' $RX_FILENAME
+}
+
 stop_if_empty(){
         wc -l $1 > /dev/null
         if [ $? -gt 0 ]; then
