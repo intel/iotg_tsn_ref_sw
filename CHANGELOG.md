@@ -41,3 +41,8 @@ For prior version, please refer to the tag commit message. Sorry guys.
 
 ## [0.8.27] - 2022-06-13
 - ADL-X vs1 iperf speed change
+
+## [0.8.28] - 2022-08-19
+- RPL-P enablement
+- Install scrub/filter to the raw data
+- Improve logic for manage systemctl restart
