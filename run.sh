@@ -76,11 +76,11 @@ main() {
     IFACE=$2
 
     # Check for valid <PLAT>
-    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225" || "$1" == "adls" || "$1" == "adln" || "$1" == "rpl" ]]; then
+    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225" || "$1" == "adls" || "$1" == "adln" || "$1" == "rplp" || "$1" == "rpls" ]]; then
         IFACE2=""
         CONFIG=$3
         ACTION=$4
-    elif [[ "$1" == "tglh2" || "$1" == "ehl2" || "$1" == "adls2" || "$1" == "rpl2" ]]; then
+    elif [[ "$1" == "tglh2" || "$1" == "ehl2" || "$1" == "adls2" || "$1" == "rpls2" ]]; then
         IFACE2=$3
         CONFIG=$4
         ACTION=$5

@@ -48,7 +48,7 @@ fi
 PLAT="$1"
 IFACE="$2"
 
-if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpl2" ]];then
+if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpls2" ]];then
     IFACE2="$3"
     CONFIG="$4"
     MODE="$5"
@@ -99,7 +99,7 @@ cp -f $INTERIM_TSN_JSON $NEW_TSN_JSON
 #Replace interface on .json
 sed -i -e "s/_PREPROCESS_STR_interface/$IFACE/gi" $NEW_JSON $NEW_TSN_JSON
 
-if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpl2" ]];then
+if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpls2" ]];then
     sed -i -e "s/_PREPROCESS_STR_2nd_interface/$IFACE2/gi" $NEW_JSON $NEW_TSN_JSON
 fi
 
@@ -223,7 +223,7 @@ if [[ "$CONFIG" == "opcua-pkt2a" || "$CONFIG" == "opcua-pkt3a" ]]; then
     sleep 5
     if [[ "$PLAT" = "ehl2" ]]; then
         ./txrx-tsn -Pti $IFACE -q 2 -n 10000 -y 200000 > someTX.txt &
-    elif [[ "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpl2" ]]; then
+    elif [[ "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpls2" ]]; then
         ./txrx-tsn -Pti $IFACE -q 1 -n 10000 -y 200000 > someTX.txt &
     fi
     sleep 5 && pkill txrx-tsn
@@ -232,7 +232,7 @@ elif [[ "$CONFIG" == "opcua-pkt2b" || "$CONFIG" == "opcua-pkt3b" ]]; then
     echo "Workaround B to flush queue"
     if [[ "$PLAT" = "ehl2" ]]; then
         ./txrx-tsn -Pri $IFACE -q 2 > someRX.txt &
-    elif [[ "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpl2" ]]; then
+    elif [[ "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpls2" ]]; then
         ./txrx-tsn -Pri $IFACE -q 1 > someRX.txt &
     fi
     sleep 10 && pkill txrx-tsn
