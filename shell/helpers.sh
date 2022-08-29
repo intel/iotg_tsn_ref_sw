@@ -169,6 +169,30 @@ init_interface(){
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
 }
 
+# Tag kernel according to version for napi deferral needs
+napi_deferral_needed(){
+        case $KERNEL_VER in
+            5.10 | 5.11 | 5.12 | 5.13 | 5.14 | 5.15)
+                NAPI_DEFERRAL_NEEDED=1
+                ;;
+            *)
+                NAPI_DEFERRAL_NEEDED=0
+                ;;
+        esac
+}
+
+# Tag kernel according to version for xdp reset
+kernel_xdp_reset(){
+        case $KERNEL_VER in
+            5.1*)
+                XDP_RESET=1
+                ;;
+            *)
+                XDP_RESET=0
+                ;;
+        esac
+}
+
 ###############################################################################
 # PHASE: Setup
 

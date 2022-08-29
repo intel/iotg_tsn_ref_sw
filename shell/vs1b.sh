@@ -62,6 +62,9 @@ SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 100))
 KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
+# Kernel Tagging
+napi_deferral_needed
+
 # Make sure napi defer is at 0
 echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
 echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
@@ -101,7 +104,6 @@ else
     sleep 20
 
     echo "PHASE 2: AF_XDP receive $XDP_SLEEP_SEC seconds)"
-    KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
     echo "CMD: ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS"
     ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS > afxdp-rxtstamps.txt &
@@ -117,37 +119,47 @@ else
 
     sleep 5
 
-    if [[ $PLAT != i225* && $KERNEL_VER == 5.1* ]]; then
-        init_interface  $IFACE
-        setup_mqprio $IFACE
-        sleep 7
-        setup_vlanrx_xdp $IFACE
-        ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
-        sleep 2
-        $DIR/clock-setup.sh $IFACE
-        sleep 20
+    # this is targeting for stmmac
+    if [[ $PLAT != i225* ]]; then
+        # Kernel 5.10 to 5.15
+        if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
+            init_interface  $IFACE
+            setup_mqprio $IFACE
+            sleep 7
+            setup_vlanrx_xdp $IFACE
+            ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
+            sleep 2
+            $DIR/clock-setup.sh $IFACE
+            sleep 20
 
-        # Workaround for XDP latency : activate napi busy polling
-        echo "[Kernel5.1x_XDP] Activate napi busy polling."
-        echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
-        echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
-        sleep 5
-    elif [[ $PLAT != i225* ]]; then
-        # Kernel 5.4
-        setup_vlanrx_xdp $IFACE
-        sleep 40
-    elif [[ $PLAT == i225* && $KERNEL_VER == 5.1* ]]; then
-        # Disable the coalesce
-        echo "[Kernel5.1x_XDP_i225] Disable coalescence."
-        ethtool -C $IFACE rx-usecs 0
-        sleep 2
-        # Workaround for XDP latency : activate napi busy polling in i225
-        echo "[Kernel5.1x_XDP_i225] Activate napi busy polling."
-        echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
-        echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
-        sleep 38
-    else
-        sleep 40
+            # Workaround for XDP latency : activate napi busy polling
+            echo "[Kernel_${KERNEL_VER}_XDP] Activate napi busy polling."
+            echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+            echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+            sleep 5
+        else
+            # Kernel others than 5.10 to 5.15
+            setup_vlanrx_xdp $IFACE
+            sleep 40
+        fi
+    # this is targeting for i225/i226
+    elif [[ $PLAT == i225* ]]; then
+        # Kernel 5.10 to 5.15
+        if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
+            # Disable the coalesce
+            echo "[Kernel_${KERNEL_VER}_XDP_i225] Disable coalescence."
+            ethtool -C $IFACE rx-usecs 0
+            sleep 2
+
+            # Workaround for XDP latency : activate napi busy polling in i225/i226
+            echo "[Kernel_${KERNEL_VER}_i225] Activate napi busy polling."
+            echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+            echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+            sleep 38
+        else
+            # Kernel others than 5.10 to 5.15
+            sleep 40
+        fi
     fi
 
     if [ "$RUN_IPERF3_XDP" = "y" ]; then
@@ -157,17 +169,18 @@ else
     sleep $XDP_SLEEP_SEC
     pkill iperf3
     pkill txrx-tsn
-   
-	if [[ $PLAT == i225* && $KERNEL_VER != 5.1* ]]; then
-		# To ensure the AF_XDP socket tear down is complete in i225, interface is reset.
-		echo "Re run vs1b setup for af_xdp operation"
-		setup_link_down_up $IFACE
-		sleep 2
-		sh $DIR/setup-vs1b.sh $IFACE
-	fi
 
-    if [[ $KERNEL_VER == 5.1* ]]; then
-        echo "[Kernel5.1x_XDP] De-activate napi busy polling."
+    if [[ $PLAT == i225* && $KERNEL_VER != 5.1* ]]; then
+        # To ensure the AF_XDP socket tear down is complete in i225, interface is reset.
+        echo "Re run vs1b setup for af_xdp operation"
+        setup_link_down_up $IFACE
+        sleep 2
+        sh $DIR/setup-vs1b.sh $IFACE
+    fi
+
+    # Kernel 5.10 to 5.15
+    if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
+        echo "[Kernel_${KERNEL_VER}_XDP] De-activate napi busy polling."
         echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
         echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
     fi

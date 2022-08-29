@@ -68,6 +68,9 @@ init_interface(){
         local SKIP_SETUP=$4
         KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
+        # Kernel Tagging
+        napi_deferral_needed
+
         source $INIT_CONFIG_FILE
         if [ ! $? ]; then echo "Error: config file invalid."; exit 1; fi
 
@@ -159,36 +162,58 @@ init_interface(){
         # Set irq affinity
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
 
-        # Disable coalescence for kernel 5.10 and above
-        if [[ $KERNEL_VER == 5.1* ]]; then
-                echo "[Kernel 5.10 or above] Disable coalescence for inf:$IFACE"
+        # Disable coalescence for kernel 5.10 to 5.15
+        if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
+                echo "[Kernel_${KERNEL_VER}] Disable coalescence for inf:$IFACE"
                 if [[ $PLAT == i225* ]]; then
                         ethtool -C $IFACE rx-usecs 0
                 else
                         ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
-		fi
+                fi
                 sleep 2
                 if [[ "$SKIP_SETUP" == "y" ]]; then
                         # Workaround for XDP latency : activate napi busy polling
-                        echo "[Kernel5.1x_XDP] Activate napi busy polling for inf:$IFACE"
+                        echo "[Kernel_${KERNEL_VER}_XDP] Activate napi busy polling for inf:$IFACE"
                         echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
                         echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
                 else
-                        echo "[Kernel5.1x] Reset napi busy polling and gro for inf:$IFACE to 0"
+                        echo "[Kernel_${KERNEL_VER}] Reset napi busy polling and gro for inf:$IFACE to 0"
                         echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
                         echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
                 fi
         else
-                # For kernel 5.4
-                echo "[Kernel5.4] Disable coalescence for inf:$IFACE"
+                echo "[Kernel_${KERNEL_VER}] Disable coalescence for inf:$IFACE"
                 ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
                 sleep 2
-                echo "[Kernel5.4] Reset gro for inf:$IFACE to 0"
+                echo "[Kernel_${KERNEL_VER}] Reset gro for inf:$IFACE to 0"
                 echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
         fi
 
         sleep 5
+}
 
+# Tag kernel according to version for napi deferral needs
+napi_deferral_needed(){
+        case $KERNEL_VER in
+            5.10 | 5.11 | 5.12 | 5.13 | 5.14 | 5.15)
+                NAPI_DEFERRAL_NEEDED=1
+                ;;
+            *)
+                NAPI_DEFERRAL_NEEDED=0
+                ;;
+        esac
+}
+
+# Tag kernel according to version for xdp reset
+kernel_xdp_reset(){
+        case $KERNEL_VER in
+            5.1*)
+                XDP_RESET=1
+                ;;
+            *)
+                XDP_RESET=0
+                ;;
+        esac
 }
 
 ###############################################################################
