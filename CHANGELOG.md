@@ -46,3 +46,8 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - RPL-P enablement
 - Install scrub/filter to the raw data
 - Improve logic for manage systemctl restart
+
+## [0.8.29] - 2022-09-02
+- Update TODO.md
+- Code refactoring on napi deferral's part to increase performance
+  (smaller latency) for each difference kernels
