@@ -59,6 +59,8 @@ binaries (tsq, txrx-tsn and opcua-server).
     ./build.sh
     ```
 
+For further configuration details, check out [README_config.md](README_config.md) and [ShellConfig](README_shell.md#Config)
+
 ## Documentation
 
 ### Contents
@@ -70,6 +72,7 @@ binaries (tsq, txrx-tsn and opcua-server).
   * [Optimization](README_project.md#optimization)
   * [Role of run.sh](README_project.md#role-of-runsh)
 * [File Structure & Conventions](README_project.md#file-structure-conventions)
+* [Configuration](README_config.md)
 * [Shell-based runner](README_shell.md)
   * [Config](README_shell.md#Config)
   * [TSQ](README_shell.md#tsq-time-synchronization-quality-measurement)

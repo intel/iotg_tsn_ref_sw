@@ -1,0 +1,8 @@
+tx-0,01,general
+rx-0,01,general
+tx-1,02,afxdp-tx-q1(>5.10)
+rx-1,02,afxdp-rx-q1(>5.10)
+tx-2,01,ptp-tx (using the same core as best-effort traffic)
+rx-2,01,ptp-rx (using the same core as best-effort traffic)
+tx-3,02,afpkt-p3/afxdp-tx-q3(>5.10)
+rx-3,02,afpkt-p3/afxdp-rx-q3(>5.10)
