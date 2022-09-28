@@ -51,3 +51,9 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Update TODO.md
 - Code refactoring on napi deferral's part to increase performance
   (smaller latency) for each difference kernels
+
+## [0.8.30] - 2022-09-28
+- ADL-N support for SKU5 that only has 2 cores
+- Change default gPTP settings for ADL-N to TI-PHY
+- Change default gPTP settings for RPL-P to TI-PHY
+- Change systemctl try-reload-or-restart to restart
