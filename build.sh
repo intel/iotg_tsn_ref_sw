@@ -30,6 +30,25 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
+showTsnRefHelp() {
+cat << EOF
+Usage: ./build.sh [-hxtVv]
+
+-h,     -help,             --help             Display help
+
+-t,     -disablexdptbs,    --disablexdptbs    Disable Intel specific XDP+TBS support. (By default XDP+TBS support is enabled)
+
+-V,     -verbose,   --verbose   Run script in verbose mode.
+
+-v,     -version,   --version   Show version.
+
+EOF
+}
+
+showTsnRefVersion() {
+    sed -n '/^TSNREFSW_PACKAGE_VERSION/p' ./run.sh
+}
+
 # Check for default shell
 echo -e "\nBUILD.SH: Checking Default Shell"
 default_shell=$(echo $(realpath /usr/bin/sh) | cut -c 10-)
@@ -40,6 +59,45 @@ else
     echo "Please change default shell to ' bash ' OR ' sh ' to proceed"
     exit 1
 fi
+
+# By default we enable xdp and xdp+tsb(when supported) intel specific implementation.
+export version=0
+export verbose=0
+export ENABLE_XDP="--enable-xdp"
+export ENABLE_XDPTBS="--enable-xdptbs"
+
+options=$(getopt -l "help,disablexdptbs,verbose,version" -o "htVv" -a -- "$@")
+eval set -- "$options"
+
+while true
+do
+case $1 in
+-h|--help)
+    showTsnRefHelp
+    exit 0
+    ;;
+-v|--version)
+    showTsnRefVersion
+    exit 0
+    ;;
+-t|--disablexdptbs)
+    export ENABLE_XDPTBS=""
+    ;;
+-V|--verbose)
+    export verbose=1
+    set -xv # Set xtrace and verbose mode
+    ;;
+--)
+    shift
+    break;;
+esac
+shift
+done
+
+echo "./build.sh settings:"
+echo "1. verbose = $verbose"
+echo "2. enablexdp = $ENABLE_XDP"
+echo "3. enablexdptbs = $ENABLE_XDPTBS"
 
 touch Makefile.am configure.ac
 
@@ -67,7 +125,8 @@ rm -rf  Makefile                \
 
 echo -e "\nBUILD.SH: Configure"
 autoreconf --install
-./configure --prefix /usr --with-open62541-headers=/usr/include/open62541
+./configure --prefix /usr $ENABLE_XDP $ENABLE_XDPTBS
+
 if [ $? -ne 0 ]; then echo "Configure failed"; exit 1; fi
 
 echo -e "\nBUILD.SH: Compile"

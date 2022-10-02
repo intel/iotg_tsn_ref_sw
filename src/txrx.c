@@ -41,8 +41,12 @@
 #include <poll.h>
 #include <pthread.h>
 
-#include "txrx-afxdp.h"
+#include <stdlib.h>
+#include <stdbool.h>
 #include "txrx-afpkt.h"
+#ifdef WITH_XDP
+#include "txrx-afxdp.h"
+#endif
 
 #define VLAN_ID 3
 #define DEFAULT_NUM_FRAMES 1000
@@ -181,7 +185,9 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		res = strtol((const char *)arg, &str_end, 10);
 		if (errno || res < 0 || res >= 7 || str_end != &arg[len])
 			exit_with_error("Invalid queue number/socket priority. Check --help");
+#ifdef WITH_XDP
 		opt->x_opt.queue = opt->socket_prio = (uint32_t)res;
+#endif
 		opt->vlan_prio = opt->socket_prio * 32;
 		break;
 	case 'X':
@@ -326,7 +332,6 @@ void ts_log_stop()
 
 int main(int argc, char *argv[])
 {
-	struct pollfd fds[1];
 	struct user_opt opt;
 	int ret = 0;
 
@@ -342,11 +347,13 @@ int main(int argc, char *argv[])
 	opt.packet_size = DEFAULT_PACKET_SIZE;
 	opt.interval_ns = DEFAULT_TX_PERIOD;
 
+#ifdef WITH_XDP
 	opt.x_opt.frames_per_ring =  DEFAULT_XDP_FRAMES_PER_RING;
 	opt.x_opt.frame_size = DEFAULT_XDP_FRAMES_SIZE;
+	opt.xdp_mode = XDP_MODE_ZERO_COPY;
+#endif
 	opt.early_offset_ns = DEFAULT_EARLY_OFFSET;
 	opt.offset_ns = DEFAULT_TXTIME_OFFSET;
-	opt.xdp_mode = XDP_MODE_ZERO_COPY;
 	opt.clkid = CLOCK_REALTIME;
 	opt.enable_poll = 0;
 	opt.enable_hwts = 0;
@@ -368,9 +375,11 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef WITH_XDP
 	char buff[opt.packet_size];
 	pthread_t thread1;
-
+	struct pollfd fds[1];
+#endif
 	switch (opt.socket_mode) {
 	case MODE_AFPKT:
 		signal(SIGINT, afpkt_sigint_handler);
@@ -428,7 +437,9 @@ int main(int argc, char *argv[])
 		close(sockfd);
 		break;
 	case MODE_AFXDP:
-
+		#ifndef WITH_XDP
+			exit_with_error("AF_XDP functionality is disabled/not supported. Mode_AFXDP is not usable. Exiting.");
+		#else
 		init_xdp_socket(&opt); /* Same for all modes */
 
 		if (!opt.xsk)
@@ -494,6 +505,7 @@ int main(int argc, char *argv[])
 
 		/* Close XDP Application */
 		xdpsock_cleanup();
+		#endif /* WITH_XDP */
 		break;
 	default:
 		exit_with_error("Invalid socket type: Please specify -X or -P.");

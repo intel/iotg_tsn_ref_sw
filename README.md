@@ -71,6 +71,8 @@ For further configuration details, check out [README_config.md](README_config.md
   * [Platform specificity](README_project.md#platform-specificity)
   * [Optimization](README_project.md#optimization)
   * [Role of run.sh](README_project.md#role-of-runsh)
+* [Installation](README_install.md)
+* [Tsn Ref Sw Dependencies](DEPENDENCIES.md)
 * [File Structure & Conventions](README_project.md#file-structure-conventions)
 * [Configuration](README_config.md)
 * [Shell-based runner](README_shell.md)

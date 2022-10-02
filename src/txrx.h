@@ -34,9 +34,12 @@
 #define TXRX_HEADER
 
 #include <stdio.h>
+#ifdef WITH_XDP
 #include <bpf/xsk.h>
+#endif
 #include <time.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define NSEC_PER_SEC 1000000000L
 #define ETH_VLAN_HDR_SZ (18)
@@ -70,6 +73,7 @@ struct custom_payload {
 	uint64_t rx_timestampD;
 };
 
+#ifdef WITH_XDP
 /* Where we keep and track umem descriptor counters */
 struct pkt_buffer {
 	struct xsk_ring_prod rx_fill_ring;
@@ -106,6 +110,7 @@ struct xsk_info {
 	uint64_t prev_tx_npkts;
 	uint32_t outstanding_tx;
 };
+#endif /* WITH_XDP */
 
 struct user_opt {
 	uint8_t mode;		//App mode: TX/RX/FWD
@@ -126,15 +131,17 @@ struct user_opt {
 	uint32_t early_offset_ns;	//TXTIME early offset before transmission
 
 	/* XDP-specific */
+	#ifdef WITH_XDP
 	struct xsk_info *xsk;	//XDP-socket and ring information
+	#endif
+	/* x_opt can be defined regardless of if_xdp.h is available or not */
 	struct xsk_opt x_opt;	//XDP-specific mandatory user params
 
 	/* XDP-specific options*/
-	uint8_t xdp_mode;	//XDP mode: skb/nc/zc
-	uint8_t enable_poll;	//XDP poll mode when sending/receiving
-				//TODO: need wake up & unaligned chunk
-
 	/* Currently for txrx-afxdp only. */
+	uint8_t xdp_mode;       //XDP mode: skb/nc/zc
+	uint8_t enable_poll;    //XDP poll mode when sending/receiving
+                               //TODO: need wake up & unaligned chunk
 	uint8_t enable_txtime;
 	bool need_wakeup;
 	uint32_t poll_timeout;

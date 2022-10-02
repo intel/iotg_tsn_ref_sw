@@ -337,7 +337,9 @@ static void afxdp_send_pkt(struct xsk_info *xsk, struct user_opt *opt,
 	//We need to update addr every time, for cases where the umem/tx_ring is shared.
 	xsk_ring_prod__tx_desc(&xsk->tx_ring, idx)->addr = cur_tx << XSK_UMEM__DEFAULT_FRAME_SHIFT;
 	xsk_ring_prod__tx_desc(&xsk->tx_ring, idx)->len = packet_size;
+#ifdef WITH_XDPTBS
 	xsk_ring_prod__tx_desc(&xsk->tx_ring, idx)->txtime = tx_timestamp;
+#endif
 
 	/* Update counters */
 	xsk_ring_prod__submit(&xsk->tx_ring, pkt_per_send);
@@ -619,7 +621,11 @@ void afxdp_fwd_pkt(struct xsk_info *xsk, struct pollfd *fds, struct user_opt *op
 
 		xsk_ring_prod__tx_desc(&xsk->tx_ring, idx_tx)->addr = orig;
 		xsk_ring_prod__tx_desc(&xsk->tx_ring, idx_tx)->len = len;
+
+#ifdef WITH_XDPTBS
 		xsk_ring_prod__tx_desc(&xsk->tx_ring, idx_tx)->txtime = tx_timestamp;
+#endif
+
 		idx_tx++;
 	}
 
