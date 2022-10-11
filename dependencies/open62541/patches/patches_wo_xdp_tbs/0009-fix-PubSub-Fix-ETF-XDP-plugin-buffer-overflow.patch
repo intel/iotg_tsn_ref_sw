@@ -1,0 +1,52 @@
+From f0ee0ecdfc6115949ff70c90341d6a2fdfed5534 Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Mon, 18 May 2020 13:46:31 +0800
+Subject: [PATCH] fix(PubSub): Fix ETF & XDP plugin buffer overflow
+
+When CMAKE_BUILD_TYPE is RelWithDebInfo, fortification and optimization
+is enabled which catches a buffer overflow during ETF and XDP socket
+creation. This patch fixes it by replacing UA_snprintf with strcpy just
+as implemented in UA_PubSubChannelEthernet_open().
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ plugins/ua_pubsub_ethernet_etf.c | 6 ++----
+ plugins/ua_pubsub_ethernet_xdp.c | 5 ++---
+ 2 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/plugins/ua_pubsub_ethernet_etf.c b/plugins/ua_pubsub_ethernet_etf.c
+index 416b5857..4f2f4715 100644
+--- a/plugins/ua_pubsub_ethernet_etf.c
++++ b/plugins/ua_pubsub_ethernet_etf.c
+@@ -185,10 +185,8 @@ UA_PubSubChannelEthernetETF_open(const UA_PubSubConnectionConfig *connectionConf
+     /* get interface index */
+     struct ifreq ifreq;
+     memset(&ifreq, 0, sizeof(struct ifreq));
+-    UA_UInt64 len = UA_MIN(address->networkInterface.length, sizeof(ifreq.ifr_name)-1);
+-    UA_snprintf(ifreq.ifr_name, sizeof(struct ifreq),
+-                "%.*s", (int)len,
+-                (char*)address->networkInterface.data);
++    strncpy(ifreq.ifr_name, (char*)address->networkInterface.data,
++            UA_MIN(address->networkInterface.length, sizeof(ifreq.ifr_name)-1));
+ 
+     if(ioctl(sockFd, SIOCGIFINDEX, &ifreq) < 0) {
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+diff --git a/plugins/ua_pubsub_ethernet_xdp.c b/plugins/ua_pubsub_ethernet_xdp.c
+index 30c5a3fe..c429ae68 100644
+--- a/plugins/ua_pubsub_ethernet_xdp.c
++++ b/plugins/ua_pubsub_ethernet_xdp.c
+@@ -354,9 +354,8 @@ UA_PubSubChannelEthernetXDP_open(const UA_PubSubConnectionConfig *connectionConf
+     /* get interface index */
+     struct ifreq ifreq;
+     memset(&ifreq, 0, sizeof(struct ifreq));
+-    UA_UInt64 length = UA_MIN(address->networkInterface.length, sizeof(ifreq.ifr_name)-1);
+-    UA_snprintf(ifreq.ifr_name, sizeof(struct ifreq), "%.*s", (int)length,
+-                (char*)address->networkInterface.data);
++    strncpy(ifreq.ifr_name, (char*)address->networkInterface.data,
++            UA_MIN(address->networkInterface.length, sizeof(ifreq.ifr_name)-1));
+ 
+     /* TODO: ifreq has to be checked with ioctl commands */
+     channelDataEthernetXDP->ifindex = (int)if_nametoindex(ifreq.ifr_name);
+-- 
+2.17.0
+

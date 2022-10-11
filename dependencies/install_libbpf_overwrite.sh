@@ -30,33 +30,17 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source $DIR/helpers.sh
+
+# Check whether the kernel support XDP_TBS
+check_xdp_tbs
 
 # Configure proxy
-echo -e "\nINSTALL-DEPENDENCIES.SH: Configuring proxy"
-echo -e export https_proxy=http://proxy.png.intel.com:911
-echo -e git config --global https.proxy http://proxy.jf.intel.com:911
-export https_proxy=http://proxy.png.intel.com:911
-git config --global https.proxy http://proxy.jf.intel.com:911
+config_proxy
 
-# Local Variable Declaration
-LOCAL_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-
-
-# Install libbpf
-SRCREV_LIBBPF="d1fd50d475779f64805fdc28f912547b9e3dee8a"
-echo -e "\n============================================="
-echo -e "INSTALL-DEPENDENCIES.SH: Installing libbpf"
-echo -e "============================================="
-cd libbpf
-rm -rf libbpf
-git clone https://github.com/libbpf/libbpf.git
-cd libbpf
-
-echo -e "\nINSTALL-DEPENDENCIES.SH: Switch to branch: '$SRCREV_LIBBPF'"
-git checkout $SRCREV_LIBBPF
-
-echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches to libbpf"
-EMAIL=root@localhost git am ../patches/*.patch
+# Git clone libbpf
+clone_libbpf
 
 echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling libbpf"
 NO_PKG_CONFIG=1 make -j$(nproc) -C src
