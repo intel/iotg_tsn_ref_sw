@@ -111,6 +111,10 @@ else
 
     if ! ps -p $TXRX_PID > /dev/null; then
         echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
+        stop_if_empty "afpkt-rxtstamps.txt"
+        calc_rx_u2u "afpkt-rxtstamps.txt"
+        calc_rx_duploss "afpkt-rxtstamps.txt" $NUMPKTS
+        save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT
         exit 1
     fi
 

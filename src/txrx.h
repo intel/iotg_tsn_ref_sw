@@ -133,11 +133,9 @@ struct user_opt {
 	/* XDP-specific */
 	#ifdef WITH_XDP
 	struct xsk_info *xsk;	//XDP-socket and ring information
-	#endif
-	/* x_opt can be defined regardless of if_xdp.h is available or not */
 	struct xsk_opt x_opt;	//XDP-specific mandatory user params
+	#endif
 
-	/* XDP-specific options*/
 	/* Currently for txrx-afxdp only. */
 	uint8_t xdp_mode;       //XDP mode: skb/nc/zc
 	uint8_t enable_poll;    //XDP poll mode when sending/receiving
