@@ -58,7 +58,6 @@ NOTE
     -----------------------------------------------------------------------------------
 
 2. Table of current supported application according to xdp_tbs availability on the system.
-    
 
                                                  |    tsq | txrx-tsn  | opcua-server  |
     -----------------------------------------------------------------------------------
@@ -76,6 +75,8 @@ NOTE
 Default build (NO -t) is enabling XDP feature and Intel-specific XDP+TBS feature (if XDP+TBS is supported in the system!)
 
 Note: Effort is ongoing to decouple libopen62541-iotg fork and opcua-server from XDP_TBS Intel implementation.
+
+Note: Performance of OPC UA related tests are not guarantee without Intel specific XDP+TBS support in tsn ref sw.
 
 ## Tsn sw ref dependencies installation
 

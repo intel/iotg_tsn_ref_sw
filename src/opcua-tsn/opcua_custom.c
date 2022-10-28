@@ -171,6 +171,11 @@ void *pub_thread(void *arg)
            sizeof(UA_EthernetETFWriterGroupTransportDataType));
 
     ethernetETFtransportSettings.txtime_enabled    = UA_TRUE;
+#ifndef WITH_XDPTBS
+    if (g_sData->useXDP) {
+        ethernetETFtransportSettings.txtime_enabled    = UA_FALSE;
+    }
+#endif
     ethernetETFtransportSettings.transmission_time = 0;
 
     /* Encapsulate ETF config in transportSettings */

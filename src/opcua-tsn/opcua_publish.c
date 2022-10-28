@@ -67,6 +67,11 @@ void addPubSubConnection(UA_Server *server, UA_NodeId *connId,
     connectionConfig.etfConfiguration.socketPriority = socketPrio > 0 ?
                                                        socketPrio : -1;
     connectionConfig.etfConfiguration.sotxtimeEnabled = UA_TRUE;
+#ifndef WITH_XDPTBS
+    if (sdata->useXDP) {
+        connectionConfig.etfConfiguration.sotxtimeEnabled = UA_FALSE;
+    }
+#endif
 
     if (sdata->useXDP) {
         connectionConfig.xdp_queue = pdata->xdpQueue;
