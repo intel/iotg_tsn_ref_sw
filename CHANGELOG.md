@@ -57,3 +57,8 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Change default gPTP settings for ADL-N to TI-PHY
 - Change default gPTP settings for RPL-P to TI-PHY
 - Change systemctl try-reload-or-restart to restart
+
+## [0.9.0] - 2022-11-03
+- Add support for no_xdp and no_xdp_tbs mode
+- Publish data on af_packet when af_xdp is not available in vs1
+- Decoupling XDP_TBS related configuration from OPC-UA server code
