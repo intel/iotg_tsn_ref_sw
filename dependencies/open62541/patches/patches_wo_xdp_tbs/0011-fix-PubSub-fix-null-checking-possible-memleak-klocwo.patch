@@ -1,0 +1,120 @@
+From 19570f71ba1f25718611d1f3d349c5d533f97148 Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Mon, 10 Aug 2020 19:52:01 +0800
+Subject: [PATCH 11/11] fix(PubSub): fix null-checking & possible memleak
+ klocwork hits
+
+Add more null-checking and free at appropriate areas.
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ plugins/ua_pubsub_ethernet_xdp.c | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/plugins/ua_pubsub_ethernet_xdp.c b/plugins/ua_pubsub_ethernet_xdp.c
+index 86b7bfe0..b4cd6292 100644
+--- a/plugins/ua_pubsub_ethernet_xdp.c
++++ b/plugins/ua_pubsub_ethernet_xdp.c
+@@ -185,7 +185,7 @@ static xdp_umem *xdp_umem_configure(xskconfparam *xskparam) {
+                        xskparam->no_of_frames * xskparam->frame_size) != 0) {
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+                      "buffer allocation of UMEM failed");
+-        return NULL;
++        goto error;
+     }
+ 
+     ret = xsk_umem__create(&umem->umem, umem->buffer,
+@@ -195,7 +195,7 @@ static xdp_umem *xdp_umem_configure(xskconfparam *xskparam) {
+     if (ret) {
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+                      "PubSub XSK UMEM creation failed. Out of memory.");
+-        return NULL;
++        goto error;
+     }
+ 
+     /* Populate rx fill ring with addresses */
+@@ -203,7 +203,7 @@ static xdp_umem *xdp_umem_configure(xskconfparam *xskparam) {
+ 
+     sret = xsk_ring_prod__reserve(&umem->fq, frames_per_ring, &idx);
+     if (sret != frames_per_ring)
+-        return NULL;
++        goto error;
+ 
+     for (UA_UInt64 i = 0; i < frames_per_ring; i++)
+         *xsk_ring_prod__fill_addr(&umem->fq, idx++) = i * frames_per_ring;
+@@ -211,6 +211,10 @@ static xdp_umem *xdp_umem_configure(xskconfparam *xskparam) {
+     xsk_ring_prod__submit(&umem->fq, frames_per_ring);
+ 
+     return umem;
++
++error:
++    UA_free(umem);
++    return NULL;
+ }
+ 
+ /**
+@@ -226,10 +230,14 @@ static xdpsock *xsk_configure(xdp_umem *umem, UA_UInt32 hw_receive_queue,
+     struct xsk_socket_config cfg;
+ 
+     xskconfparam *xskparam = (xskconfparam *)UA_calloc(1, (sizeof(xskconfparam)));
++    if (!xskparam)
++        return NULL;
++
+     memcpy(xskparam, &default_values, (sizeof(xskconfparam)));
+ 
+     xdp_socket = (xdpsock *)UA_calloc(1, sizeof(*xdp_socket));
+     if (!xdp_socket) {
++        UA_free(xskparam);
+         return NULL;
+     }
+ 
+@@ -264,7 +272,7 @@ static xdpsock *xsk_configure(xdp_umem *umem, UA_UInt32 hw_receive_queue,
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+                       "PubSub connection creation failed."
+                       " xsk_socket__create not supported.");
+-        return NULL;
++        goto error;
+     } else if (ret < 0) {
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+                     "PubSub connection creation failed."
+@@ -285,6 +293,11 @@ static xdpsock *xsk_configure(xdp_umem *umem, UA_UInt32 hw_receive_queue,
+ error:
+     UA_close(xsk_socket__fd(xdp_socket->xskfd));
+     bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
++
++    UA_free(xskparam);
++    UA_free(xdp_socket->umem);
++    UA_free(xdp_socket);
++
+     return NULL;
+ }
+ 
+@@ -348,6 +361,7 @@ UA_PubSubChannelEthernetXDP_open(const UA_PubSubConnectionConfig *connectionConf
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+                      "PubSub Connection creation failed. Out of memory.");
+         UA_free(channelDataEthernetXDP);
++        UA_free(newChannel);
+         return NULL;
+     }
+ 
+@@ -365,6 +379,8 @@ UA_PubSubChannelEthernetXDP_open(const UA_PubSubConnectionConfig *connectionConf
+ 
+     if (setrlimit(RLIMIT_MEMLOCK, &resourcelimit)) {
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "Set limit on the consumption of resources failed");
++        UA_free(channelDataEthernetXDP);
++        UA_free(newChannel);
+         return NULL;
+     }
+ 
+@@ -378,6 +394,8 @@ UA_PubSubChannelEthernetXDP_open(const UA_PubSubConnectionConfig *connectionConf
+     if(!channelDataEthernetXDP->xdpsocket) {
+         bpf_set_link_xdp_fd(channelDataEthernetXDP->ifindex, -1,
+                              connectionConfig->xdp_flags);
++        UA_free(channelDataEthernetXDP);
++        UA_free(newChannel);
+         return NULL;
+     }
+ 
+-- 
+2.17.0
+

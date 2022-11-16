@@ -1,0 +1,33 @@
+From 90046fd5a0e1b88f1d974cf0a8443b40449fc141 Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Wed, 6 May 2020 19:58:12 +0800
+Subject: [PATCH] fix(PubSub): AF_XDP RX release() mechanism AF_PACKET
+ compatibility
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ src/pubsub/ua_pubsub_reader.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pubsub/ua_pubsub_reader.c b/src/pubsub/ua_pubsub_reader.c
+index 7b72095e..6d9e7a72 100644
+--- a/src/pubsub/ua_pubsub_reader.c
++++ b/src/pubsub/ua_pubsub_reader.c
+@@ -297,9 +297,13 @@ void UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerG
+         UA_NetworkMessage_decodeBinary(&buffer, &currentPosition, &currentNetworkMessage);
+         UA_Server_processNetworkMessage(server, &currentNetworkMessage, connection);
+         UA_NetworkMessage_deleteMembers(&currentNetworkMessage);
+-        connection->channel->release(connection->channel);
++        if (connection->channel->release)
++            connection->channel->release(connection->channel);
+     }
+ 
++    if (!connection->channel->release)
++        UA_ByteString_deleteMembers(&buffer);
++
+ #else
+ 
+     connection->channel->receive(connection->channel, &buffer, NULL, 1000);
+-- 
+2.17.0
+

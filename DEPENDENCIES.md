@@ -40,15 +40,26 @@ In order to compile under Ubuntu, these packages need to be installed first:
 In order to ease the installation of the customized helper libraries needed, we have included a few installation scripts in a specific branch.
 These scripts will check out a specific version of the libraries from upstream git and apply our patches on top of it.
 
-Branch name : **experimental/dependencies_installer**
-The dependencies installer branch : https://github.com/intel/iotg_tsn_ref_sw/tree/experimental/dependencies_installer/
+Branch name : **master**
+Folder name : **depedencies**
+The dependencies installer branch : https://github.com/intel/iotg_tsn_ref_sw
 
 Refer to the README.md to understand the differences between the scripts provided:
 
-https://github.com/intel/iotg_tsn_ref_sw/blob/experimental/dependencies_installer/dependencies/README.md
+https://github.com/intel/iotg_tsn_ref_sw/blob/master/dependencies/README.md
 
 Suggestion is to use the overwriting installer script (after having kept the original libbpf and libopen62541 in a safe place).
 This will ensure the tsn ref sw will be able to find/use correct libraries.
+
+NOTE: If your kernel support for Intel XDP+TBS, please ensure the variable 'txtime' is available in struct xdp_desc() in /usr/include/linux/if_xdp.h as example below:
+
+/* Rx/Tx descriptor */
+struct xdp_desc {
+        __u64 addr;
+        __u32 len;
+        __u32 options;
+        __u64 txtime;
+};
 
 NOTE: If you are installing the libbpf and libopen62541-iotg manually, there is a chance the related open62541-iotg.pc file is not there. Hence, you might have to comment out this line in **configure.ac**.
 

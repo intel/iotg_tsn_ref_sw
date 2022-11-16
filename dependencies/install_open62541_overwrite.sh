@@ -30,77 +30,19 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source $DIR/helpers.sh
+
+# Check whether the kernel support XDP_TBS
+check_xdp_tbs
 
 # Configure proxy
-echo -e "\nINSTALL-DEPENDENCIES.SH: Configuring proxy"
-echo -e export https_proxy=http://proxy.png.intel.com:911
-echo -e git config --global https.proxy http://proxy.jf.intel.com:911
-export https_proxy=http://proxy.png.intel.com:911
-git config --global https.proxy http://proxy.jf.intel.com:911
+config_proxy
 
-# Check if if_xdp.h have XDP header
-echo -e "\nINSTALL-DEPENDENCIES.SH: Checking XDP+TBS Availability"
-check_xdp=$(cat /boot/config-$(uname -r)* | grep -i CONFIG_XDP_SOCKETS=y > /dev/null && echo 0 || echo 1)
-txtime=$(cat /usr/include/linux/if_xdp.h | grep -i txtime > /dev/null && echo 0 || echo 1)
-if [[ "$check_xdp" == "0" && "$txtime" == "0" ]]; then
-    echo -e "Checking for XDP+TBS availability in kernel... yes"
-else
-    echo -e "Checking for XDP+TBS availability in kernel... no"
-    echo -e "Currently TSN Ref Sw App only support on kernel that support XDP+TBS"
-    exit 0
-fi
+# Git clone libopen62541
+clone_open62541
 
-# Local Variable Declaration
-LOCAL_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-
-# Install libopen62541
-SRCREV_LIBOPEN62541="a77b20ff940115266200d31d30d3290d6f2d57bd"
-echo -e "\n============================================="
-echo -e "INSTALL-DEPENDENCIES.SH: Installing open62541"
-echo -e "============================================="
-cd $LOCAL_DIR
-cd open62541
-rm -rf open62541
-git clone https://github.com/open62541/open62541.git
-cd open62541
-
-echo -e "\nINSTALL-DEPENDENCIES.SH: Switch to branch: '$SRCREV_LIBOPEN62541'"
-git checkout $SRCREV_LIBOPEN62541
-
-echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches to open62541"
-EMAIL=root@localhost git am ../patches/*.patch
-
-echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling open62541"
-mkdir build
-cd build
-if [ "$check_xdp" == "1" ]; then
-    # Without XDP
-    echo -e "Compiling open62541 without XDP...."
-    cmake   -DUA_BUILD_EXAMPLES=OFF                             \
-            -DUA_ENABLE_PUBSUB=ON                               \
-            -DUA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING=ON       \
-            -DUA_ENABLE_PUBSUB_ETH_UADP=ON                      \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_ETF=ON                  \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_XDP=OFF                 \
-            -DCMAKE_INSTALL_PREFIX=/usr                         \
-            -DBUILD_SHARED_LIBS=ON ..
-else
-    # With XDP
-    echo -e "Compiling open62541 with XDP...."
-    cmake   -DUA_BUILD_EXAMPLES=OFF                             \
-            -DUA_ENABLE_PUBSUB=ON                               \
-            -DUA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING=ON       \
-            -DUA_ENABLE_PUBSUB_ETH_UADP=ON                      \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_ETF=ON                  \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_XDP=ON                  \
-            -DCMAKE_INSTALL_PREFIX=/usr                         \
-            -DBUILD_SHARED_LIBS=ON ..
-fi
-
-# Modify CMakeFiles to ignore warnings
-sed -i '/C_FLAGS/ s/$/ -Wno-error=conversion/' CMakeFiles/open62541-plugins.dir/flags.make
-sed -i '/C_FLAGS/ s/$/ -Wno-error=maybe-uninitialized/' CMakeFiles/open62541-object.dir/flags.make
-
-make && make install
+# Compile open62541
+compile_open62541
 
 exit 0

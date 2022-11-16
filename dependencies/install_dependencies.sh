@@ -30,60 +30,23 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************/
 
-# Check OS distro
-echo -e "\nINSTALL-DEPENDENCIES.SH: Checking OS Distro"
-os_distro=$(cat /etc/os-release | grep -w NAME | cut -c 6-)
-echo "OS Distro: $os_distro"
-
-
-# Configure proxy
-echo -e "\nINSTALL-DEPENDENCIES.SH: Configuring proxy"
-echo -e export https_proxy=http://proxy.png.intel.com:911
-echo -e git config --global https.proxy http://proxy.jf.intel.com:911
-export https_proxy=http://proxy.png.intel.com:911
-git config --global https.proxy http://proxy.jf.intel.com:911
-
-
-# Check if if_xdp.h have XDP header
-echo -e "\nINSTALL-DEPENDENCIES.SH: Checking XDP+TBS Availability"
-check_xdp=$(cat /boot/config-$(uname -r)* | grep -i CONFIG_XDP_SOCKETS=y > /dev/null && echo 0 || echo 1)
-txtime=$(cat /usr/include/linux/if_xdp.h | grep -i txtime > /dev/null && echo 0 || echo 1)
-if [[ "$check_xdp" == "0" && "$txtime" == "0" ]]; then
-    echo -e "Checking for XDP+TBS availability in kernel... yes"
-else
-    echo -e "Checking for XDP+TBS availability in kernel... no"
-    echo -e "Currently TSN Ref Sw App only support on kernel that support XDP+TBS"
-    exit 0
-fi
-
-
-# Add XDP header in if_xdp.h
-#xdp_header=$(cat /usr/include/linux/if_xdp.h | grep -i xdp_desc > /dev/null && echo 0 || echo 1)
-#txtime=$(cat /usr/include/linux/if_xdp.h | grep -i txtime > /dev/null && echo 0 || echo 1)
-#if [[ "$xdp_header" == "0" && "$txtime" == "1" && "$check_xdp" == "0" ]]; then
-#    sed -i '107i \\t__u64 txtime;' /usr/include/linux/if_xdp.h
-#fi
-
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source $DIR/helpers.sh
 
 # Local Variable Declaration
 LOCAL_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
+# Check OS distro
+check_distro
 
-# Install libbpf
-SRCREV_LIBBPF="d1fd50d475779f64805fdc28f912547b9e3dee8a"
-echo -e "\n============================================="
-echo -e "INSTALL-DEPENDENCIES.SH: Installing libbpf"
-echo -e "============================================="
-cd libbpf
-rm -rf libbpf
-git clone https://github.com/libbpf/libbpf.git
-cd libbpf
+# Check whether the kernel support XDP_TBS
+check_xdp_tbs
 
-echo -e "\nINSTALL-DEPENDENCIES.SH: Switch to branch: '$SRCREV_LIBBPF'"
-git checkout $SRCREV_LIBBPF
+# Configure proxy
+config_proxy
 
-echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches to libbpf"
-EMAIL=root@localhost git am ../patches/*.patch
+# Git clone libbpf
+clone_libbpf
 
 if [[ "$1" == "--overwrite" ]]; then
     echo -e "\nNOTE: The dependencies installer will overwrite the original libbpf"
@@ -107,23 +70,8 @@ NO_PKG_CONFIG=1 make -j$(nproc) -C src
 DESTDIR=/ make install -j$(nproc) -C src
 ldconfig
 
-
-# Install libopen62541
-SRCREV_LIBOPEN62541="a77b20ff940115266200d31d30d3290d6f2d57bd"
-echo -e "\n============================================="
-echo -e "INSTALL-DEPENDENCIES.SH: Installing open62541"
-echo -e "============================================="
-cd $LOCAL_DIR
-cd open62541
-rm -rf open62541
-git clone https://github.com/open62541/open62541.git
-cd open62541
-
-echo -e "\nINSTALL-DEPENDENCIES.SH: Switch to branch: '$SRCREV_LIBOPEN62541'"
-git checkout $SRCREV_LIBOPEN62541
-
-echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches to open62541"
-EMAIL=root@localhost git am ../patches/*.patch
+# Git clone libopen62541
+clone_open62541
 
 if [[ "$1" == "--overwrite" ]]; then
     echo -e "\nNOTE: The dependencies installer will overwrite the original open62541"
@@ -140,39 +88,8 @@ else
     sed -i 's/Cflags: -I${includedir}\/open62541-iotg/Cflags: -I${includedir}\/open62541-iotg-custom/g' open62541.pc.in
 fi
 
-echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling open62541"
-mkdir build
-cd build
-if [ "$check_xdp" == "1" ]; then
-    # Without XDP
-    echo -e "Compiling open62541 without XDP...."
-    cmake   -DUA_BUILD_EXAMPLES=OFF                             \
-            -DUA_ENABLE_PUBSUB=ON                               \
-            -DUA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING=ON       \
-            -DUA_ENABLE_PUBSUB_ETH_UADP=ON                      \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_ETF=ON                  \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_XDP=OFF                 \
-            -DCMAKE_INSTALL_PREFIX=/usr                         \
-            -DBUILD_SHARED_LIBS=ON ..
-else
-    # With XDP
-    echo -e "Compiling open62541 with XDP...."
-    cmake   -DUA_BUILD_EXAMPLES=OFF                             \
-            -DUA_ENABLE_PUBSUB=ON                               \
-            -DUA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING=ON       \
-            -DUA_ENABLE_PUBSUB_ETH_UADP=ON                      \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_ETF=ON                  \
-            -DUA_ENABLE_PUBSUB_ETH_UADP_XDP=ON                  \
-            -DCMAKE_INSTALL_PREFIX=/usr                         \
-            -DBUILD_SHARED_LIBS=ON ..
-fi
-
-# Modify CMakeFiles to ignore warnings
-sed -i '/C_FLAGS/ s/$/ -Wno-error=conversion/' CMakeFiles/open62541-plugins.dir/flags.make
-sed -i '/C_FLAGS/ s/$/ -Wno-error=maybe-uninitialized/' CMakeFiles/open62541-object.dir/flags.make
-
-make && make install
-
+# Compile open62541
+compile_open62541
 
 # Redirect to default directory
 cd $LOCAL_DIR
@@ -184,6 +101,7 @@ check_rpath=$(cat Makefile.am | grep -i "rpath" > /dev/null && echo 0 || echo 1)
 check_txrx_afxdp_c=$(cat src/txrx-afxdp.c | grep -i "bpf-iotg-custom" > /dev/null && echo 0 || echo 1)
 check_txrx_h=$(cat src/txrx.h | grep -i "bpf-iotg-custom" > /dev/null && echo 0 || echo 1)
 
+# Link up the libraries
 if [[ "$1" == "--overwrite" ]]; then
     echo -e "\nNOTE: The dependencies installer will link to the original libraries path"
 else
@@ -236,7 +154,6 @@ if [[ "$1" == "--overwrite" ]]; then
     ln -sf libopen62541-iotg.so.1.1.0 $open62541_so_path
 fi
 
-
 # Echo libraries path to user
 echo -e "\n============================================="
 echo -e "Installed Libraries Information:"
@@ -251,8 +168,6 @@ echo -e "Library Version:"
 echo -e "libopen62541.so.1.1.0"
 echo -e "\nLibrary Install Folder:"
 echo -e "$open62541_path"
-
-
 
 echo -e "\nSetup Successful."
 echo -e "Please Re-login or source /etc/environment for libraries to link up"

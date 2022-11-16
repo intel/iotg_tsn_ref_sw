@@ -1,0 +1,861 @@
+From 1b14c36c77271d0da9cb0ac57913ef37ff7e8717 Mon Sep 17 00:00:00 2001
+From: "Wong, Vincent Por Yin" <vincent.por.yin.wong@intel.com>
+Date: Fri, 17 Apr 2020 13:59:36 +0800
+Subject: [PATCH] feature(PubSub): Use libbpf for AF_XDP receive, update flow
+
+Previous AF_XDP RX implementation was based on 4.19 APIs. Since then,
+libbpf has abstracted much of the APIs required to TX/RX packets. The
+setup flow has also changed hence this is a significant overhaul.
+
+Open62541 applications can also now specify flags and queues using
+specific PubSubConnectionConfig rather than a UA_KeyValuePair.
+
+Signed-off-by: Wong, Vincent Por Yin <vincent.por.yin.wong@intel.com>
+---
+ include/open62541/plugin/pubsub.h |   5 +
+ include/open62541/server_pubsub.h |   5 +
+ plugins/ua_pubsub_ethernet_xdp.c  | 603 ++++++++++--------------------
+ src/pubsub/ua_pubsub_reader.c     |  18 +
+ 4 files changed, 232 insertions(+), 399 deletions(-)
+
+diff --git a/include/open62541/plugin/pubsub.h b/include/open62541/plugin/pubsub.h
+index 80d996b1..24d1a1b9 100644
+--- a/include/open62541/plugin/pubsub.h
++++ b/include/open62541/plugin/pubsub.h
+@@ -67,6 +67,11 @@ struct UA_PubSubChannel {
+     UA_StatusCode (*receive)(UA_PubSubChannel * channel, UA_ByteString *,
+                              UA_ExtensionObject *transportSettings, UA_UInt32 timeout);
+ 
++#ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
++    /* Release the umem buffer back to the kernel */
++    UA_StatusCode (*release)(UA_PubSubChannel * channel);
++#endif
++
+     /* Closing the connection and implicit free of the channel structures. */
+     UA_StatusCode (*close)(UA_PubSubChannel *channel);
+ 
+diff --git a/include/open62541/server_pubsub.h b/include/open62541/server_pubsub.h
+index ec4a454d..f51cb4d6 100644
+--- a/include/open62541/server_pubsub.h
++++ b/include/open62541/server_pubsub.h
+@@ -138,6 +138,11 @@ typedef struct {
+     /* ETF related connection configuration - Not in PubSub specfication */
+     UA_ETFConfiguration etfConfiguration;
+ #endif
++#ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
++    UA_UInt16 xdp_queue;
++    UA_UInt32 xdp_flags;
++    UA_UInt16 xdp_bind_flags;
++#endif
+ } UA_PubSubConnectionConfig;
+ 
+ UA_StatusCode UA_EXPORT
+diff --git a/plugins/ua_pubsub_ethernet_xdp.c b/plugins/ua_pubsub_ethernet_xdp.c
+index 71e1c1a3..6b10c403 100644
+--- a/plugins/ua_pubsub_ethernet_xdp.c
++++ b/plugins/ua_pubsub_ethernet_xdp.c
+@@ -19,56 +19,56 @@
+ #include <netinet/ether.h>
+ #endif
+ 
+-#include <linux/bpf.h>
+-#include "/usr/local/src/bpf-next/include/uapi/linux/if_xdp.h"
+-#include "/usr/local/src/bpf-next/tools/testing/selftests/bpf/bpf_util.h"
+-#include "/usr/local/src/bpf-next/tools/lib/bpf/bpf.h"
+-#include "/usr/local/src/bpf-next/tools/lib/bpf/libbpf.h"
+-#include "/usr/local/src/bpf-next/samples/bpf/xdpsock.h"
++/* RLIMIT */
++#include <sys/time.h>
+ #include <sys/resource.h>
+-#include <sys/mman.h>
+ 
+-/* Theses structures shall be removed in the future XDP versions
+- * (when RT Linux and XDP are mainlined and stable) */
+-typedef struct {
+-    UA_UInt32        cached_prod;
+-    UA_UInt32        cached_cons;
+-    UA_UInt32        mask;
+-    UA_UInt32        size;
+-    UA_UInt32        *producer;
+-    UA_UInt32        *consumer;
+-    UA_UInt64        *ring;
+-    void             *map;
+-} xdp_umem_uqueue;
++/* XSK kernel headers */
++#include <linux/bpf.h>
++#include <linux/if_xdp.h>
++
++/* Libbpf headers */
++#include <bpf/bpf.h>
++#include <bpf/libbpf.h>
++#include <bpf/xsk.h>
++
++/* getpagesize() */
++#include <unistd.h>
++
++/* if_nametoindex() */
++#include <net/if.h>
++
++#ifndef ETHERTYPE_UADP
++#define ETHERTYPE_UADP 0xb62c
++#endif
+ 
+ typedef struct {
+-    char             *frames;
+-    xdp_umem_uqueue  fq;
+-    xdp_umem_uqueue  cq;
+-    UA_Int32         fd;
++    char                    *frames;
++    struct xsk_ring_prod    fq;
++    struct xsk_ring_cons    cq;
++    struct xsk_umem *       umem;
++    void                    *buffer;
++    UA_Int32                fd;
+ } xdp_umem;
+ 
+ typedef struct {
+-    UA_UInt32        cached_prod;
+-    UA_UInt32        cached_cons;
+-    UA_UInt32        mask;
+-    UA_UInt32        size;
+-    UA_UInt32        *producer;
+-    UA_UInt32        *consumer;
+-    struct xdp_desc  *ring;
+-    void             *map;
+-} xdp_uqueue;
++    struct xsk_ring_cons rx_ring;
++    struct xsk_ring_prod tx_ring;
++
++    struct xsk_socket *xskfd;
++    UA_UInt32 bpf_prog_id;
++
++    UA_UInt32 cur_tx;
++    UA_UInt32 cur_rx;
+ 
+-typedef struct {
+-    xdp_uqueue       rx;
+-    xdp_uqueue       tx;
+-    UA_Int32         sfd;
+     xdp_umem         *umem;
+     UA_UInt32        outstanding_tx;
+-    UA_UInt32        rx_npkts;
+-    UA_UInt32        tx_npkts;
+-    UA_UInt32        prev_rx_npkts;
+-    UA_UInt32        prev_tx_npkts;
++    UA_UInt64        rx_npkts;
++    UA_UInt64        tx_npkts;
++    UA_UInt64        prev_rx_npkts;
++    UA_UInt64        prev_tx_npkts;
++    UA_UInt32        idx_rx;
++    UA_UInt32        idx_fq;
+ } xdpsock;
+ 
+ /* Configuration parameters for xdp socket */
+@@ -81,7 +81,7 @@ typedef struct {
+ } xskconfparam;
+ 
+ /* Default values for xdp socket parameters */
+-xskconfparam default_values = {131072, 2048, 1024, 1024, 1024};
++xskconfparam default_values = {2048, 2048, 2048, 2048, 2048};
+ 
+ /* Ethernet XDP layer specific internal data */
+ typedef struct {
+@@ -91,7 +91,6 @@ typedef struct {
+     UA_Byte ifAddress[ETH_ALEN];
+     UA_Byte targetAddress[ETH_ALEN];
+     UA_UInt32 xdp_flags;
+-    UA_UInt32 hw_receive_queue;
+     xdpsock* xdpsocket;
+ } UA_PubSubChannelDataEthernetXDP;
+ 
+@@ -105,7 +104,7 @@ typedef struct {
+ #endif
+ 
+ // Receive buffer batch size
+-#define BATCH_SIZE     16
++#define BATCH_SIZE     1
+ 
+ #define barrier() __asm__ __volatile__("": : :"memory")
+ #ifdef __aarch64__
+@@ -155,300 +154,134 @@ UA_parseHardwareAddress(UA_String* target, UA_Byte* destinationMac) {
+     return UA_STATUSCODE_GOOD;
+ }
+ 
+-/**
+- * Calculates the number of entries using producer and consumer rings
+- */
+-static UA_UInt32 xq_nb_avail(xdp_uqueue *queue, UA_UInt32 ndescs) {
+-    UA_UInt32 entries = queue->cached_prod - queue->cached_cons;
+-    if (entries == 0) {
+-        queue->cached_prod = *queue->producer;
+-        entries            = queue->cached_prod - queue->cached_cons;
+-    }
+-    return (entries > ndescs) ? ndescs : entries;
+-}
+-
+-/**
+- * Dequeueing of xdp queue
+- * Returns the number of entries in dequeue
+- */
+-static UA_UInt32 xq_deq(xdp_uqueue *queue, struct xdp_desc *descs,
+-                        UA_UInt32 ndescs) {
+-    struct xdp_desc *ring = queue->ring;
+-    UA_UInt32 iterator, index, entries;
+-
+-    entries               = xq_nb_avail(queue, ndescs);
+-    u_smp_rmb();
+-    for (iterator = 0; iterator < entries; iterator++) {
+-        index             = queue->cached_cons++ & queue->mask;
+-        descs[iterator]   = ring[index];
+-    }
+-    if (entries > 0) {
+-        u_smp_wmb();
+-        *queue->consumer  = queue->cached_cons;
+-    }
+-
+-    return entries;
+-}
+-
+-/**
+- * Gets data from xdpsocket to be processed via bpf functionality
+- */
+-static inline void *xq_get_data(xdpsock *xdp_socket, UA_UInt64 addr) {
+-    return &xdp_socket->umem->frames[addr];
+-}
+-
+-/**
+- * Calculates the number of free entries in UMEM using producer and consumer rings
+- */
+-static inline UA_UInt32 umem_nb_free(xdp_umem_uqueue *queue, UA_UInt32 numOfBytes) {
+-    UA_UInt32 free_entries = queue->cached_cons - queue->cached_prod;
+-    if (free_entries >= numOfBytes)
+-        return free_entries;
+-
+-    /* Refresh the local tail pointer */
+-    queue->cached_cons     = *queue->consumer + queue->size;
+-    return queue->cached_cons - queue->cached_prod;
+-}
+-
+-static inline int umem_fill_to_kernel_ex(xdp_umem_uqueue *fillQueue,
+-                                         struct xdp_desc *descriptor,
+-                                         UA_UInt32 numOfBytes) {
+-    UA_UInt32 iterator;
+-
+-    if (umem_nb_free(fillQueue, numOfBytes) < numOfBytes)
+-        return EXIT_FAILURE;
+-
+-    for (iterator = 0; iterator < numOfBytes; iterator++) {
+-        UA_UInt32 index        = fillQueue->cached_prod++ & fillQueue->mask;
+-        fillQueue->ring[index] = descriptor[iterator].addr;
+-    }
+-    u_smp_wmb();
+-    *fillQueue->producer       = fillQueue->cached_prod;
+-
+-    return UA_STATUSCODE_GOOD;
+-}
+-
+ /**
+  * UMEM is associated to a netdev and a specific queue id of that netdev.
+  * It is created and configured (chunk size, headroom, start address and size) by using the XDP_UMEM_REG setsockopt system call.
+  * UMEM uses two rings: FILL and COMPLETION. Each socket associated with the UMEM must have an RX queue, TX queue or both.
+  */
+-static xdp_umem *xdp_umem_configure(UA_Int32 sfd, xskconfparam *xskparam) {
+-    // Fill and completion ring queue size
+-    UA_UInt32 fq_size = xskparam->fill_queue_no_of_desc, cq_size = xskparam->com_queue_no_of_desc;
+-    struct xdp_mmap_offsets offset;
+-    struct xdp_umem_reg     memoryregister;
++static xdp_umem *xdp_umem_configure(xskconfparam *xskparam) {
++    struct xsk_umem_config uconfig = {
++        .fill_size = xskparam->fill_queue_no_of_desc,
++        .comp_size = xskparam->com_queue_no_of_desc,
++        .frame_size = xskparam->frame_size,
++        .frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
++    };
+     xdp_umem *umem;
+-    socklen_t optlen;
+-    void *bufs;
++    int ret;
++    size_t sret;
++    UA_UInt32 frames_per_ring;
++    UA_UInt32 idx;
+ 
+     umem = (xdp_umem *)UA_calloc(1, sizeof(*umem));
+     if (!umem) {
+         return NULL;
+     }
+ 
+-    if (posix_memalign(&bufs, (size_t)getpagesize(), /* PAGE_SIZE aligned */
++    if (posix_memalign(&umem->buffer, (size_t)getpagesize(),
+                        xskparam->no_of_frames * xskparam->frame_size) != 0) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "buffer allocation of UMEM failed");
+-        return NULL;
+-    }
+-
+-    memoryregister.addr       = (__u64)bufs;
+-    memoryregister.len        = xskparam->no_of_frames * xskparam->frame_size;
+-    memoryregister.chunk_size = xskparam->frame_size;
+-    memoryregister.headroom   = 0;
+-
+-    /* Register UMEM to a socket */
+-    if (UA_setsockopt(sfd, SOL_XDP, XDP_UMEM_REG, &memoryregister, sizeof(memoryregister))) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "setsockopt UMEM memory registraton failed");
++        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
++                     "buffer allocation of UMEM failed");
+         return NULL;
+     }
+ 
+-    /* Set the number of descriptors that FILL and COMPLETION rings should have */
+-    if (UA_setsockopt(sfd, SOL_XDP, XDP_UMEM_FILL_RING, &fq_size, sizeof(UA_UInt32))) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "setsockopt UMEM fill ring failed");
+-        return NULL;
+-    }
+-    if (UA_setsockopt(sfd, SOL_XDP, XDP_UMEM_COMPLETION_RING, &cq_size, sizeof(UA_UInt32))) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "setsockopt UMEM completion ring failed");
++    ret = xsk_umem__create(&umem->umem, umem->buffer,
++                           xskparam->no_of_frames * xskparam->frame_size,
++                           &umem->fq, &umem->cq,
++                           &uconfig);
++    if (ret) {
++        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
++                     "PubSub XSK UMEM creation failed. Out of memory.");
+         return NULL;
+     }
+ 
+-    optlen                    = sizeof(offset);
+-    if (getsockopt(sfd, SOL_XDP, XDP_MMAP_OFFSETS, &offset, &optlen)) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "getsockopt failed");
+-        return NULL;
+-    }
++    /* Populate rx fill ring with addresses */
++    frames_per_ring = xskparam->fill_queue_no_of_desc;
+ 
+-    /* mmapp the rings to user-space using the appropriate offset */
+-    umem->fq.map = mmap(0, offset.fr.desc + fq_size * sizeof(UA_UInt64),
+-                        PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, sfd,
+-                        XDP_UMEM_PGOFF_FILL_RING);
+-    if (umem->fq.map == MAP_FAILED) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "memory mapping for fill ring failed");
++    sret = xsk_ring_prod__reserve(&umem->fq, frames_per_ring, &idx);
++    if (sret != frames_per_ring)
+         return NULL;
+-    }
+ 
+-    umem->fq.mask             = fq_size - 1;
+-    umem->fq.size             = fq_size;
+-    umem->fq.producer         = (UA_UInt32*)((unsigned char*) umem->fq.map + offset.fr.producer);
+-    umem->fq.consumer         = (UA_UInt32*)((unsigned char*) umem->fq.map + offset.fr.consumer);
+-    umem->fq.ring             = (UA_UInt64*)((unsigned char*)umem->fq.map + offset.fr.desc);
+-    umem->fq.cached_cons      = fq_size;
+-
+-    umem->cq.map = mmap(0, offset.cr.desc + cq_size * sizeof(UA_UInt64),
+-                        PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, sfd,
+-                        XDP_UMEM_PGOFF_COMPLETION_RING);
+-    if (umem->cq.map == MAP_FAILED) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "memory mapping for completion ring failed");
+-        return NULL;
+-    }
++    for (UA_UInt64 i = 0; i < frames_per_ring; i++)
++        *xsk_ring_prod__fill_addr(&umem->fq, idx++) = i * frames_per_ring;
+ 
+-    umem->cq.mask             = cq_size - 1;
+-    umem->cq.size             = cq_size;
+-    umem->cq.producer         = (UA_UInt32* )((unsigned char*) umem->cq.map + offset.cr.producer);
+-    umem->cq.consumer         = (UA_UInt32* )((unsigned char*) umem->cq.map + offset.cr.consumer);
+-    umem->cq.ring             = (UA_UInt64*)((unsigned char*) umem->cq.map + offset.cr.desc);
+-    umem->frames              = (char *)bufs;
+-    umem->fd                  = sfd;
++    xsk_ring_prod__submit(&umem->fq, frames_per_ring);
+ 
+     return umem;
+ }
+ 
+-/**
+- * Transfer ownership of UMEM frames between the kernel and the user-space application
+- * using producer and consumer rings
+- */
+-static inline int umem_fill_to_kernel(xdp_umem_uqueue *fillQueue, UA_UInt64 *descriptor, UA_UInt32 nb) {
+-    UA_UInt32 iterator;
+-    if (umem_nb_free(fillQueue, nb) < nb)
+-        return EXIT_FAILURE;
+-
+-    for (iterator = 0; iterator < nb; iterator++) {
+-        UA_UInt32 index        = fillQueue->cached_prod++ & fillQueue->mask;
+-        fillQueue->ring[index] = descriptor[iterator];
+-    }
+-    u_smp_wmb();
+-    *fillQueue->producer       = fillQueue->cached_prod;
+-    return UA_STATUSCODE_GOOD;
+-}
+-
+ /**
+  *  Configure AF_XDP socket to redirect frames to a memory buffer in a user-space application
+  *  XSK has two rings: the RX ring and the TX ring
+  *  A socket can receive packets on the RX ring and it can send packets on the TX ring
+  */
+-static xdpsock *xsk_configure(xdp_umem *umem, int ifindex,
+-                              UA_UInt32 hw_receive_queue) {
+-    struct sockaddr_xdp sxdp;
+-    struct xdp_mmap_offsets offset;
++static xdpsock *xsk_configure(xdp_umem *umem, UA_UInt32 hw_receive_queue,
++                              int ifindex, char *ifname,
++                              UA_UInt32 xdp_flags, UA_UInt16 xdp_bind_flags) {
+     xdpsock *xdp_socket;
+-    static UA_UInt16 xdp_bind_flags;
+-    int sfd;
+-    UA_Boolean shared = true;
+-    socklen_t optlen;
+-    UA_UInt64 iterator;
+-    UA_UInt32 ndescs;
++    int ret;
++    struct xsk_socket_config cfg;
+ 
+     xskconfparam *xskparam = (xskconfparam *)UA_calloc(1, (sizeof(xskconfparam)));
+     memcpy(xskparam, &default_values, (sizeof(xskconfparam)));
+ 
+-    if((sfd = UA_socket(AF_XDP, SOCK_RAW, 0)) == UA_INVALID_SOCKET)
+-        return NULL;
+-
+     xdp_socket = (xdpsock *)UA_calloc(1, sizeof(*xdp_socket));
+     if (!xdp_socket) {
+         return NULL;
+     }
+ 
+-    xdp_socket->sfd = sfd;
+-    xdp_socket->outstanding_tx = 0;
+-
+-    if (!umem) {
+-        shared = false;
+-        xdp_socket->umem = xdp_umem_configure(sfd, xskparam);
+-    } else {
++    if (umem)
+         xdp_socket->umem = umem;
+-    }
++    else
++        xdp_socket->umem = xdp_umem_configure(xskparam);
+ 
+-    ndescs = xskparam->no_of_desc;
+-    /* Set the number of descriptors that RX and TX rings should have */
+-    if (UA_setsockopt(sfd, SOL_XDP, XDP_RX_RING, &ndescs, sizeof(ndescs))) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "setsockopt for RX ring failed");
+-        return NULL;
+-    }
++    if (!xdp_socket->umem)
++        goto error;
+ 
+-    if (UA_setsockopt(sfd, SOL_XDP, XDP_TX_RING, &ndescs, sizeof(ndescs))) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "setsockopt for TX ring failed");
+-        return NULL;
+-    }
++    xdp_socket->outstanding_tx = 0;
++    xdp_socket->idx_rx = 0;
++    xdp_socket->idx_fq = 0;
+ 
+-    optlen = sizeof(offset);
+-    if (UA_getsockopt(sfd, SOL_XDP, XDP_MMAP_OFFSETS, &offset, &optlen)) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "getsockopt failed");
+-        return NULL;
+-    }
++    cfg.rx_size = xskparam->fill_queue_no_of_desc;
++    cfg.tx_size = xskparam->com_queue_no_of_desc;
+ 
+-    /* RX ring */
+-    xdp_socket->rx.map = mmap(NULL, offset.rx.desc + ndescs * sizeof(struct xdp_desc),
+-                              PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, sfd,
+-                              XDP_PGOFF_RX_RING);
+-    if (xdp_socket->rx.map == MAP_FAILED) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "RX mapping failed");
+-        return NULL;
+-    }
++    cfg.libbpf_flags = 0;
++    cfg.xdp_flags = xdp_flags;
++    cfg.bind_flags = xdp_bind_flags;
+ 
+-    if (!shared) {
+-        for (iterator = 0; iterator < ndescs * xskparam->frame_size; iterator += xskparam->frame_size)
+-             if (umem_fill_to_kernel(&xdp_socket->umem->fq, &iterator, 1) != 0) {
+-                 UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "UMEM frame transfer failed");
+-                 return NULL;
+-             }
+-    }
++    ret = xsk_socket__create(&xdp_socket->xskfd,
++                             ifname,
++                             hw_receive_queue,
++                             xdp_socket->umem->umem,
++                             &xdp_socket->rx_ring,
++                             &xdp_socket->tx_ring,
++                             &cfg);
+ 
+-    /* TX ring descriptor is filled (index, length and offset) and passed into the ring */
+-    xdp_socket->tx.map = mmap(NULL, offset.tx.desc + ndescs * sizeof(struct xdp_desc),
+-                              PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, sfd,
+-                              XDP_PGOFF_TX_RING);
+-    if (xdp_socket->tx.map == MAP_FAILED) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "TX mapping failed");
++    if (ret == ENOTSUP) {
++        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
++                      "PubSub connection creation failed."
++                      " xsk_socket__create not supported.");
+         return NULL;
++    } else if (ret < 0) {
++        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
++                    "PubSub connection creation failed."
++                    " xsk_socket__create failed: %s", strerror(errno));
++        goto error;
+     }
+ 
+-    /* RX ring descriptor contains UMEM offset (addr) and the length of the data (len)*/
+-    xdp_socket->rx.mask        = ndescs - 1;
+-    xdp_socket->rx.size        = ndescs;
+-    xdp_socket->rx.producer    = (UA_UInt32*)((unsigned char*)xdp_socket->rx.map + offset.rx.producer);
+-    xdp_socket->rx.consumer    = (UA_UInt32*)((unsigned char*)xdp_socket->rx.map + offset.rx.consumer);
+-    xdp_socket->rx.ring        = (struct xdp_desc*) ((unsigned char*)xdp_socket->rx.map + offset.rx.desc);
+-
+-    xdp_socket->tx.mask        = ndescs - 1;
+-    xdp_socket->tx.size        = ndescs;
+-    xdp_socket->tx.producer    = (UA_UInt32*)((unsigned char*)xdp_socket->tx.map + offset.tx.producer);
+-    xdp_socket->tx.consumer    = (UA_UInt32*)((unsigned char*)xdp_socket->tx.map + offset.tx.consumer);
+-    xdp_socket->tx.ring        = (struct xdp_desc*) ((unsigned char*) xdp_socket->tx.map + offset.tx.desc);
+-    xdp_socket->tx.cached_cons = ndescs;
+-
+-    sxdp.sxdp_family           = AF_XDP;
+-    sxdp.sxdp_ifindex          = (UA_UInt32)ifindex;
+-    sxdp.sxdp_queue_id         = hw_receive_queue;
+-
+-    /* Share the UMEM between processes */
+-    if (shared) {
+-        sxdp.sxdp_flags          = XDP_SHARED_UMEM;
+-        sxdp.sxdp_shared_umem_fd = (UA_UInt32)umem->fd;
+-    } else {
+-        sxdp.sxdp_flags          = xdp_bind_flags;
+-    }
+-
+-    /* Bind the socket to device and a specific queue id on that device */
+-    if (UA_bind(sfd, (struct sockaddr *)&sxdp, sizeof(sxdp))) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "socket bind failed");
+-        return NULL;
++    ret = bpf_get_link_xdp_id(ifindex, &xdp_socket->bpf_prog_id, xdp_flags);
++    if (ret) {
++        UA_LOG_ERROR (UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
++            "PubSub Connection creation failed. Unable to retrieve XDP program.");
++        goto error;
+     }
+ 
+     UA_free(xskparam);
+     return xdp_socket;
++
++error:
++    UA_close(xsk_socket__fd(xdp_socket->xskfd));
++    bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
++    return NULL;
+ }
+ 
+ /**
+@@ -459,12 +292,6 @@ static xdpsock *xsk_configure(xdp_umem *umem, int ifindex,
+ static UA_PubSubChannel *
+ UA_PubSubChannelEthernetXDP_open(const UA_PubSubConnectionConfig *connectionConfig) {
+ 
+-    int prog_fd, qidconf_map, xsks_map;
+-    int ret, key = 0;
+-    struct bpf_object *obj;
+-    char xdp_filename[256];
+-    struct bpf_map *map;
+-
+     UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+                 "Open PubSub ethernet connection with XDP.");
+ 
+@@ -529,123 +356,37 @@ UA_PubSubChannelEthernetXDP_open(const UA_PubSubConnectionConfig *connectionConf
+ 
+     /* TODO: ifreq has to be checked with ioctl commands */
+     channelDataEthernetXDP->ifindex = (int)if_nametoindex(ifreq.ifr_name);
+-
+-    //iterate over the given KeyValuePair paramters
+-    UA_String xdpFlagParam = UA_STRING("xdpflag"), hwReceiveQueueParam = UA_STRING("hwreceivequeue");
+-    for(size_t i = 0; i < connectionConfig->connectionPropertiesSize; i++){
+-        if(UA_String_equal(&connectionConfig->connectionProperties[i].key.name, &xdpFlagParam)){
+-            if(UA_Variant_hasScalarType(&connectionConfig->connectionProperties[i].value, &UA_TYPES[UA_TYPES_UINT32])){
+-                channelDataEthernetXDP->xdp_flags = *(UA_UInt32 *) connectionConfig->connectionProperties[i].value.data;
+-            }
+-        } else if(UA_String_equal(&connectionConfig->connectionProperties[i].key.name, &hwReceiveQueueParam)){
+-            if(UA_Variant_hasScalarType(&connectionConfig->connectionProperties[i].value, &UA_TYPES[UA_TYPES_UINT32])){
+-                channelDataEthernetXDP->hw_receive_queue = *(UA_UInt32 *) connectionConfig->connectionProperties[i].value.data;
+-            }
+-        } else {
+-            UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "PubSub XDP Connection creation. Unknown connection parameter.");
+-        }
+-    }
++    channelDataEthernetXDP->xdp_flags = connectionConfig->xdp_flags;
+ 
+     struct rlimit resourcelimit = {RLIM_INFINITY, RLIM_INFINITY};
+-    struct bpf_prog_load_attr prog_load_attr = {
+-        .prog_type    = BPF_PROG_TYPE_XDP,
+-    };
+ 
+     if (setrlimit(RLIMIT_MEMLOCK, &resourcelimit)) {
+         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "Set limit on the consumption of resources failed");
+         return NULL;
+     }
+ 
+-    char *kernProg = "xdpsock";
+-    snprintf(xdp_filename, sizeof(xdp_filename), "/usr/local/src/bpf-next/samples/bpf/%s_kern.o", kernProg);
+-    prog_load_attr.file = xdp_filename;
+-
+-    /* Loads the eBPF program specified by the prog_load_attr argument */
+-    if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+-        return NULL;
+-
+-    /* Load the program inside the kernel via a newly allocated file descriptor */
+-    if (prog_fd < 0) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "Setting of new file descriptor failed");
++    /* Create the UMEM and XDP sockets */
++    channelDataEthernetXDP->xdpsocket = xsk_configure(NULL,
++                                                      connectionConfig->xdp_queue,
++                                                      channelDataEthernetXDP->ifindex,
++                                                      (char *)address->networkInterface.data,
++                                                      connectionConfig->xdp_flags,
++                                                      connectionConfig->xdp_bind_flags);
++    if(!channelDataEthernetXDP->xdpsocket) {
++        bpf_set_link_xdp_fd(channelDataEthernetXDP->ifindex, -1,
++                             connectionConfig->xdp_flags);
+         return NULL;
+     }
+ 
+-    /* Fetch BPF match object using name */
+-    map = bpf_object__find_map_by_name(obj, "qidconf_map");
+-    qidconf_map = bpf_map__fd(map);
+-    if (qidconf_map < 0) {
+-         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "Failed to obtain queue id from map");
+-         return NULL;
+-    }
+-
+-     map = bpf_object__find_map_by_name(obj, "xsks_map");
+-     xsks_map = bpf_map__fd(map);
+-     if (xsks_map < 0) {
+-         UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "no xsks map found");
+-         return NULL;
+-    }
+-
+-    /* eBPF program in xdpsock_kern.o is attached to interface and program runs each time a packet arrives on that interface */
+-    if (bpf_set_link_xdp_fd(channelDataEthernetXDP->ifindex, prog_fd, channelDataEthernetXDP->xdp_flags) < 0) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "ERROR: link set xdp fd failed");
+-        return NULL;
+-    }
+-
+-    /* Overwrite the existing value, with a copy of the value supplied by the queue */
+-    ret = bpf_map_update_elem(qidconf_map, &key, &channelDataEthernetXDP->hw_receive_queue, 0);
+-    if (ret) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "Update of value using qidconf failed");
+-        return NULL;
+-    }
+-
+-    /* Create sockets... */
+-    channelDataEthernetXDP->xdpsocket = xsk_configure(NULL, channelDataEthernetXDP->ifindex, channelDataEthernetXDP->hw_receive_queue);
+-    newChannel->sockfd = channelDataEthernetXDP->xdpsocket->sfd;
+-
+-    /* ...and insert them into the map. */
+-    ret = bpf_map_update_elem(xsks_map, &key, &channelDataEthernetXDP->xdpsocket->sfd, 0);
+-    if (ret) {
+-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER, "Update of AF_XDP in xsk map failed");
+-        return NULL;
+-    }
++    newChannel->sockfd = xsk_socket__fd(channelDataEthernetXDP->xdpsocket->xskfd);
+ 
+     newChannel->handle = channelDataEthernetXDP;
+-    return newChannel;
+-}
+ 
+-/**
+- * Dump the received value from queue to be processed as networkMessage
+- */
+-static void receive_parse(UA_PubSubChannelDataEthernetXDP *channelDataEthernetXDP, void *pkt,
+-                          size_t length, UA_UInt64 addr,
+-                          UA_ByteString* message, UA_UInt32 messageNumber) {
+-    size_t lenBuf;
+-    unsigned char * buffer;
+-    /* Without VLAN Tag */
+-    if (channelDataEthernetXDP->vid == 0 && channelDataEthernetXDP->prio == 0) {
+-        buffer = (unsigned char *)pkt + sizeof(struct ether_header);
+-        lenBuf = sizeof(struct ether_header);
+-    }
+-    else {
+-        /* With VLAN Tag */
+-        buffer = (unsigned char *)pkt + sizeof(struct ether_header) + 4;
+-        lenBuf = sizeof(struct ether_header) + 4;
+-    }
+-
+-    /* TODO: Convert for loop to a well defined Linux APIs */
+-    if (length > 0) {
+-        for (size_t iterator = 0 ; iterator < length - lenBuf; iterator++) {
+-            message[messageNumber].data[iterator] = buffer [iterator];
+-        }
+-        message[messageNumber].length = length - lenBuf;
+-    }
+-     else {
+-         message[messageNumber].length = 0;
+-     }
++    return newChannel;
+ }
+ 
+ /**
+- * Receive messages.
++ * Receive a single packet using AF_XDP
+  *
+  * @param timeout in usec -> not used
+  * @return
+@@ -653,27 +394,91 @@ static void receive_parse(UA_PubSubChannelDataEthernetXDP *channelDataEthernetXD
+ static UA_StatusCode
+ UA_PubSubChannelEthernetXDP_receive(UA_PubSubChannel *channel, UA_ByteString *message,
+                                     UA_ExtensionObject *transportSettings, UA_UInt32 timeout) {
+-    UA_PubSubChannelDataEthernetXDP *channelDataEthernetXDP =
+-        (UA_PubSubChannelDataEthernetXDP *) channel->handle;
++    UA_PubSubChannelDataEthernetXDP *channelDataEthernetXDP;
++    struct ether_header *eth_hdr;
++    xdpsock *xdp_socket;
++    UA_UInt64 addr;
++    UA_UInt64 ret;
++    UA_Byte *pkt;
++    ssize_t len;
++
++    channelDataEthernetXDP = (UA_PubSubChannelDataEthernetXDP *) channel->handle;
++    xdp_socket = channelDataEthernetXDP->xdpsocket;
++    message->length = 0;
++
++    /* Sleep in a select call if a timeout was set */
++    if(timeout > 0) {
++        fd_set fdset;
++        FD_ZERO(&fdset);
++        UA_fd_set(channel->sockfd, &fdset);
++        struct timeval tmptv = {(long int)(timeout / 1000000),
++                                (long int)(timeout % 1000000)};
++        int resultsize = UA_select(channel->sockfd+1, &fdset, NULL, NULL, &tmptv);
++        if(resultsize == 0)
++            return UA_STATUSCODE_GOODNONCRITICALTIMEOUT;
++        if(resultsize == -1)
++            return UA_STATUSCODE_BADINTERNALERROR;
++    }
+ 
+-    struct xdp_desc descs[BATCH_SIZE];
+-    UA_UInt32 receivedData;
+-    receivedData = xq_deq(&channelDataEthernetXDP->xdpsocket->rx, descs, BATCH_SIZE);
+-    if (!receivedData){
+-        message->length = 0;
++    ret = xsk_ring_cons__peek(&xdp_socket->rx_ring, 1, &xdp_socket->idx_rx);
++    if (!ret)
++        return UA_STATUSCODE_GOODNODATA; //No packets even after select/poll
++
++    ret = xsk_ring_prod__reserve(&xdp_socket->umem->fq, 1, &xdp_socket->idx_fq);
++    if(ret != 1)
++        return UA_STATUSCODE_BADINTERNALERROR; //Got data but failed to reserve, something's wrong
++
++    addr = xsk_ring_cons__rx_desc(&xdp_socket->rx_ring, xdp_socket->idx_rx)->addr;
++    len  = (UA_UInt32) xsk_ring_cons__rx_desc(&xdp_socket->rx_ring, xdp_socket->idx_rx++)->len;
++    pkt  = (UA_Byte *) xsk_umem__get_data(xdp_socket->umem->buffer, addr);
++
++    /* AF_XDP does not do any filtering on ethertype or protocol.
++     * Manually check for VLAN headers and ETH UADP ethertype.
++     * Note: we use UA_UInt16 to compare ethertype, which is 2-bytes
++     */
++    UA_UInt16 *pkt_proto = (UA_UInt16 *) (pkt + (ETH_ALEN * 2));
++    if(channelDataEthernetXDP->vid > 0 && *pkt_proto == htons(ETHERTYPE_VLAN))
++        pkt_proto += 2;
++
++    if(*pkt_proto != htons(ETHERTYPE_UADP))
++        return UA_STATUSCODE_GOODNODATA;
++
++    eth_hdr = (struct ether_header *) pkt;
++
++    /* Make sure we match our target */
++    if(memcmp(eth_hdr->ether_dhost, channelDataEthernetXDP->targetAddress, ETH_ALEN) != 0) {
++        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
++                     "Invalid hardware address.");
+         return UA_STATUSCODE_GOODNODATA;
+     }
+-    unsigned char *pkt = (unsigned char *)xq_get_data(channelDataEthernetXDP->xdpsocket, descs[0].addr);
+-    receive_parse(channelDataEthernetXDP, pkt, descs[0].len, descs[0].addr, message, 0);
+ 
+-    channelDataEthernetXDP->xdpsocket->rx_npkts += receivedData;
++    message->data   = (UA_Byte *) pkt + sizeof(struct ether_header);
++    message->length = (size_t) len - sizeof(struct ether_header);
+ 
+-    umem_fill_to_kernel_ex(&channelDataEthernetXDP->xdpsocket->umem->fq, descs, receivedData);
++    if(channelDataEthernetXDP->vid > 0) {
++        message->data += 4;
++        message->length -= 4;
++    }
+ 
+     return UA_STATUSCODE_GOOD;
++}
++
++static UA_StatusCode
++UA_PubSubChannelEthernetXDP_release(UA_PubSubChannel *channel) {
++    UA_PubSubChannelDataEthernetXDP *channelDataEthernetXDP;
++    xdpsock *xdp_socket;
+ 
++    channelDataEthernetXDP = (UA_PubSubChannelDataEthernetXDP *) channel->handle;
++    xdp_socket = channelDataEthernetXDP->xdpsocket;
++
++    xsk_ring_prod__submit(&xdp_socket->umem->fq, 1);
++    xsk_ring_cons__release(&xdp_socket->rx_ring, 1);
++    xdp_socket->rx_npkts += 1;
++
++    return UA_STATUSCODE_GOOD;
+ }
+ 
++
+ /**
+  * Close channel and free the channel data.
+  *
+@@ -684,7 +489,6 @@ UA_PubSubChannelEthernetXDP_close(UA_PubSubChannel *channel) {
+     UA_close(channel->sockfd);
+     UA_PubSubChannelDataEthernetXDP *channelDataEthernetXDP =
+         (UA_PubSubChannelDataEthernetXDP *) channel->handle;
+-    /* Detach xdpsock_kern.o from the interface */
+     bpf_set_link_xdp_fd(channelDataEthernetXDP->ifindex, -1, channelDataEthernetXDP->xdp_flags);
+     UA_free(channelDataEthernetXDP->xdpsocket->umem);
+     UA_free(channelDataEthernetXDP->xdpsocket);
+@@ -706,6 +510,7 @@ TransportLayerEthernetXDP_addChannel(UA_PubSubConnectionConfig *connectionConfig
+     if(pubSubChannel) {
+         pubSubChannel->receive = UA_PubSubChannelEthernetXDP_receive;
+         pubSubChannel->close = UA_PubSubChannelEthernetXDP_close;
++        pubSubChannel->release = UA_PubSubChannelEthernetXDP_release;
+         pubSubChannel->connectionConfig = connectionConfig;
+     }
+     return pubSubChannel;
+diff --git a/src/pubsub/ua_pubsub_reader.c b/src/pubsub/ua_pubsub_reader.c
+index 04a5ea42..7b72095e 100644
+--- a/src/pubsub/ua_pubsub_reader.c
++++ b/src/pubsub/ua_pubsub_reader.c
+@@ -286,6 +286,22 @@ void UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerG
+         return;
+     }
+ 
++#ifdef UA_ENABLE_PUBSUB_ETH_UADP_XDP
++
++    connection->channel->receive(connection->channel, &buffer, NULL, 1000);
++    if(buffer.length > 0) {
++        UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_USERLAND, "Message received:");
++        UA_NetworkMessage currentNetworkMessage;
++        memset(&currentNetworkMessage, 0, sizeof(UA_NetworkMessage));
++        size_t currentPosition = 0;
++        UA_NetworkMessage_decodeBinary(&buffer, &currentPosition, &currentNetworkMessage);
++        UA_Server_processNetworkMessage(server, &currentNetworkMessage, connection);
++        UA_NetworkMessage_deleteMembers(&currentNetworkMessage);
++        connection->channel->release(connection->channel);
++    }
++
++#else
++
+     connection->channel->receive(connection->channel, &buffer, NULL, 1000);
+     if(buffer.length > 0) {
+         UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_USERLAND, "Message received:");
+@@ -298,6 +314,8 @@ void UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerG
+     }
+ 
+     UA_ByteString_deleteMembers(&buffer);
++
++#endif
+ }
+ 
+ /* Add new subscribeCallback. The first execution is triggered directly after
+-- 
+2.17.0
+
