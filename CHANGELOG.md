@@ -62,3 +62,7 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Add support for no_xdp and no_xdp_tbs mode
 - Publish data on af_packet when af_xdp is not available in vs1
 - Decoupling XDP_TBS related configuration from OPC-UA server code
+
+## [0.9.1] - 2022-11-16
+- Merge dependencies installer to master branch
+- Update DEPENDENCIES.md and README_install.md
