@@ -51,26 +51,26 @@ NOTE
    if_xdp.h indicates that the XDP socket is available to the applications side.
    Without if_xdp.h, only AF_PACKET-socket-based (tsq & txrx-tsn) test will be offered.
 
-                                                 |    tsq | txrx-tsn  | opcua-server  |
-    -----------------------------------------------------------------------------------
-    WITHOUT XDP                                  |     Y  |     Y     |     N         |
-    - if_xdp.h not detected                      |        |           |               |
-    -----------------------------------------------------------------------------------
+    |                                             |   tsq  | txrx-tsn  | opcua-server  |
+    | ------------------------------------------- | ------ | --------- | ------------- |
+    |WITHOUT XDP                                  |     Y  |     Y     |     N         |
+    |- if_xdp.h not detected                      |        |           |               |
+    | ------------------------------------------- | ------ | --------- | ------------- |
 
 2. Table of current supported application according to xdp_tbs availability on the system.
 
-                                                 |    tsq | txrx-tsn  | opcua-server  |
-    -----------------------------------------------------------------------------------
-    WITH XDP_TBS                                 |     Y  |     Y     |     Y         |
-    - if_xdp.h detected (WITH_XDP)               |        |           |               |
-    - XDP_TBS mode not disabled                  |        |           |               |
-    - txtime var is detected in if_xdp.h         |        |           |               |
-    -----------------------------------------------------------------------------------
-    WITHOUT XDP_TBS                              |      Y |       Y   |     N(WIP)    |
-    - if_xdp.h detected (WITH_XDP)               |        |           |               |
-    - XDP_TBS mode disabled (-t) or              |        |           |               |
-    - txtime var is NOT detected in if_xdp.h     |        |           |               |
-    -----------------------------------------------------------------------------------
+    |                                             |    tsq | txrx-tsn  | opcua-server  |
+    |---------------------------------------------|--------|-----------|---------------|
+    |WITH XDP_TBS                                 |     Y  |     Y     |     Y         |
+    |- if_xdp.h detected (WITH_XDP)               |        |           |               |
+    |- XDP_TBS mode not disabled                  |        |           |               |
+    |- txtime var is detected in if_xdp.h         |        |           |               |
+    |---------------------------------------------|--------|-----------|---------------|
+    |WITHOUT XDP_TBS                              |      Y |       Y   |     Y         |
+    |- if_xdp.h detected (WITH_XDP)               |        |           |               |
+    |- XDP_TBS mode disabled (-t) or              |        |           |               |
+    |- txtime var is NOT detected in if_xdp.h     |        |           |               |
+    |---------------------------------------------|--------|-----------|---------------|
 
 Default build (NO -t) is enabling XDP feature and Intel-specific XDP+TBS feature (if XDP+TBS is supported in the system!)
 
