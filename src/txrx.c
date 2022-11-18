@@ -185,8 +185,9 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		res = strtol((const char *)arg, &str_end, 10);
 		if (errno || res < 0 || res >= 7 || str_end != &arg[len])
 			exit_with_error("Invalid queue number/socket priority. Check --help");
+		opt->socket_prio = (uint32_t)res;
 #ifdef WITH_XDP
-		opt->x_opt.queue = opt->socket_prio = (uint32_t)res;
+		opt->x_opt.queue = opt->socket_prio;
 #endif
 		opt->vlan_prio = opt->socket_prio * 32;
 		break;
