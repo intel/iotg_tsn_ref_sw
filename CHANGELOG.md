@@ -66,3 +66,7 @@ For prior version, please refer to the tag commit message. Sorry guys.
 ## [0.9.1] - 2022-11-16
 - Merge dependencies installer to master branch
 - Update DEPENDENCIES.md and README_install.md
+
+## [0.9.2] - 2022-11-18
+- Bug fix for non_xdp mode
+- Update the tx_timeout value for i225
