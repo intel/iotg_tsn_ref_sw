@@ -175,22 +175,52 @@ napi_deferral_needed(){
             5.10 | 5.11 | 5.12 | 5.13 | 5.14 | 5.15)
                 NAPI_DEFERRAL_NEEDED=1
                 ;;
-            *)
+            *)  # This is for kernel 5.4 & 5.19
                 NAPI_DEFERRAL_NEEDED=0
                 ;;
         esac
 }
 
-# Tag kernel according to version for xdp reset
-kernel_xdp_reset(){
-        case $KERNEL_VER in
-            5.1*)
-                XDP_RESET=1
-                ;;
-            *)
-                XDP_RESET=0
-                ;;
-        esac
+# Switch to on napi deferral feature
+napi_switch_on(){
+
+        local IFACE=$1
+
+        if [ -z $IFACE ]; then
+                echo "Error: please specify interface.";
+                exit 1
+        fi
+
+        # Determine the napi deferral needs
+        napi_deferral_needed
+
+        if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
+                # Workaround for XDP latency : activate napi busy polling
+                echo "[Kernel_${KERNEL_VER}_XDP] Activate napi busy polling."
+                echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+                echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+        else
+                echo "[Kernel_${KERNEL_VER}_XDP] Napi polling is not needed."
+        fi
+
+        sleep 5
+}
+
+# Switch to off napi deferral feature
+napi_switch_off(){
+
+        local IFACE=$1
+
+        if [ -z $IFACE ]; then
+                echo "Error: please specify interface.";
+                exit 1
+        fi
+
+        echo "[Kernel_${KERNEL_VER}_XDP] De-activate napi busy polling."
+        echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
+        echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+
+        sleep 5
 }
 
 ###############################################################################

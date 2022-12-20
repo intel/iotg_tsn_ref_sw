@@ -121,19 +121,23 @@ taskset -p 4 $TXRX_PID
 chrt --fifo -p 90 $TXRX_PID
 
 sleep 5
-if [[ $PLAT != i225* && $KERNEL_VER == 5.1* ]]; then
+
+# This is targeting for stmmac and kernel others than 5.4
+if [[ $PLAT != i225* && $KERNEL_VER != 5.4 ]]; then
         init_interface  $IFACE
         setup_taprio $IFACE
         setup_etf $IFACE
+        # Disable the coalesce
+        echo "[Kernel_${KERNEL_VER}_XDP] Disable coalescence."
         ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
         sleep 2
         setup_vlanrx_xdp $IFACE
         $DIR/clock-setup.sh $IFACE
         sleep 30
-
-elif [[ $PLAT == i225* && $KERNEL_VER == 5.1* ]]; then
+# This is targeting for i225/i226 and kernel others than 5.4
+elif [[ $PLAT == i225* && $KERNEL_VER != 5.4 ]]; then
         # Disable the coalesce
-        echo "[Kernel5.1x_XDP_i225] Disable coalescence."
+        echo "[Kernel_${KERNEL_VER}_XDP_i225] Disable coalescence."
         ethtool -C $IFACE rx-usecs 0
         sleep 50
 else
@@ -148,7 +152,8 @@ sleep $XDP_SLEEP_SEC
 pkill iperf3
 pkill txrx-tsn
 
-if [[ $PLAT == i225* && $KERNEL_VER != 5.1* ]]; then
+# This is targeting for i225/i226 and kernel 5.4 only
+if [[ $PLAT == i225* && $KERNEL_VER == 5.4 ]]; then
 	# To ensure the AF_XDP socket tear down is complete in i225, interface is reset.
 	echo "Re run vs1a setup for af_xdp operation"
 	setup_link_down_up $IFACE
