@@ -328,13 +328,9 @@ if [[ ! -z "$IPERF3_CLI_PID" ]];then
 fi
 
 if [[ "$SKIP_SETUP" == "y" ]]; then
-    echo "[Kernel_${KERNEL_VER}_XDP] De-Activate napi busy polling for inf:$IFACE"
-    echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
-    echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+    napi_switch_off $IFACE
     if [[ ! -z "$IFACE2" ]];then
-        echo "[Kernel_${KERNEL_VER}_XDP] De-Activate napi busy polling for 2nd inf:$IFACE2"
-        echo 0 > /sys/class/net/$IFACE2/gro_flush_timeout
-        echo 0 > /sys/class/net/$IFACE2/napi_defer_hard_irqs
+        napi_switch_off $IFACE2
     fi
     sleep 5
 fi

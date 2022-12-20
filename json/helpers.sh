@@ -162,29 +162,27 @@ init_interface(){
         # Set irq affinity
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
 
-        # Disable coalescence for kernel 5.10 to 5.15
-        if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
-                echo "[Kernel_${KERNEL_VER}] Disable coalescence for inf:$IFACE"
-                if [[ $PLAT == i225* ]]; then
-                        ethtool -C $IFACE rx-usecs 0
-                else
-                        ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
-                fi
-                sleep 2
-                if [[ "$SKIP_SETUP" == "y" ]]; then
-                        # Workaround for XDP latency : activate napi busy polling
-                        echo "[Kernel_${KERNEL_VER}_XDP] Activate napi busy polling for inf:$IFACE"
-                        echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
-                        echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
-                else
-                        echo "[Kernel_${KERNEL_VER}] Reset napi busy polling and gro for inf:$IFACE to 0"
-                        echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
-                        echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
-                fi
+        # Disable coalescence
+        echo "[Kernel_${KERNEL_VER}] Disable coalescence for inf:$IFACE"
+        # This is targeting for i225/i226 and kernel others than 5.4
+        if [[ $PLAT == i225* && $KERNEL_VER != 5.4 ]]; then
+                ethtool -C $IFACE rx-usecs 0
+        # This is targeting for stmmac (kernel 5.4 and above) and i225/i226 (kernel 5.4)
         else
-                echo "[Kernel_${KERNEL_VER}] Disable coalescence for inf:$IFACE"
                 ethtool --per-queue $IFACE queue_mask 0x0F --coalesce rx-usecs 21 rx-frames 1 tx-usecs 1 tx-frames 1
-                sleep 2
+        fi
+
+        sleep 2
+
+        # This is targeting for kernel others than 5.4
+        if [[ $KERNEL_VER != 5.4 ]]; then
+                if [[ "$SKIP_SETUP" == "y" ]]; then
+                        napi_switch_on $IFACE
+                else
+                        napi_switch_off $IFACE
+                fi
+        # This is targeting for kernel 5.4 only
+        else
                 echo "[Kernel_${KERNEL_VER}] Reset gro for inf:$IFACE to 0"
                 echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
         fi
@@ -214,6 +212,48 @@ kernel_xdp_reset(){
                 XDP_RESET=0
                 ;;
         esac
+}
+
+# Switch to on napi deferral feature
+napi_switch_on(){
+
+        local IFACE=$1
+
+        if [ -z $IFACE ]; then
+                echo "Error: please specify interface.";
+                exit 1
+        fi
+
+        # Determine the napi deferral needs
+        napi_deferral_needed
+
+        if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
+                # Workaround for XDP latency : activate napi busy polling
+                echo "[Kernel_${KERNEL_VER}_XDP] Activate napi busy polling for inf:$IFACE."
+                echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+                echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+        else
+                echo "[Kernel_${KERNEL_VER}_XDP] Napi polling is not needed."
+        fi
+
+        sleep 5
+}
+
+# Switch to off napi deferral feature
+napi_switch_off(){
+
+        local IFACE=$1
+
+        if [ -z $IFACE ]; then
+                echo "Error: please specify interface.";
+                exit 1
+        fi
+
+        echo "[Kernel_${KERNEL_VER}_XDP] De-activate napi busy polling for inf:$IFACE."
+        echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
+        echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
+
+        sleep 5
 }
 
 ###############################################################################
