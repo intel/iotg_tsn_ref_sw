@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #/******************************************************************************
 #  Copyright (c) 2020, Intel Corporation
 #  All rights reserved.
@@ -49,14 +49,24 @@ showTsnRefVersion() {
     sed -n '/^TSNREFSW_PACKAGE_VERSION/p' ./run.sh
 }
 
+# Check OS distro
+echo -e "\nBUILD.SH: Checking OS Distro"
+os_distro=$(cat /etc/os-release | grep -w NAME | cut -c 6-)
+echo "OS Distro: $os_distro"
+
 # Check for default shell
-echo -e "\nBUILD.SH: Checking Default Shell"
-default_shell=$(echo $(realpath /usr/bin/sh) | cut -c 10-)
-if [ $default_shell = "bash" -o $default_shell = "sh" ]; then
-    echo "Default Shell: $default_shell (Valid)"
+echo -e "\nBUILD.SH: Checking for Bash shell"
+if [ "$os_distro" == "\"Ubuntu"\" ]; then
+	bash_shell=$(ls -la /usr/bin | grep -i 'bash' > /dev/null && echo 0 || echo 1)
 else
-    echo "Default Shell: $default_shell (Invalid)"
-    echo "Please change default shell to ' bash ' OR ' sh ' to proceed"
+	bash_shell=$(ls -la /bin/sh | grep -i 'bash' > /dev/null && echo 0 || echo 1)
+fi
+
+if [ $bash_shell = 0 ]; then
+    echo "Bash shell: yes"
+else
+    echo "Bash shell: no"
+    echo "Please install Bash shell (sudo apt-get install bash) in your system to proceed"
     exit 1
 fi
 
