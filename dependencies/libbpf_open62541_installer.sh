@@ -65,7 +65,7 @@ else
     sed -i 's/Cflags: -I${includedir}/Cflags: -I${includedir}\/bpf-iotg-custom/g' src/libbpf.pc.template
 fi
 
-echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling libbpf"
+echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Compiling libbpf"
 NO_PKG_CONFIG=1 make -j$(nproc) -C src
 DESTDIR=/ make install -j$(nproc) -C src
 ldconfig

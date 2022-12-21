@@ -40,7 +40,7 @@ LOCAL_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 check_distro(){
     # Check OS distro
 
-    echo -e "\nINSTALL-DEPENDENCIES.SH: Checking OS Distro"
+    echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Checking OS Distro"
     os_distro=$(cat /etc/os-release | grep -w NAME | cut -c 6-)
     echo "OS Distro: $os_distro"
 }
@@ -48,7 +48,7 @@ check_distro(){
 config_proxy(){
     # Configure proxy
 
-    echo -e "\nINSTALL-DEPENDENCIES.SH: Configuring proxy"
+    echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Configuring proxy"
     echo -e export https_proxy=http://proxy.png.intel.com:911
     echo -e git config --global https.proxy http://proxy.jf.intel.com:911
     export https_proxy=http://proxy.png.intel.com:911
@@ -58,7 +58,7 @@ config_proxy(){
 check_xdp_tbs(){
     # Check whether the kernel support XDP_TBS
 
-    echo -e "\nINSTALL-DEPENDENCIES.SH: Checking XDP+TBS Availability"
+    echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Checking XDP+TBS Availability"
 
     if [[ -f /usr/include/linux/if_xdp.h ]]; then
         txtime=$(cat /usr/include/linux/if_xdp.h | grep -i txtime > /dev/null && echo yes || echo no)
@@ -98,18 +98,18 @@ clone_libbpf(){
     # Git clone libbpf
 
     echo -e "\n============================================="
-    echo -e "INSTALL-DEPENDENCIES.SH: Installing libbpf"
+    echo -e "LIBBPF_OPEN62541_INSTALLER.SH: Installing libbpf"
     echo -e "============================================="
     cd libbpf
     rm -rf libbpf
     git clone https://github.com/libbpf/libbpf.git
     cd libbpf
 
-    echo -e "\nINSTALL-DEPENDENCIES.SH: Switching branch"
+    echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Switching branch"
     git checkout d1fd50d475779f64805fdc28f912547b9e3dee8a
 
     if [[ "$xdp_supported" == "yes" && "$txtime" == "yes" ]]; then
-        echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches to libbpf"
+        echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Applying patches to libbpf"
         EMAIL=root@localhost git am ../patches/*.patch
     fi
 }
@@ -118,7 +118,7 @@ clone_open62541(){
     # Git clone libopen62541
 
     echo -e "\n============================================="
-    echo -e "INSTALL-DEPENDENCIES.SH: Installing open62541"
+    echo -e "LIBBPF_OPEN62541_INSTALLER.SH: Installing open62541"
     echo -e "============================================="
     cd $LOCAL_DIR
     cd open62541
@@ -126,15 +126,15 @@ clone_open62541(){
     git clone https://github.com/open62541/open62541.git
     cd open62541
 
-    echo -e "\nINSTALL-DEPENDENCIES.SH: Switching branch"
+    echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Switching branch"
     git checkout a77b20ff940115266200d31d30d3290d6f2d57bd
 
     # Apply patches for open62541
     if [[ "$xdp_supported" == "yes" && "$txtime" == "yes" ]]; then
-        echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches with XDP_TBS to open62541"
+        echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Applying patches with XDP_TBS to open62541"
         EMAIL=root@localhost git am ../patches/patches_w_xdp_tbs/*.patch
     else
-        echo -e "\nINSTALL-DEPENDENCIES.SH: Applying patches without XDP_TBS to open62541"
+        echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Applying patches without XDP_TBS to open62541"
         EMAIL=root@localhost git am ../patches/patches_wo_xdp_tbs/*.patch
     fi
 }
@@ -142,7 +142,7 @@ clone_open62541(){
 compile_open62541(){
     # Compile open62541
 
-    echo -e "\nINSTALL-DEPENDENCIES.SH: Compiling open62541"
+    echo -e "\nLIBBPF_OPEN62541_INSTALLER.SH: Compiling open62541"
 
     mkdir build
     cd build
