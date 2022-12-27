@@ -70,3 +70,9 @@ For prior version, please refer to the tag commit message. Sorry guys.
 ## [0.9.2] - 2022-11-18
 - Bug fix for non_xdp mode
 - Update the tx_timeout value for i225
+
+## [0.9.3] - 2022-12-27
+- Update requirements.txt
+- Code refactoring to fix bug
+- Update README.md and rename installer
+- Update Shebang in all file with extension .sh
