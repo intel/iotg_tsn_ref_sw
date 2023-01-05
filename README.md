@@ -65,11 +65,73 @@ Method 2:
 
 ### General
 
+#### *For system clock:*
+```
+# Please ensure the system clock is set to current date before using the installer script to install the required dependencies.
+# Otherwise the installation will failed.
+# Set the system clock to current date using command below:
+	date -s YY/MM/DD
+```
+
 #### *For system shell:*
 ```
 # Bash are required as system shell in order to compile and run TSN Reference Software.
 # Install bash using command below:
 	sudo apt-get install bash
+```
+
+#### *Packages Installer:*
+```
+# All the TSN Ref Sw App required dependencies can be install by using the packages installer below:
+
+IMPORTANCE: Please read and follow the instruction below before using the packages installer!
+
+# In order to ease the installation of generic packages and IOTG customized helper libraries (libbpf-iotg and sopen62541-iotg) needed,
+# we have provide a installation script.
+# The script will check out a specific version of the libraries from upstream git and apply our patches on top of it.
+
+# Suggestion is to use the installer script (after having kept the original libbpf and libopen62541 in a safe place).
+# This will ensure the tsn ref sw will be able to find/use correct libraries.
+
+NOTE: If your kernel support for Intel XDP+TBS, please ensure the '__u64 txtime' descriptor is available in struct xdp_desc() in /usr/include/linux/if_xdp.h as example below:
+
+/* Rx/Tx descriptor */
+struct xdp_desc {
+        __u64 addr;
+        __u32 len;
+        __u32 options;
+        __u64 txtime;
+};
+
+WARNING: You are able to install libbpf & open62541 without the 'txtime' descriptor but you might facing error/failure during the tests.
+
+# The packages installer branch : https://github.com/intel/iotg_tsn_ref_sw
+# Branch name : **master**
+# Use the commands below to install the packages:
+
+	cd dependencies
+	./packages_installer.sh
+
+# NOTE: The packages installer only support the overwrite installation.
+# NOTE: Refer to the below
+
+# NOTE: If you are installing the libbpf and libopen62541-iotg manually, there is a chance the related open62541-iotg.pc file is not there.
+# Hence, you might have to comment out this line in **configure.ac**.
+
+**AM_CONDITIONAL([WITH_OPCUA], [test "x$no_open62541_iotg_fork" = "x0"] && test "x${HAVE_XDP}" = "xyes")**
+
+# Disclaimer
+	* The packages installers only serves to install dependencies for TSN Ref Sw App.
+	* This project is not for intended for production use.
+	* This project is intended to be used with specific platforms and bsp, other HW/SW combinations YMMV
+	* Users are responsible for their own products' functionality and performance.
+
+# FAQ
+
+	If git clone fail, try the solution below:
+	* Please configure the proxy according to your proxy setting before git clone
+	* Please configure the system date up-to-date before git clone
+	* Please reboot your system before git clone
 ```
 
 ### Yocto
@@ -125,65 +187,19 @@ Method 2:
 # In order to compile under Ubuntu, these packages need to be installed first (using sudo apt-get install ....) :
 	* autoconf
 	* build-essential
+	* cmake
 	* gawk
 	* gcc
 	* gnuplot
+	* pkg-config
+	* zlib1g
+	* zlib1g-dev
 	* libelf-dev
 	* libjson-c-dev
 	* xterm
 
 NOTE: ensure your proxy settings are correct.
-```
-
-### IOTG Custom Libbpf & Open62541
-
-#### *Installation script:*
-```
-# In order to ease the installation of the customized helper libraries needed, we have provide a installation scripts to install libbpf and open62541.
-# The scripts will check out a specific version of the libraries from upstream git and apply our patches on top of it.
-
-# Suggestion is to use the overwriting installer script (after having kept the original libbpf and libopen62541 in a safe place).
-# This will ensure the tsn ref sw will be able to find/use correct libraries.
-
-NOTE: If your kernel support for Intel XDP+TBS, please ensure the '__u64 txtime' descriptor is available in struct xdp_desc() in /usr/include/linux/if_xdp.h as example below:
-
-/* Rx/Tx descriptor */
-struct xdp_desc {
-        __u64 addr;
-        __u32 len;
-        __u32 options;
-        __u64 txtime;
-};
-
-WARNING: You are able to install libbpf & open62541 without the 'txtime' descriptor but you might facing error/failure during the tests.
-
-# The dependencies installer branch : https://github.com/intel/iotg_tsn_ref_sw
-# Branch name : **master**
-# Use the commands below to install the dependencies:
-
-	cd dependencies
-	./libbpf_open62541_installer.sh --overwrite
-
-# Currently the dependencies installer only support the overwrite installation.
-# WIP to enhance the installer in a better way.
-# NOTE: If you are installing the libbpf and libopen62541-iotg manually, there is a chance the related open62541-iotg.pc file is not there.
-# Hence, you might have to comment out this line in **configure.ac**.
-
-**AM_CONDITIONAL([WITH_OPCUA], [test "x$no_open62541_iotg_fork" = "x0"] && test "x${HAVE_XDP}" = "xyes")**
-
-# Disclaimer
-	* The dependencies installers only serves to install dependencies for libbpf and open62541
-	* This project is not for intended for production use.
-	* This project is intended to be used with specific platforms and bsp, other
-  	  hardware/software combinations YMMV
-	* Users are responsible for their own products' functionality and performance.
-
-# FAQ
-
-	If git clone fail, try the solution below:
-	* Please configure the proxy according to your proxy setting before git clone
-	* Please configure the system date up-to-date before git clone
-	* Please reboot your system before git clone
+NOTE: All the packages can be install by using the packages_installer.sh above.
 ```
 
 ## Build
@@ -252,8 +268,7 @@ For details information please refer to the documentation below:
 
 * This project is not for intended for production use.
 
-* This project is intended to be used with specific platforms and bsp, other
-  hardware/software combinations YMMV
+* This project is intended to be used with specific platforms and bsp, other HW/SW combinations YMMV
 
 * Users are responsible for their own products' functionality and performance.
 
