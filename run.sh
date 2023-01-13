@@ -120,6 +120,23 @@ main() {
         exit
     fi
 
+    # Check for binary file for <CONFIG>
+    if [[ "$CONFIG" == vs* && ! -e txrx-tsn ]]; then
+        echo "WARNING: TXRX-TSN not found!"
+        echo "WARNING: TXRX-TSN is needed for $CONFIG. Please ensure TXRX-TSN is compile during the build stage."
+        exit 1
+    elif [[ "$CONFIG" == opcua* && ! -e opcua-server ]]; then
+        echo "WARNING: OPCUA-SERVER not found!"
+        echo "WARNING: OPCUA-SERVER is needed for $CONFIG. Please ensure OPCUA-SERVER is compile during the build stage."
+        exit 1
+    elif [[ "$CONFIG" == tsq* && ! -e tsq ]]; then
+        echo "WARNING: TSQ not found!"
+        echo "WARNING: TSQ is needed for $CONFIG. Please ensure TSQ is compile during the build stage."
+        exit 1
+    else
+        echo "" # Nothing
+    fi
+
     # Only for debug: timesync per-run logging
     if [[ "$RUNSH_DEBUG_MODE" == "YES" && "$ACTION" == "run" ]]; then
         ts_log_start
