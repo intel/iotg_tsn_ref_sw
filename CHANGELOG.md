@@ -76,3 +76,6 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Code refactoring to fix bug
 - Update README.md and rename installer
 - Update Shebang in all file with extension .sh
+
+## [0.9.4] - 2023-1-17
+- I225 Fix packet routing for AF_PACKET TBS

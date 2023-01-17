@@ -34,7 +34,7 @@ set -a # enable variable export
 RUNSH_DEBUG_MODE="YES"
 RUNSH_QDISC_DEBUG_MODE="NO"
 RUNSH_RESULT_DEBUG_MODE="NO"
-TSNREFSW_PACKAGE_VERSION="v0.9.3"
+TSNREFSW_PACKAGE_VERSION="v0.9.4"
 
 main() {
     #if [ $USER != "root" ]; then
