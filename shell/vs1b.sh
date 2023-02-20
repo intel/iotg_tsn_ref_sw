@@ -138,6 +138,7 @@ else
             $DIR/clock-setup.sh $IFACE
             sleep 20
             napi_switch_on $IFACE
+            sleep 5
         fi
     # This is targeting for i225/i226
     else
@@ -151,7 +152,7 @@ else
             ethtool -C $IFACE rx-usecs 0
             sleep 2
             napi_switch_on $IFACE
-            sleep 33
+            sleep 38
         fi
     fi
 

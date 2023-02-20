@@ -235,8 +235,6 @@ napi_switch_on(){
         else
                 echo "[Kernel_${KERNEL_VER}_XDP] Napi polling is not needed."
         fi
-
-        sleep 5
 }
 
 # Switch to off napi deferral feature
@@ -252,8 +250,6 @@ napi_switch_off(){
         echo "[Kernel_${KERNEL_VER}_XDP] De-activate napi busy polling for inf:$IFACE."
         echo 0 > /sys/class/net/$IFACE/gro_flush_timeout
         echo 0 > /sys/class/net/$IFACE/napi_defer_hard_irqs
-
-        sleep 5
 }
 
 ###############################################################################
