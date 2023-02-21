@@ -79,3 +79,7 @@ For prior version, please refer to the tag commit message. Sorry guys.
 
 ## [0.9.4] - 2023-1-17
 - I225 Fix packet routing for AF_PACKET TBS
+
+## [0.9.5] - 2023-2-21
+- Remove 5 second interval in napi switch on/off to avoid
+  extra latency.
