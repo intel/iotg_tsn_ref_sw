@@ -89,8 +89,8 @@ void remove_xdp_program(void)
 {
 	uint32_t curr_prog_id = 0;
 
-	if (bpf_get_link_xdp_id(glob_ifindex, &curr_prog_id, glob_xdp_flags)) {
-		fprintf(stderr, "exit: bpf_get_link_xdp_id failed\n");
+	if (bpf_xdp_query_id(glob_ifindex, glob_xdp_flags, &curr_prog_id)) {
+		fprintf(stderr, "exit: bpf_xdp_query_id failed\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -201,7 +201,7 @@ static struct xsk_info *create_xsk_info(struct user_opt *opt, struct pkt_buffer 
 	if (ret)
 		afxdp_exit_with_error(-ret);
 
-	ret = bpf_get_link_xdp_id(opt->ifindex, &temp_xsk->bpf_prog_id, opt->x_opt.xdp_flags);
+	ret = bpf_xdp_query_id(opt->ifindex, opt->x_opt.xdp_flags, &temp_xsk->bpf_prog_id);
 	if (ret)
 		afxdp_exit_with_error(-ret);
 
