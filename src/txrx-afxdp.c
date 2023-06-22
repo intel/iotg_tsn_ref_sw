@@ -85,33 +85,12 @@ void afxdp_sigint_handler(int signum)
 	halt_tx_sig = signum;
 }
 
-void remove_xdp_program(void)
-{
-	uint32_t curr_prog_id = 0;
-
-	if (bpf_xdp_query_id(glob_ifindex, glob_xdp_flags, &curr_prog_id)) {
-		fprintf(stderr, "exit: bpf_xdp_query_id failed\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if (glob_xskinfo_ptr && glob_xskinfo_ptr->bpf_prog_id == curr_prog_id)
-		bpf_set_link_xdp_fd(glob_ifindex, -1, glob_xdp_flags);
-	else if (!glob_xskinfo_ptr)
-		fprintf(stderr, "exit: socket creation incomplete. " \
-				"Possibly due toincompatible queue.\n");
-	else if (!curr_prog_id)
-		fprintf(stderr, "exit: couldn't find a prog id on a given interface\n");
-	else
-		fprintf(stderr, "exit: program on interface changed, not removing\n");
-}
-
 void xdpsock_cleanup(void)
 {
 	struct xsk_umem *umem = glob_xskinfo_ptr->pktbuff->umem;
 
 	xsk_socket__delete(glob_xskinfo_ptr->xskfd);
 	(void)xsk_umem__delete(umem);
-	remove_xdp_program();
 
 	exit(EXIT_SUCCESS);
 }
@@ -120,7 +99,7 @@ void __afxdp_exit_with_error(int error, const char *file, const char *func, int 
 {
 	fprintf(stderr, "%s:%s:%i: errno: %d/\"%s\"\n", file, func,
 		line, error, strerror(error));
-	remove_xdp_program();
+	xdpsock_cleanup();
 	exit(EXIT_FAILURE);
 }
 
@@ -201,7 +180,7 @@ static struct xsk_info *create_xsk_info(struct user_opt *opt, struct pkt_buffer 
 	if (ret)
 		afxdp_exit_with_error(-ret);
 
-	ret = bpf_xdp_query_id(opt->ifindex, opt->x_opt.xdp_flags, &temp_xsk->bpf_prog_id);
+	ret = bpf_xdp_query_id(opt->ifindex, opt->x_opt.xdp_flags, &temp_xsk->prog_id);
 	if (ret)
 		afxdp_exit_with_error(-ret);
 

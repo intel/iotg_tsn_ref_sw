@@ -40,7 +40,6 @@ extern int glob_ifindex;
 extern int halt_tx_sig;
 extern int verbose;
 
-void remove_xdp_program(void);
 void xdpsock_cleanup();
 void afxdp_sigint_handler(int sig);
 void __afxdp_exit_with_error(int error, const char *file, const char *func, int line);

@@ -96,7 +96,7 @@ struct xsk_info {
 	struct xsk_socket *xskfd;
 	struct xsk_ring_cons rx_ring;	//User process managed rings
 	struct xsk_ring_prod tx_ring;	//  do not access directly
-	uint32_t bpf_prog_id;
+	uint32_t prog_id;
 
 	uint32_t cur_tx;	//to track current addr (pkt count * frame_size)
 	uint32_t cur_rx;
