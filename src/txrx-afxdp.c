@@ -51,8 +51,8 @@
 /* getpagesize() */
 #include <unistd.h>
 
-/* pthread_yield() */
-#include <pthread.h>
+/* sched_yield() */
+#include <sched.h>
 
 /* Hwtstamp_config */
 #include <linux/net_tstamp.h>
@@ -489,7 +489,7 @@ void afxdp_recv_pkt(struct xsk_info *xsk, void *rbuff)
 
 	/* FOR SCHED_FIFO/DEADLINE */
 	//TODO:implement for all threads incl afpkt?
-	pthread_yield();
+	sched_yield();
 }
 
 static void swap_mac_addresses(void *data) {
@@ -636,5 +636,5 @@ void afxdp_fwd_pkt(struct xsk_info *xsk, struct pollfd *fds, struct user_opt *op
 	xsk->outstanding_tx += rcvd;
 	fflush(stdout);
 
-	pthread_yield();
+	sched_yield();
 }
