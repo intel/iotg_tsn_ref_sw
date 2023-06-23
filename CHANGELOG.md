@@ -83,3 +83,9 @@ For prior version, please refer to the tag commit message. Sorry guys.
 ## [0.9.5] - 2023-2-21
 - Remove 5 second interval in napi switch on/off to avoid
   extra latency.
+
+## [0.9.6] - 2023-6-23
+- ADL-N support on SKU5 that only has 2 cores for i225
+- Update deprecated pthread function in TXRX-AFXDP test script
+- Update deprecated bpf_xdp function in TXRX-AFXDP test script
+- Refactor xdp cleanup routine
