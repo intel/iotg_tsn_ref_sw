@@ -62,6 +62,7 @@ ln -sfv $TEMP_DIR/afxdp-txtstamps.txt .
 
 SLEEP_SEC=$(((($NUMPKTS * $INTERVAL) / $SEC_IN_NSEC) + 10))
 XDP_SLEEP_SEC=$(((($NUMPKTS * $XDP_INTERVAL) / $SEC_IN_NSEC) + 50))
+KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
 
 if [ "$AFP_PACKET_TEST" = "y" ]; then
         echo "PHASE 1: AF_PACKET transmit ($SLEEP_SEC seconds)"
@@ -95,35 +96,38 @@ fi
 
 # If AF_XDP is not available/not supported for the platform, we will exit.
 if [[ "$XDP_MODE" == "NA" ]]; then
-    echo "Currently $PLAT support AF_PACKET transmit only"
+    echo "PHASE 2: Skipped. Currently $PLAT does not support AF_XDP."
     echo "Done!"
     exit 0
-fi
+else
+    sleep 20
 
-sleep 20
+    echo "PHASE 2: AF_XDP transmit $XDP_SLEEP_SEC seconds)"
 
-echo "PHASE 2: AF_XDP transmit $XDP_SLEEP_SEC seconds)"
-KERNEL_VER=$(uname -r | cut -d'.' -f1-2)
+    # This is targeting for kernel 5.* only
+    # For kernel 5.*, we will run the txrx-tsn before running the interface and clock configuration.
+    # For kernel 6.* and above, we will run the txrx-tsn after the interface and clock configuration.
+    if [[ $KERNEL_VER == 5.* ]]; then
+        echo "CMD: ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
+        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
+        -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
 
-	echo "CMD: ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
-	./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
-		-e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
+        TXRX_PID=$!
 
-TXRX_PID=$!
+        if ! ps -p $TXRX_PID > /dev/null; then
+            echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
+            exit 1
+        fi
 
-if ! ps -p $TXRX_PID > /dev/null; then
-	echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
-	exit 1
-fi
+        # Assign to CPU2
+        taskset -p 4 $TXRX_PID
+        chrt --fifo -p 90 $TXRX_PID
 
-# Assign to CPU2
-taskset -p 4 $TXRX_PID
-chrt --fifo -p 90 $TXRX_PID
+        sleep 5
+    fi
 
-sleep 5
-
-# This is targeting for stmmac and kernel others than 5.4
-if [[ $PLAT != i225* && $KERNEL_VER != 5.4 ]]; then
+    # This is targeting for stmmac and kernel others than 5.4
+    if [[ $PLAT != i225* && $KERNEL_VER != 5.4 ]]; then
         init_interface  $IFACE
         setup_taprio $IFACE
         setup_etf $IFACE
@@ -134,32 +138,54 @@ if [[ $PLAT != i225* && $KERNEL_VER != 5.4 ]]; then
         setup_vlanrx_xdp $IFACE
         $DIR/clock-setup.sh $IFACE
         sleep 30
-# This is targeting for i225/i226 and kernel others than 5.4
-elif [[ $PLAT == i225* && $KERNEL_VER != 5.4 ]]; then
+    # This is targeting for i225/i226 and kernel others than 5.4
+    elif [[ $PLAT == i225* && $KERNEL_VER != 5.4 ]]; then
         # Disable the coalesce
         echo "[Kernel_${KERNEL_VER}_XDP_i225] Disable coalescence."
         ethtool -C $IFACE rx-usecs 0
         sleep 50
-else
+    else
         sleep 40
-fi
+    fi
 
-if [ "$RUN_IPERF3_XDP" = "y" ]; then
+    # This is targeting for kernel others than 5.*
+    if [[ $KERNEL_VER != 5.* ]]; then
+        echo "CMD: ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET"
+        ./txrx-tsn -X -$XDP_MODE -ti $IFACE -q $TX_XDP_Q -n $NUMPKTS -l $SIZE -y $XDP_INTERVAL \
+        -e $XDP_EARLY_OFFSET -o $TXTIME_OFFSET > afxdp-txtstamps.txt &
+
+        TXRX_PID=$!
+
+        if ! ps -p $TXRX_PID > /dev/null; then
+            echo -e "\ntxrx-tsn exited prematurely. vs1a.sh script will be stopped."
+            exit 1
+        fi
+
+        # Assign to CPU2
+        taskset -p 4 $TXRX_PID
+        chrt --fifo -p 90 $TXRX_PID
+
+        sleep 5
+    fi
+
+    if [ "$RUN_IPERF3_XDP" = "y" ]; then
         run_iperf3_bg_client
+    fi
+
+    sleep $XDP_SLEEP_SEC
+    pkill iperf3
+    pkill txrx-tsn
+
+    # This is targeting for i225/i226 and kernel 5.4 only
+    if [[ $PLAT == i225* && $KERNEL_VER == 5.4 ]]; then
+        # To ensure the AF_XDP socket tear down is complete in i225, interface is reset.
+        echo "Re run vs1a setup for af_xdp operation"
+        setup_link_down_up $IFACE
+        sleep 2
+        sh $DIR/setup-vs1a.sh $IFACE
+    fi
+
+        echo "Done!"
 fi
 
-sleep $XDP_SLEEP_SEC
-pkill iperf3
-pkill txrx-tsn
-
-# This is targeting for i225/i226 and kernel 5.4 only
-if [[ $PLAT == i225* && $KERNEL_VER == 5.4 ]]; then
-	# To ensure the AF_XDP socket tear down is complete in i225, interface is reset.
-	echo "Re run vs1a setup for af_xdp operation"
-	setup_link_down_up $IFACE
-	sleep 2
-	sh $DIR/setup-vs1a.sh $IFACE
-fi
-
-echo "Done!"
 exit 0

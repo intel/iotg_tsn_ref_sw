@@ -96,33 +96,41 @@ fi
 
 if [ "$XDP_MODE" = "NA" ]; then
     echo "PHASE 2: Skipped. Currently $PLAT does not support AF_XDP."
+    echo "Done!"
+    exit 0
 else
     sleep 20
 
     echo "PHASE 2: AF_XDP receive $XDP_SLEEP_SEC seconds)"
 
-    echo "CMD: ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS"
-    ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS > afxdp-rxtstamps.txt &
-    TXRX_PID=$!
+    # This is targeting for kernel 5.* only
+    # For kernel 5.*, we will run the txrx-tsn before running the interface and clock configuration.
+    # For kernel 6.* and above, we will run the txrx-tsn after the interface and clock configuration.
+    if [[ $KERNEL_VER == 5.* ]]; then
+        echo "CMD: ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS"
+        ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS > afxdp-rxtstamps.txt &
 
-    if ! ps -p $TXRX_PID > /dev/null; then
-        echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
-        stop_if_empty "afpkt-rxtstamps.txt"
-        calc_rx_u2u "afpkt-rxtstamps.txt"
-        calc_rx_duploss "afpkt-rxtstamps.txt" $NUMPKTS
-        save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT
-        exit 1
+        TXRX_PID=$!
+
+        if ! ps -p $TXRX_PID > /dev/null; then
+            echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
+            stop_if_empty "afpkt-rxtstamps.txt"
+            calc_rx_u2u "afpkt-rxtstamps.txt"
+            calc_rx_duploss "afpkt-rxtstamps.txt" $NUMPKTS
+            save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT
+            exit 1
+        fi
+
+        # Assign to CPU3
+        taskset -p 8 $TXRX_PID
+
+        sleep 5
     fi
-
-    # Assign to CPU3
-    taskset -p 8 $TXRX_PID
-
-    sleep 5
 
     # This is targeting for stmmac
     if [[ $PLAT != i225* ]]; then
         # This is targeting for kernel 5.4 only
-        if [[ KERNEL_VER == 5.4 ]]; then
+        if [[ $KERNEL_VER == 5.4 ]]; then
             setup_vlanrx_xdp $IFACE
             sleep 40
         # This is targeting for kernel others than 5.4
@@ -143,7 +151,7 @@ else
     # This is targeting for i225/i226
     else
         # This is targeting for kernel 5.4 only
-        if [[ KERNEL_VER == 5.4 ]]; then
+        if [[ $KERNEL_VER == 5.4 ]]; then
             sleep 40
         # This is targeting for kernel others than 5.4
         else
@@ -154,6 +162,27 @@ else
             napi_switch_on $IFACE
             sleep 38
         fi
+    fi
+
+    # This is targeting for kernel others than 5.*
+    if [[ $KERNEL_VER != 5.* ]]; then
+        echo "CMD: ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS"
+        ./txrx-tsn -X -$XDP_MODE -ri $IFACE -q $RX_XDP_Q -n $NUMPKTS > afxdp-rxtstamps.txt &
+        TXRX_PID=$!
+
+        if ! ps -p $TXRX_PID > /dev/null; then
+            echo -e "\ntxrx-tsn exited prematurely. vs1b.sh script will be stopped."
+            stop_if_empty "afpkt-rxtstamps.txt"
+            calc_rx_u2u "afpkt-rxtstamps.txt"
+            calc_rx_duploss "afpkt-rxtstamps.txt" $NUMPKTS
+            save_result_files $(basename $0 .sh) $NUMPKTS $SIZE $INTERVAL $XDP_MODE $PLAT
+            exit 1
+        fi
+
+        # Assign to CPU3
+        taskset -p 8 $TXRX_PID
+
+        sleep 5
     fi
 
     if [ "$RUN_IPERF3_XDP" = "y" ]; then
