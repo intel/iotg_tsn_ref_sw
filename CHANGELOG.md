@@ -89,3 +89,10 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Update deprecated pthread function in TXRX-AFXDP test script
 - Update deprecated bpf_xdp function in TXRX-AFXDP test script
 - Refactor xdp cleanup routine
+
+## [0.9.7] - 2023-7-17
+- Refactor AF_XDP execution flow to support on kernel 6.* and above
+- Fix syntax error in build.sh for Ubuntu
+- Introduce new package installer
+- Update README.md
+- Add an exception handler for binary file checking
