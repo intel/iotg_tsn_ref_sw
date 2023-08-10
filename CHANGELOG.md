@@ -96,3 +96,8 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Introduce new package installer
 - Update README.md
 - Add an exception handler for binary file checking
+
+## [0.9.8] - 2023-8-10
+- Add EHL support for TI-PHY
+- txrx-tsn: Add extra flush packets in TX thread
+- txrx-tsn: Tuning NAPI Deferral to improve performance
