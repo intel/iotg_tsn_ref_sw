@@ -197,7 +197,7 @@ napi_switch_on(){
         if [[ $NAPI_DEFERRAL_NEEDED == 1 ]]; then
                 # Workaround for XDP latency : activate napi busy polling
                 echo "[Kernel_${KERNEL_VER}_XDP] Activate napi busy polling."
-                echo 10000 > /sys/class/net/$IFACE/gro_flush_timeout
+                echo 20000 > /sys/class/net/$IFACE/gro_flush_timeout
                 echo 100 > /sys/class/net/$IFACE/napi_defer_hard_irqs
         else
                 echo "[Kernel_${KERNEL_VER}_XDP] Napi polling is not needed."
