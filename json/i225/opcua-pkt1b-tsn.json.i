@@ -38,5 +38,16 @@
         }
       ]
     }
+  ],
+  "eth_flowtype_ether_proto": [
+    {
+      "interface": "_PREPROCESS_STR_interface",
+      "ether_proto": [
+        {
+          "proto": "0x88f7",
+          "rx_queue": 0
+        }
+      ]
+    }
   ]
 }

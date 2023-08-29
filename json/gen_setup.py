@@ -50,6 +50,15 @@ def delete_qdiscs(iface):
     proc = sh_run(cmd)
     sh_run('sleep 5')
 
+def delete_flowtype_filter(iface):
+    #print('Deleting existing flow type filters. Assuming we add max 4 (63-60) rules only')
+    for rule_ID in range (60,64):
+        del_flowtype_filt_cmd = "ethtool -N {} ".format(iface)
+        del_flowtype_filt_cmd += "delete {} ".format(rule_ID)
+        del_flowtype_filt_cmd += "2> /dev/null"
+        proc = sh_run(del_flowtype_filt_cmd)
+        sh_run('sleep 1')
+
 def init_ingress(iface, show_qdisc_cmd):
     clear_rx_cmd = "tc qdisc del dev {} parent ffff:".format(iface)
     add_ingress_cmd = "tc qdisc add dev {} ingress".format(iface)
@@ -71,6 +80,40 @@ def set_vlanrx(iface, config, show_qdisc_cmd):
 
     output = sh_run(set_vlanrx_cmd)
 
+def set_flowtype_ether_proto(iface, config):
+
+    if not 'proto' in config:
+        err_exit('Proto not defined in flow type filter config')
+    if not 'rx_queue' in config:
+        err_exit('Queue not defined in flow type filter config')
+
+    proto = str(config['proto'])
+    rx_queue = str(config['rx_queue'])
+
+    set_flowtype_filter_rx_cmd = "ethtool -N {} ".format(iface)
+    set_flowtype_filter_rx_cmd += "flow-type ether proto {} ".format(proto)
+    set_flowtype_filter_rx_cmd += "queue {} ".format(rx_queue)
+
+    output = sh_run(set_flowtype_filter_rx_cmd)
+    sh_run('sleep 1')
+
+def process_eth_flowtype_ether_proto(data):
+
+    # If file is empty then we do nothing
+    if len(data) == 0:
+        return
+
+    if not 'interface' in data:
+        err_exit('Interface not found in eth flowtype ether proto config')
+
+    interface = data.get('interface')
+
+    delete_flowtype_filter(interface)
+
+    if 'ether_proto' in data:
+        #print('Setup flowtype ether proto RX steering')
+        for each_config in data["ether_proto"]:
+            set_flowtype_ether_proto(interface, each_config)
 
 def set_taprio(iface, maps, config, basetime, clkid):
     schedules = ""
@@ -345,8 +388,7 @@ def process_phc2sys(obj):
                 ' leap61 0 leap59 0 currentUtcOffsetValid 0 ptpTimescale 1 timeTraceable'
                 ' 1 frequencyTraceable 0 timeSource 0xa0', '"']
     run_with_out(arglist, '/var/log/pmc.log')
-
-    sh_run('sleep 2')
+    sh_run('sleep 30')
 
     # phc2sys -c CLOCK_REALTIME --step_threshold=1 -s eth0 \
     #       --transportSpecific=1 -O 0 -w -ml 7
@@ -463,6 +505,10 @@ def main():
         process_ptp(data['ptp'])
 
     if 'phc2sys' in data:  process_phc2sys(data['phc2sys'])
+
+    if 'eth_flowtype_ether_proto' in data:
+        for each_eth_flow_type in data["eth_flowtype_ether_proto"]:
+            process_eth_flowtype_ether_proto(each_eth_flow_type)
 
     if 'custom_sync_a' in data:  process_custom_a(data['custom_sync_a'])
     if 'custom_sync_b' in data:  process_custom_b(data['custom_sync_b'])
