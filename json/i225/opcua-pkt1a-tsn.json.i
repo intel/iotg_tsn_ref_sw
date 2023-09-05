@@ -18,10 +18,10 @@
         "queues": "1@0 1@1 1@2 1@3",
         "time_elapsed": 5,
         "mapping": {
-            "default": 0,
+            "default": 3,
             "p1": 1,
-            "p2": 2,
-            "p3": 3
+            "p2": 0,
+            "p3": 2
           },
         "schedule": [
           {
