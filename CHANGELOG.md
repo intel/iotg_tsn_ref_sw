@@ -101,3 +101,7 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Add EHL support for TI-PHY
 - txrx-tsn: Add extra flush packets in TX thread
 - txrx-tsn: Tuning NAPI Deferral to improve performance
+
+## [0.9.9] - 2023-9-5
+- Update i225 OPCUA-PKT1 mapping
+- Add eth flowtype proto rx filter to json
