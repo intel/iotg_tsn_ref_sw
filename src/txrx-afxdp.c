@@ -111,7 +111,7 @@ static struct pkt_buffer *create_umem(void *ubuf, struct xsk_opt *x_opt)
 	struct pkt_buffer *temp_buff;
 	uint32_t idx = 0;
 	int ret;
-	int i;
+	__u64 i;
 
 	struct xsk_umem_config uconfig = {
 		.fill_size = x_opt->frames_per_ring,
@@ -120,7 +120,7 @@ static struct pkt_buffer *create_umem(void *ubuf, struct xsk_opt *x_opt)
 		.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
 	};
 
-	single_umem_ring_size =  x_opt->frames_per_ring * x_opt->frame_size;
+	single_umem_ring_size = (uint64_t) (x_opt->frames_per_ring * x_opt->frame_size);
 
 	ret = posix_memalign(&ubuf, getpagesize(), /* PAGE_SIZE aligned */
 			     single_umem_ring_size);
@@ -191,7 +191,7 @@ static struct xsk_info *create_xsk_info(struct user_opt *opt, struct pkt_buffer 
 static void prefill_tx_umem_rings(void *buff_addr, tsn_packet *example_pkt,
 				  int count, int frame_size)
 {
-	int i;
+	__u64 i;
 
 	for (i = 0; i < count; i++) {
 		memcpy(xsk_umem__get_data(buff_addr, i * frame_size),

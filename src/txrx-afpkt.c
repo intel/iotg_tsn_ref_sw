@@ -102,6 +102,7 @@ static uint64_t extract_ts_from_cmsg(int sock, int recvmsg_flags)
 	struct msghdr msg;
 	struct iovec entry;
 	struct sockaddr_in from_addr;
+	int ret = 0;
 	struct {
 		struct cmsghdr cm;
 		char control[512];
@@ -117,7 +118,9 @@ static uint64_t extract_ts_from_cmsg(int sock, int recvmsg_flags)
 	msg.msg_control = &control;
 	msg.msg_controllen = sizeof(control);
 
-	recvmsg(sock, &msg, recvmsg_flags|MSG_DONTWAIT);
+	ret = recvmsg(sock, &msg, recvmsg_flags|MSG_DONTWAIT);
+	if (ret <= 0)
+		return 0;
 
 	return get_timestamp(&msg);
 }
@@ -529,6 +532,7 @@ int afpkt_recv_pkt(int sock, struct user_opt *opt)
 	host_address.sin_port = htons(0);
 	host_address.sin_addr.s_addr = INADDR_ANY;
 
+	memset(&msg, 0, sizeof(msg));
 	iov.iov_base = buffer;
 	iov.iov_len = 128; //TODO: use correct length based on VLAN header
 	msg.msg_iov = &iov;

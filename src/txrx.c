@@ -285,7 +285,7 @@ static struct argp argp = { options, parser, usage, summary };
 
 static void copy_file(char *src_file, char *dst_file, bool clear_src)
 {
-	char ch;
+	int ch;
 	FILE *src, *dst;
 
 	if (src_file == NULL || dst_file == NULL) {

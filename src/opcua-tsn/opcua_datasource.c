@@ -167,7 +167,7 @@ subStoreDataReceived(UA_Server *server, const UA_NodeId *sessionId,
         }
 
         if (g_sData->msqid >= 0) {
-            ret = msgsnd(g_sData->msqid, (void *)&msgqB, sizeof(struct msgq_buf), IPC_NOWAIT);
+            ret = msgsnd(g_sData->msqid, (void *)&msgqB, sizeof(struct msgq_buf) - sizeof(msgqB.msg_type), IPC_NOWAIT);
             if (ret < 0) {
                 if (errno == EAGAIN) {
                     debug("msgsnd: queue is full\n");
@@ -222,7 +222,7 @@ pubReturnGetDataToTransmit(UA_Server *server, const UA_NodeId *sessionId,
 
     /* Give a window of 150us */
     for (int i = 0; i < 15; i++) {
-        ret = msgrcv(g_sData->msqid, (void *)&msgqC, sizeof(struct msgq_buf),
+        ret = msgrcv(g_sData->msqid, (void *)&msgqC, sizeof(struct msgq_buf) - sizeof(msgqC.msg_type),
                      MSGQ_TYPE, IPC_NOWAIT);
         if (ret < 0) {
             if (errno == EAGAIN) {

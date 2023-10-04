@@ -324,7 +324,7 @@ void listener(struct opt *user_opt) {
 		error("[TSQ-L] Error opening listening socket\n");
 
 	// connection settings
-	memset(&serv, '0', sizeof(serv));
+	memset(&serv, 0, sizeof(serv));
 	serv.sin_family = AF_INET;
 	serv.sin_addr.s_addr = inet_addr(server_ip);
 	if (user_opt->port != 0)
@@ -414,7 +414,7 @@ void listener(struct opt *user_opt) {
 		for (int i = 0; i < CLIENT_COUNT; i++) {
 
 			bzero(recv_buff, BUFFER_SIZE);
-			memset(&temp_data, '0', sizeof(temp_data));
+			memset(&temp_data, 0, sizeof(temp_data));
 			connfd = cli_conns[i];
 
 			if (FD_ISSET(connfd, &readfds)) {
@@ -487,14 +487,14 @@ void listener(struct opt *user_opt) {
 
 			case 0:
 				skip_slot = false;
-				memset(&keep_data, '0', sizeof(payload));
+				memset(&keep_data, 0, sizeof(payload));
 				fprintf(glob_fp, "%d %lld %ld\n", rounds, secs_error, nsecs_error);
 				rounds++;
 				break;
 
 			default:
 				skip_slot = false;
-				memset(&keep_data, '0', sizeof(payload));
+				memset(&keep_data, 0, sizeof(payload));
 				printf("[TSQ-L] Waiting for samples alignment...\n");
 				break;
 			}
@@ -540,7 +540,7 @@ void talker(struct opt *user_opt){
 		printf("[TSQ-T] Assigned uid %d\n", uid);
 
 	/* Set up the socket for transmission */
-	memset(&serv, '0', sizeof(serv));
+	memset(&serv, 0, sizeof(serv));
 	serv.sin_family = AF_INET;
 	serv.sin_addr.s_addr = inet_addr(server_ip);
 	serv.sin_port = htons(port);

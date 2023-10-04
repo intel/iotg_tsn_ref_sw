@@ -213,7 +213,7 @@ error:
 
 void copy_file(char *src_file, char *dst_file, bool clear_src)
 {
-	char ch;
+	int ch;
 	FILE *src, *dst;
 
 	/* Open source file for reading */
