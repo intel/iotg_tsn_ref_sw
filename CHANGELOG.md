@@ -105,3 +105,6 @@ For prior version, please refer to the tag commit message. Sorry guys.
 ## [0.9.9] - 2023-9-5
 - Update i225 OPCUA-PKT1 mapping
 - Add eth flowtype proto rx filter to json
+
+## [0.9.10] - 2023-10-9
+- Code enhancement to ease code viewing and understanding
