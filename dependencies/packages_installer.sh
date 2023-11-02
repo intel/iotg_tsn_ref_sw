@@ -74,7 +74,7 @@ done
 
 if [[ ${libbpf_installation^} == Y ]]; then
     install_libbpf
-    libbpf_path=$(ldconfig -p | grep -i libbpf | head -n1 | cut -d ">" -f 2 | cut -d " " -f 2)
+    libbpf_path=$(ldconfig -p | grep -i libbpf.so.0 | head -n1 | cut -d ">" -f 2 | cut -d " " -f 2)
     ln -sf libbpf.so.0.7.0 $libbpf_path
     sleep 3
 else
