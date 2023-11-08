@@ -108,3 +108,6 @@ For prior version, please refer to the tag commit message. Sorry guys.
 
 ## [0.9.10] - 2023-10-9
 - Code enhancement to ease code viewing and understanding
+
+## [0.9.11] - 2023-11-8
+- Update libbpf symbolic link in packages installer
