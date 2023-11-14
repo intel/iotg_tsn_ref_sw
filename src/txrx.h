@@ -52,8 +52,6 @@
 
 #define MODE_TX 0
 #define MODE_RX 1
-#define MODE_FWD 2
-#define MODE_BMR 3
 
 #define XDP_MODE_SKB_COPY 0
 #define XDP_MODE_NATIVE_COPY 1
@@ -113,7 +111,7 @@ struct xsk_info {
 #endif /* WITH_XDP */
 
 struct user_opt {
-	uint8_t mode;		//App mode: TX/RX/FWD
+	uint8_t mode;		//App mode: TX/RX
 	uint8_t socket_mode;	//af_packet or af_xdp
 
 	char *ifname;

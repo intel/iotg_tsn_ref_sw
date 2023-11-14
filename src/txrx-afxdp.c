@@ -76,7 +76,6 @@ extern int verbose;
 extern uint32_t glob_rx_seq;
 
 /* User Defines */
-#define BATCH_SIZE 64	//for l2fwd only
 #define DEFAULT_NUM_FLUSH_PACKETS 10 //for socket flushing
 
 /* Signal handler to gracefully shutdown */
@@ -247,16 +246,6 @@ void init_xdp_socket(struct user_opt *opt)
 	opt->xsk = create_xsk_info(opt, pktbuffer);
 	glob_xskinfo_ptr = opt->xsk;
 
-}
-
-static void kick_tx(struct xsk_info *xsk)
-{
-	int ret;
-
-	ret = sendto(xsk_socket__fd(xsk->xskfd), NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY)
-		return;
-	afxdp_exit_with_error(errno);
 }
 
 static void update_txstats(struct xsk_info *xsk)
@@ -469,152 +458,5 @@ void afxdp_recv_pkt(struct xsk_info *xsk, void *rbuff)
 
 	/* FOR SCHED_FIFO/DEADLINE */
 	//TODO:implement for all threads incl afpkt?
-	sched_yield();
-}
-
-static void swap_mac_addresses(void *data) {
-	struct ether_header *eth = (struct ether_header *)data;
-	struct ether_addr *src_addr = (struct ether_addr *)&eth->ether_shost;
-	struct ether_addr *dst_addr = (struct ether_addr *)&eth->ether_dhost;
-	struct ether_addr tmp;
-
-	tmp = *src_addr;
-	*src_addr = *dst_addr;
-	*dst_addr = tmp;
-}
-
-void afxdp_fwd_pkt(struct xsk_info *xsk, struct pollfd *fds, struct user_opt *opt)
-{
-	struct custom_payload *payload;
-	uint64_t tx_timestamp;
-	tsn_packet *tsn_pkt;
-	void *payload_ptr;
-	size_t ndescs;
-	int rcvd, i;
-	int ret;
-
-	uint32_t idx_rx = 0, idx_tx = 0;
-
-	if (xsk->outstanding_tx) {
-		/* Since there is out-standing TX and kernel needs Tx wakeup call,
-		 * user app kicks TX proces here:
-		 * sendto() then inside kernel calls xsk_zc_xmit() --> xsk_wakeup()
-		 * --> driver's ndo_xsk_wakeup()
-		 */
-		if (!opt->need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx_ring))
-			kick_tx(xsk);
-
-		ndescs = (xsk->outstanding_tx > BATCH_SIZE) ? BATCH_SIZE : xsk->outstanding_tx;
-		/* re-add completed Tx buffers */
-		rcvd = xsk_ring_cons__peek(&xsk->pktbuff->tx_comp_ring, ndescs, &idx_tx);
-		if (rcvd > 0) {
-			ret = xsk_ring_prod__reserve(&xsk->pktbuff->rx_fill_ring, rcvd, &idx_rx);
-			while (ret != rcvd) {
-				if (ret < 0)
-					afxdp_exit_with_error(-ret);
-
-				if (xsk_ring_prod__needs_wakeup(&xsk->pktbuff->rx_fill_ring)){
-					ret = poll(fds, 1, opt->poll_timeout);
-					continue;
-				}
-
-				ret = xsk_ring_prod__reserve(&xsk->pktbuff->rx_fill_ring, rcvd, &idx_rx);
-			}
-
-			for (i = 0; i < rcvd; i++)
-				*xsk_ring_prod__fill_addr(&xsk->pktbuff->rx_fill_ring, idx_rx++) =
-					*xsk_ring_cons__comp_addr(&xsk->pktbuff->tx_comp_ring, idx_tx++);
-
-			xsk_ring_prod__submit(&xsk->pktbuff->rx_fill_ring, rcvd);
-			xsk_ring_cons__release(&xsk->pktbuff->tx_comp_ring, rcvd);
-			xsk->outstanding_tx -= rcvd;
-			xsk->tx_npkts += rcvd;
-		}
-	}
-
-	/* Now, peek RX ring has any entries.
-	 * Note: driver calls xdp_do_flush_map(XSK_REDIR) --> xsk_map_flush() -->
-	 *       xsk_flush() --> xskq_produce_flush_desc() which updates the
-	 *       UMEM's RX Desc Ring's producer value. The xsk_ring_cons__peek()
-	 *       function calculates the available RX desc based on the cached
-	 *       RX Ring producer and consumer copy.
-	 */
-	rcvd = xsk_ring_cons__peek(&xsk->rx_ring, BATCH_SIZE, &idx_rx);
-	if (!rcvd){
-		/* Note:
-		 *  a) xsk_set|clear_rx_need_wakeup() actually mark RX Fill queue
-		 *  b) xsk_set|clear_tx_need_wakeup() actually mark TX XMIT queue
-		 */
-		if (xsk_ring_prod__needs_wakeup(&xsk->pktbuff->rx_fill_ring))
-			ret = poll(fds, 1, opt->poll_timeout);
-		return;
-	}
-
-	ret = xsk_ring_prod__reserve(&xsk->tx_ring, rcvd, &idx_tx);
-	while (ret != rcvd) {
-		/* If we fail to reserve equal amount of TX entry for
-		 * 'rcvd' RX entries that show up, we keep polling until
-		 * Tx has empty slots for us.
-		 */
-		if (ret < 0)
-			afxdp_exit_with_error(-ret);
-		if (xsk_ring_prod__needs_wakeup(&xsk->tx_ring))
-			kick_tx(xsk);
-		ret = xsk_ring_prod__reserve(&xsk->tx_ring, rcvd, &idx_tx);
-	}
-
-	/* Now, we are good to receive all those RX entries and forward them to
-	 * TX Queue as L2 Forwarding
-	 */
-	for (i = 0; i < rcvd; i++) {
-		uint64_t addr = xsk_ring_cons__rx_desc(&xsk->rx_ring,
-							idx_rx)->addr;
-		uint32_t len = xsk_ring_cons__rx_desc(&xsk->rx_ring,
-							idx_rx++)->len;
-		uint64_t orig = addr;
-
-		addr = xsk_umem__add_offset_to_addr(addr);
-		char *pkt = xsk_umem__get_data(xsk->pktbuff->buffer, addr);
-
-		swap_mac_addresses(pkt);
-
-		tsn_pkt = (tsn_packet *) pkt;
-		payload_ptr = (void *) (&tsn_pkt->payload);
-		payload = (struct custom_payload *) payload_ptr;
-
-		payload->rx_timestampD = get_time_nanosec(CLOCK_REALTIME);
-
-		if (!opt->enable_txtime)
-			tx_timestamp = 0;
-		else
-			tx_timestamp = (payload->rx_timestampD / opt->interval_ns) * opt->interval_ns
-					+ opt->interval_ns
-					+ opt->offset_ns;
-
-		if (verbose)
-			fprintf(stdout, "1\t%d\t%d\t%ld\t%ld\t%ld\n",
-					payload->seq,
-					tsn_pkt->vlan_prio / 32,
-					payload->tx_timestampA,
-					*(uint64_t *)(pkt - sizeof(uint64_t)), //rx hw
-					payload->rx_timestampD);
-
-		xsk_ring_prod__tx_desc(&xsk->tx_ring, idx_tx)->addr = orig;
-		xsk_ring_prod__tx_desc(&xsk->tx_ring, idx_tx)->len = len;
-
-#ifdef WITH_XDPTBS
-		xsk_ring_prod__tx_desc(&xsk->tx_ring, idx_tx)->txtime = tx_timestamp;
-#endif
-
-		idx_tx++;
-	}
-
-	xsk_ring_prod__submit(&xsk->tx_ring, rcvd);
-	xsk_ring_cons__release(&xsk->rx_ring, rcvd);
-
-	xsk->rx_npkts += rcvd;
-	xsk->outstanding_tx += rcvd;
-	fflush(stdout);
-
 	sched_yield();
 }

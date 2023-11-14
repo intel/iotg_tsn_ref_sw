@@ -46,6 +46,5 @@ void __afxdp_exit_with_error(int error, const char *file, const char *func, int 
 void init_xdp_socket(struct user_opt *opt);
 void *afxdp_send_thread(void *arg);
 void afxdp_recv_pkt(struct xsk_info *xsk, void *rbuff);
-void afxdp_fwd_pkt(struct xsk_info *xsk, struct pollfd *fds, struct user_opt *opt);
 
 #define afxdp_exit_with_error(error) __afxdp_exit_with_error(error, __FILE__, __func__, __LINE__)

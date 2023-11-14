@@ -58,7 +58,6 @@
 #define DEFAULT_EARLY_OFFSET 100000
 #define DEFAULT_XDP_FRAMES_PER_RING 4096 //Minimum is 4096
 #define DEFAULT_XDP_FRAMES_SIZE 4096
-#define BATCH_SIZE 64	//for l2fwd
 
 /* Globals */
 unsigned char src_mac_addr[] = { 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00};
@@ -121,8 +120,6 @@ static struct argp_option options[] = {
 	{0,0,0,0, "Mode:" },
 	{"transmit",	't',	0,	0, "transmit only"},
 	{"receive",	'r',	0,	0, "receive only"},
-	{"forward",	'f',	0,	0, "L2-forward (receive-send) packets (AF_XDP only)"},
-	{"boomerang",	'b',	0,	0, "L2-send-receive packets (AF_XDP only)"},
 
 	{0,0,0,0, "XDP Mode:" },
 	{"zero-copy",	'z',	0,	0, "zero-copy mode"},
@@ -203,12 +200,6 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 	case 'r':
 		opt->mode = MODE_RX;
 		break;
-	case 'f':
-		opt->mode = MODE_FWD;
-		break;
-	case 'b':
-		opt->mode = MODE_BMR;
-		break;
 	case 'z':
 		opt->xdp_mode = XDP_MODE_ZERO_COPY;
 		break;
@@ -277,7 +268,7 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 }
 
 static char usage[] = "-i <interface> -P [r|t]\n"
-		      "-i <interface> -X [r|t|f] [z|c|s] -q <queue>";
+		      "-i <interface> -X [r|t] [z|c|s] -q <queue>";
 
 static char summary[] = "  AF_XDP & AF_PACKET Transmit-Receive Application";
 
@@ -427,9 +418,8 @@ int main(int argc, char *argv[])
 			}
 			close(sockfd);
 			break;
-		case MODE_FWD: /* FALLTHRU */
 		default:
-			exit_with_error("Invalid AF_XDP mode: Please specify -t, -r, or -f.");
+			exit_with_error("Invalid AF_PKT mode: Please specify -t, or -r.");
 			break;
 		}
 
@@ -469,36 +459,8 @@ int main(int argc, char *argv[])
 				}
 			}
 			break;
-		case MODE_FWD:
-			memset(fds, 0, sizeof(fds));
-			fds[0].fd = xsk_socket__fd(opt.xsk->xskfd);
-			fds[0].events =  POLLOUT | POLLIN;
-			while (!halt_tx_sig) {
-				if (opt.enable_poll) {
-					ret = poll(fds, 1, opt.poll_timeout);
-					if (ret <= 0)
-						continue;
-				}
-				afxdp_fwd_pkt(opt.xsk, fds, &opt);
-			}
-			break;
-		case MODE_BMR:
-			ret = pthread_create(&thread1, NULL, afxdp_send_thread, &opt);
-			if (ret) {
-				fprintf(stderr, "pthread_create failed\n");
-				break;
-			}
-			while (!halt_tx_sig) {
-				afxdp_recv_pkt(opt.xsk, buff);
-			}
-
-			ret = pthread_join(thread1, NULL);
-			if (ret)
-				fprintf(stderr, "pthread_join returned %d", ret);
-
-			break;
 		default:
-			exit_with_error("Invalid AF_XDP mode: Please specify -t, -r, -f or -b.");
+			exit_with_error("Invalid AF_XDP mode: Please specify -t, or -r.");
 			break;
 		}
 
