@@ -168,7 +168,8 @@ case "$MODE" in
                 exit 0
         fi
 
-        sh ./setup-generated.sh
+        chmod +x setup-generated.sh
+        ./setup-generated.sh
 
         # Extra Delay to stabilize gPTP
         PTP_PROCESSES=$(pgrep -c ptp4l)
@@ -292,7 +293,8 @@ if [[ "$SKIP_SETUP" == "y" ]]; then
         esac
 
         echo "[KERNEL_${KERNEL_VER}_XDP] Run previously generated ./setup-generated.sh"
-        sh ./setup-generated.sh
+        chmod +x setup-generated.sh
+        ./setup-generated.sh
 
         if [[ -f "$IPERF3_GEN_CMD" ]]; then
             CMD="$(cat $DIR/../$IPERF3_GEN_CMD)"
