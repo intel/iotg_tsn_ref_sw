@@ -76,7 +76,7 @@ main() {
     IFACE=$2
 
     # Check for valid <PLAT>
-    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225" || "$1" == "adls" || "$1" == "adln" || "$1" == "rplp" || "$1" == "rpls" ]]; then
+    if [[ "$1" == "tglu" || "$1" == "ehl" || "$1" == "tglh" || "$1" == "i225" || "$1" == "adls" || "$1" == "adln" || "$1" == "rplp" || "$1" == "rpls" || "$1" == "asl" ]]; then
         IFACE2=""
         CONFIG=$3
         ACTION=$4
