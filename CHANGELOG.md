@@ -111,3 +111,7 @@ For prior version, please refer to the tag commit message. Sorry guys.
 
 ## [0.9.11] - 2023-11-8
 - Update libbpf symbolic link in packages installer
+
+## [0.9.12] - 2023-12-15
+- Update script to run in bash to avoid unexpected output on Ubuntu
+- Add preliminary ASL support
