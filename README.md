@@ -110,8 +110,9 @@ WARNING: You are able to install libbpf & open62541 without the 'txtime' descrip
 # Use the commands below to install the packages:
 
 	cd dependencies
-	./packages_installer.sh
+	./packages_installer.sh --proxy=<your.proxy.if.necessary.com> --git-proxy=<your.git.proxy.if.necessary.com>
 
+# NOTE: The proxy and git-proxy are optional arguments, provide if necessary.
 # NOTE: The packages installer only support the overwrite installation.
 # NOTE: Refer to the below
 
