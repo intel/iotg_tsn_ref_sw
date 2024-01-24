@@ -196,12 +196,8 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		if (errno || res < 0 || res >= 15 || str_end != &arg[len])
 			exit_with_error("Invalid queue number/socket priority. Check --help");
 		opt->socket_prio = (uint32_t)res;
-		//printf("\n%d\n", opt->socket_prio);
-		//#ifdef WITH_XDP
 		if (opt->socket_mode == MODE_AFXDP)
 		  exit_with_error("AF_XDP does not support setting socket priority.");
-		//#endif
-		//opt->vlan_prio = opt->socket_prio * 32;
 		break;
 	case 'X':
 		opt->socket_mode = MODE_AFXDP;
