@@ -76,7 +76,7 @@ each other via a single-ethernet connection.
     ./run.sh $PLAT $IFACE opcua-pkt1a setup
     ```
 
-2.  [Board A] Run the setup script to initialize IP and MAC address, then start
+2.  [Board B] Run the setup script to initialize IP and MAC address, then start
     clock synchronization and setup ingress qdisc.
 
     ```sh
@@ -91,7 +91,7 @@ each other via a single-ethernet connection.
     ./run.sh $PLAT $IFACE opcua-pkt1b run
     ```
 
-4.  [Board B] Immediately after step 3, start transmitting packets. The
+4.  [Board A] Immediately after step 3, start transmitting packets. The
     application will terminate itself after completion. Note that AF_PACKET or
     opcua-pkt* configurations will take longer as they use much higher packet
     intervals compared to AF_XDP or opuca-xdp* configurations.
