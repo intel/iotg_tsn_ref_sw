@@ -333,7 +333,7 @@ def process_iperf3(obj):
     sh_run('pkill iperf3')
     run_server = obj.get('run_server', False)
     client_target_add = str(obj.get('client_target_address'))
-    cpu_aff = str(obj.get('cpu_affinity', 3))
+    cpu_aff = str(obj.get('iperf_cpu_affinity', 3))
     client_runtime = str(obj.get('client_runtime_in_sec', 5000))
     iperf3_log = "/var/log/iperf3_client.log"
     client_bw = str(obj.get('client_bandwidth_in_mbps', 1))
@@ -356,13 +356,14 @@ def process_ptp(obj):
     ignore_existing = obj.get('ignore_existing', False)
     socket_prio = str(obj.get('socket_prio', 2))
     gptp_filepath = 'common/' + str(obj.get('gPTP_file', 'gPTP.cfg'))
+    ptp_cpu_affinity = str(obj.get('ptp_cpu_affinity'))
 
     ## TODO sock prio or net prio
     if not ignore_existing: return
     sh_run('pkill ptp4l')
 
     # ptp4l -mP2Hi eth0 -f common/gPTP.cfg --step_threshold=2 --socket_priority 1
-    arglist = ['taskset', '-c', '1', 'ptp4l', '-mP2Hi', iface, '--step_threshold=2']
+    arglist = ['taskset', '-c', ptp_cpu_affinity, 'ptp4l', '-mP2Hi', iface, '--step_threshold=2']
     arglist += ['-f', gptp_filepath]
     arglist += ['--socket_priority', socket_prio]
     run_with_out(arglist, '/var/log/ptp4l.log')
@@ -373,6 +374,7 @@ def process_phc2sys(obj):
     clock = obj.get('clock')
     iface = obj.get('interface')
     ignore_existing = obj.get('ignore_existing', False)
+    ptp_cpu_affinity = str(obj.get('ptp_cpu_affinity'))
 
     if not ignore_existing: return
     sh_run('pkill phc2sys')
@@ -392,7 +394,7 @@ def process_phc2sys(obj):
 
     # phc2sys -c CLOCK_REALTIME --step_threshold=1 -s eth0 \
     #       --transportSpecific=1 -O 0 -w -ml 7
-    arglist = ['taskset', '-c', '1', 'phc2sys', '-c', 'CLOCK_REALTIME', '--step_threshold=1', '-s',
+    arglist = ['taskset', '-c', ptp_cpu_affinity, 'phc2sys', '-c', 'CLOCK_REALTIME', '--step_threshold=1', '-s',
                 iface, '--transportSpecific=1', '-O', '0', '-w', '-ml', '7']
     run_with_out(arglist, '/var/log/phc2sys.log')
 

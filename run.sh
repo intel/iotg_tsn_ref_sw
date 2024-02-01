@@ -168,18 +168,21 @@ main() {
     # Return to TSN Ref Sw App directory for script execution
     cd $LOCAL_DIR
 
+    # Check for number of cores available
+    NUM_CORE=$(lscpu | grep "^CPU(s)" | awk '{print $2}')
+
     # Execute: redirect to opcua if opcua config, otherwise execute shell scripts
     CHECK=$(echo $CONFIG | cut -c -5 )
     if [ "$CHECK" == "opcua" ]; then
-        ./json/opcua-run.sh $PLAT $IFACE $IFACE2 $CONFIG $ACTION
+        ./json/opcua-run.sh $PLAT $IFACE $IFACE2 $CONFIG $ACTION $NUM_CORE
 
     elif [[ "$ACTION" == "setup" || "$ACTION" == "init" ]]; then
         export PLAT=$PLAT
-        ./shell/setup-$CONFIG.sh $IFACE
+        ./shell/setup-$CONFIG.sh $IFACE $NUM_CORE
 
     elif [ "$ACTION" == "run" ]; then
         export PLAT=$PLAT
-        ./shell/$CONFIG.sh $IFACE
+        ./shell/$CONFIG.sh $IFACE $NUM_CORE
 
     else
         echo "Error: run.sh invalid commands. Please run ./run.sh --help for more info."

@@ -17,7 +17,7 @@
         "publish_delay_sec": 3,
         "socket_prio": 3,
         "two_way_data": false,
-        "cpu_affinity": 2,
+        "iperf_cpu_affinity": "_IPERF_CPU_AFFINITY_A",
         "xdp_queue": -1
       }
     },

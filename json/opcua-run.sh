@@ -52,9 +52,11 @@ if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "r
     IFACE2="$3"
     CONFIG="$4"
     MODE="$5"
+    NUM_CORE="$6"
 else
     CONFIG="$3"
     MODE="$4"
+    NUM_CORE="$5"
 fi
 
 # Get directory of current script
@@ -101,6 +103,17 @@ sed -i -e "s/_PREPROCESS_STR_interface/$IFACE/gi" $NEW_JSON $NEW_TSN_JSON
 
 if [[ "$PLAT" = "ehl2" || "$PLAT" = "tglh2" || "$PLAT" = "adls2" || "$PLAT" = "rpls2" ]];then
     sed -i -e "s/_PREPROCESS_STR_2nd_interface/$IFACE2/gi" $NEW_JSON $NEW_TSN_JSON
+fi
+
+#Replace cpu affinity on .json
+if [[ $NUM_CORE == 2 ]]; then
+    sed -i -e "s/\"_IPERF_CPU_AFFINITY_A\"/1/gi" $NEW_JSON
+    sed -i -e "s/\"_IPERF_CPU_AFFINITY_B\"/1/gi" $NEW_JSON
+    sed -i -e "s/\"_PTP_CPU_AFFINITY\"/0/gi" $NEW_TSN_JSON
+else
+    sed -i -e "s/\"_IPERF_CPU_AFFINITY_A\"/2/gi" $NEW_JSON
+    sed -i -e "s/\"_IPERF_CPU_AFFINITY_B\"/3/gi" $NEW_JSON
+    sed -i -e "s/\"_PTP_CPU_AFFINITY\"/1/gi" $NEW_TSN_JSON
 fi
 
 KERNEL_VER=$(uname -r | cut -d'.' -f1-2)

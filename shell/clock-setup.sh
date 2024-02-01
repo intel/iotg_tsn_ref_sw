@@ -60,7 +60,7 @@ else
     echo "Using $GPTP_FILE";
 fi
 
-taskset -c 1 ptp4l -P2Hi $IFACE$PTP_IFACE_APPEND -f $DIR/../common/$GPTP_FILE \
+taskset -c $PTP_CPU_AFFINITY ptp4l -P2Hi $IFACE$PTP_IFACE_APPEND -f $DIR/../common/$GPTP_FILE \
         --step_threshold=1 --socket_priority=$PTP_TX_Q -m &> /var/log/ptp4l.log &
 
 sleep 2 # Required
@@ -73,10 +73,10 @@ pmc -u -b 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248
 sleep 3
 
 if [[ $PLAT == i225* ]]; then
-    taskset -c 1 phc2sys -s $IFACE -c CLOCK_REALTIME --step_threshold=1 \
+    taskset -c $PTP_CPU_AFFINITY phc2sys -s $IFACE -c CLOCK_REALTIME --step_threshold=1 \
         --transportSpecific=1 -O 0 --first_step_threshold=0.0 \
         -w -ml 7 &> /var/log/phc2sys.log &
 else
-    taskset -c 1 phc2sys -s $IFACE -c CLOCK_REALTIME --step_threshold=1 \
+    taskset -c $PTP_CPU_AFFINITY phc2sys -s $IFACE -c CLOCK_REALTIME --step_threshold=1 \
             --transportSpecific=1 -O 0 -w -ml 7 &> /var/log/phc2sys.log &
 fi

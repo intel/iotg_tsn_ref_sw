@@ -84,7 +84,7 @@ if [ "$AFP_PACKET_TEST" = "y" ]; then
     fi
 
     # Assign to CPU3
-    taskset -p 8 $TXRX_PID
+    taskset -p $TXRX_TSN_AFFINITY $TXRX_PID
     sleep $SLEEP_SEC
     pkill txrx-tsn
     pkill iperf3
@@ -93,7 +93,7 @@ else
     echo "PHASE 1: AF_PACKET is not configured to run."
 fi
 
-
+sleep 20
 if [ "$XDP_MODE" = "NA" ]; then
     echo "PHASE 2: Skipped. Currently $PLAT does not support AF_XDP."
     echo "Done!"
@@ -102,6 +102,10 @@ else
     sleep 20
 
     echo "PHASE 2: AF_XDP receive $XDP_SLEEP_SEC seconds)"
+
+    if [ "$RUN_IPERF3_XDP" = "y" ]; then
+        run_iperf3_bg_server
+    fi
 
     # This is targeting for kernel 5.* only
     # For kernel 5.*, we will run the txrx-tsn before running the interface and clock configuration.
@@ -122,7 +126,7 @@ else
         fi
 
         # Assign to CPU3
-        taskset -p 8 $TXRX_PID
+        taskset -p $TXRX_TSN_AFFINITY $TXRX_PID
 
         sleep 5
     fi
@@ -180,13 +184,9 @@ else
         fi
 
         # Assign to CPU3
-        taskset -p 8 $TXRX_PID
+        taskset -p $TXRX_TSN_AFFINITY $TXRX_PID
 
         sleep 5
-    fi
-
-    if [ "$RUN_IPERF3_XDP" = "y" ]; then
-        run_iperf3_bg_server
     fi
 
     sleep $XDP_SLEEP_SEC
