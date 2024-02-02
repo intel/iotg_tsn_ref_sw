@@ -3,13 +3,13 @@
     "interface": "_PREPROCESS_STR_interface.vlan",
     "gPTP_file": "gPTP_TI-1G.cfg",
     "ignore_existing": true,
-    "ptp_cpu_affinity": 1
+    "ptp_cpu_affinity": "_PTP_CPU_AFFINITY"
   },
   "phc2sys": {
     "interface": "_PREPROCESS_STR_interface",
     "clock": "CLOCK_REALTIME",
     "ignore_existing": true,
-    "ptp_cpu_affinity": 1
+    "ptp_cpu_affinity": "_PTP_CPU_AFFINITY"
   },
   "tc_group": [
     {
