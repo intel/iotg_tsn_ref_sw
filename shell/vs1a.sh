@@ -57,6 +57,7 @@ rm -f ./afxdp-txtstamps.txt
 sync
 
 # Improve performance/consistency by logging to tmpfs (system memory)
+check_and_mount_tmpfs $TEMP_DIR
 ln -sfv $TEMP_DIR/afpkt-txtstamps.txt .
 ln -sfv $TEMP_DIR/afxdp-txtstamps.txt .
 

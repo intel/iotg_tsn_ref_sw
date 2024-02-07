@@ -229,6 +229,8 @@ if [[ ! -z $OUTPUT_FILE ]]; then
         echo "Output temp dir for output file: $TEMP_DIR - inexistent. Exiting."
         exit 1
     else
+        check_and_mount_tmpfs $TEMP_DIR
+
         echo -n "" > $TEMP_DIR/$OUTPUT_FILE
         ln -sfv $TEMP_DIR/$OUTPUT_FILE .
     fi

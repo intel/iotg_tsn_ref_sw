@@ -576,3 +576,21 @@ setup_link_down_up(){
 
         ip link set $IFACE up
 }
+
+check_and_mount_tmpfs()
+{
+        TEMP_DIR=$1
+
+        CHECK_MOUNT=$(mount | grep $TEMP_DIR)
+        if [[ -z $CHECK_MOUNT ]]; then
+                mount -t tmpfs -o mode=0755,nodev,nosuid,strictatime tmpfs $TEMP_DIR
+        fi
+
+        CHECK_TMPFS=$(mount | grep tmpfs | grep $TEMP_DIR)
+        if [[ -z $CHECK_TMPFS ]]; then
+                echo "The $TEMP_DIR folder could not be mounted."
+                echo "$TEMP_DIR is required to be mounted on tmpfs for optimum performance when running TSN Reference App."
+                echo "Please check if there are any missing permission or memory requirements."
+                exit 1
+        fi
+}
