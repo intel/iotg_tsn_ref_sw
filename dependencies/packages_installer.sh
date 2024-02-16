@@ -44,7 +44,7 @@ main() {
 check_distro
 
 # Configure proxy
-config_proxy
+config_proxy "$@"
 
 if [[ "$os_distro" == '"Ubuntu"' ]]; then
     echo -e "\nPACKAGES_INSTALLER.SH: Do you want to install generic packages?"
@@ -111,14 +111,48 @@ check_distro(){
 
 }
 
-config_proxy(){
+config_proxy() {
+   local proxy=""
+
+   for arg in "$@"
+   do
+        case $arg in
+            --proxy=*)
+               proxy="${arg#*=}"
+               shift
+               ;;
+            -p=*)
+               proxy="${arg#*=}"
+               shift
+               ;;
+            --git-proxy=*)
+               git_proxy="${arg#*=}"
+               shift
+               ;;
+            -gp=*)
+                git_proxy="${arg#*=}"
+                shift
+                ;;
+       esac
+   done
 
     # Configure proxy
     echo -e "\nPACKAGES_INSTALLER.SH: Configuring proxy"
-    echo -e "export https_proxy=http://proxy.png.intel.com:911"
-    echo -e "git config --global https.proxy http://proxy.jf.intel.com:911"
-    export https_proxy=http://proxy.png.intel.com:911
-    git config --global https.proxy http://proxy.jf.intel.com:911
+   
+    if [[ ! -z "$git_proxy" ]]; then
+        echo -e "git config --global https.proxy $git_proxy"
+        git config --global https.proxy "$git_proxy"
+    fi
+    
+    if [[ ! -z "$proxy" ]]; then
+        echo -e "export https_proxy=$proxy"
+        export https_proxy="$proxy"
+    fi
+
+   if [[ -z "$proxy" ]] && [[ -z "$git_proxy"  ]]; then
+       echo "No proxy specified..."
+       return
+   fi
 
 }
 
@@ -378,7 +412,7 @@ install_open62541_iotg() {
 }
 
 # Call main function
-main
+main "$@"
 
 echo -e "\nSetup Successful."
 echo -e "Please Reboot/Re-login or source /etc/environment for libraries to link up"
