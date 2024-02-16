@@ -7,7 +7,7 @@
     "socket_prio": 2
   },
     "iperf3": {
-    "cpu_affinity": 0,
+    "iperf_cpu_affinity": 0,
     "run_server": true,
     "client_target_address": "169.254.1.22",
     "client_runtime_in_sec": 5000,

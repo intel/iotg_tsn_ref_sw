@@ -19,7 +19,7 @@
         "publish_delay_sec": 115,
         "socket_prio": 1,
         "two_way_data": false,
-        "cpu_affinity": 2,
+        "iperf_cpu_affinity": 2,
         "xdp_queue": 1
       }
     },
@@ -34,7 +34,7 @@
         "subscriber_output_file": "afxdp-rxtstamps.txt",
         "temp_file_dir": "/tmp",
         "two_way_data": true,
-        "cpu_affinity": 3,
+        "iperf_cpu_affinity": 3,
         "xdp_queue": 1
       }
     }

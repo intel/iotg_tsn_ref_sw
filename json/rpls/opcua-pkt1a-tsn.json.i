@@ -2,12 +2,14 @@
   "ptp": {
     "interface": "_PREPROCESS_STR_interface.vlan",
     "gPTP_file": "gPTP_SGMII-MV2110-1G.cfg",
-    "ignore_existing": true
+    "ignore_existing": true,
+    "ptp_cpu_affinity": 1
   },
   "phc2sys": {
     "interface": "_PREPROCESS_STR_interface",
     "clock": "CLOCK_REALTIME",
-    "ignore_existing": true
+    "ignore_existing": true,
+    "ptp_cpu_affinity": 1
   },
   "tc_group": [
     {

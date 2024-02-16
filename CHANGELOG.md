@@ -116,6 +116,8 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Update script to run in bash to avoid unexpected output on Ubuntu
 - Add preliminary ASL support
 
-## [0.9.13] - 2024-01-19
-- Remove hardcoded private proxy on packages installer
-- Add command-line arguments to the package installer to insert proxy settings for Git and the system if needed.
+## [0.9.13] - 2024-02-07
+- Automate core configuration settings for i225 and stmmac
+- Automate core configuration settings for ASL platform
+- Add Intel security policy and guideline
+- Mount temp_file_dir directory to tmpfs

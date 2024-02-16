@@ -244,8 +244,8 @@ struct ServerData *parseJson(struct json_object *json)
 
         pd->twoWayData = getBool(pubJson, "two_way_data");
 
-        cpuAff = getInt(pubJson, "cpu_affinity");
-        catch_err(cpuAff < 0 || cpuAff > 3, "Invalid cpu_affinity");
+        cpuAff = getInt(pubJson, "iperf_cpu_affinity");
+        catch_err(cpuAff < 0 || cpuAff > 3, "Invalid iperf_cpu_affinity");
         pd->cpuAffinity = cpuAff;
 
         log("Publisher: %s %s CPU%ld",
@@ -290,8 +290,8 @@ struct ServerData *parseJson(struct json_object *json)
 
         sd->twoWayData = getBool(subJson, "two_way_data");
 
-        cpuAff = getInt(subJson, "cpu_affinity");
-        catch_err(cpuAff < 0 || cpuAff > 3, "Invalid cpu_affinity");
+        cpuAff = getInt(subJson, "iperf_cpu_affinity");
+        catch_err(cpuAff < 0 || cpuAff > 3, "Invalid iperf_cpu_affinity");
         sd->cpuAffinity = cpuAff;
 
         sd->subscriberOutputFileName = getString(subJson, "subscriber_output_file");
