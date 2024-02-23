@@ -202,6 +202,15 @@ NOTE: ensure your proxy settings are correct.
 NOTE: All the packages can be install by using the packages_installer.sh above.
 ```
 
+#### *For run-time:*
+```
+	* [Real-Time Ubuntu 22.04](https://ubuntu.com/real-time)
+	* iproute2 v5.15.0 [with real-time patches](https://github.com/intel/iotg-yocto-ese-main/tree/master/recipes-connectivity/iproute2/iproute2)
+	* [ethtool](https://salsa.debian.org/kernel-team/ethtool) [with real-time patches](https://github.com/intel/iotg-yocto-ese-main/tree/master/recipes-extended/ethtool/ethtool)
+	* linuxptp [v3.0 or later](https://github.com/richardcochran/linuxptp/releases/tag/v3.0)
+	* Python 3.8.2
+```
+
 ## Build
 ```
 # To build tsn ref sw, we are currently providing a single script that will build all
