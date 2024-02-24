@@ -49,6 +49,11 @@ OPCUA-SERVER is a C-application that can transmit and receive ETH_UADP packets u
 AF_PACKET or AF_XDP sockets using libopen62541 (OPCUA-based library) APIs. It
 accepts only 1 .json.i file as input.
 
+
+**NOTE:** The `PLAT` command line argument refers to either the CPU platform 
+or the ethernet controller (e.g. the [i225](shell/i225)), see in [shell folder](shell) 
+the available platforms.
+
 ### About: 1-port
 
 Very simple, just 1 pub/sub thread

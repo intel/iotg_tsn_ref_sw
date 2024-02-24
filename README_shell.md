@@ -29,6 +29,10 @@ to each other via an Ethernet connection and user has a terminal open in the
 This example requires multiple pin header connections for (pulse-per-second)
 PPS and (auxiliary timestamping) AUXTS.
 
+**NOTE:** The `PLAT` command line argument refers to either the CPU platform 
+or the ethernet controller (e.g. the [i225](shell/i225)), see in [shell folder](shell) 
+the available platforms.
+
 0.  [Board A & B] Build the project.
 
     ```sh
