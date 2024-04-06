@@ -132,7 +132,7 @@ static struct argp_option options[] = {
 	{"wakeup",	'w',	0,	0, "enable need_wakeup"},
 	{"vlan-prio",	'q',	"NUM",	0, "packet vlan priority, also socket priority\n"
 					   "	Def: 0 | Min: 0 | Max: 7"},
-	{"socket-prio",	'g',	"NUM",	0, "packet socket  priority\n"
+	{"socket-prio",	'g',	"NUM",	0, "packet socket priority\n"
 					   "	Def: 0 | Min: 0 | Max: 15"},
 	/* Reserved: u / w */
 
