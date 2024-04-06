@@ -194,7 +194,7 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		len = strlen(arg);
 		res = strtol((const char *)arg, &str_end, 10);
 		if (errno || res < 0 || res >= 15 || str_end != &arg[len])
-			exit_with_error("Invalid queue number/socket priority. Check --help");
+			exit_with_error("Invalid socket priority. Check --help");
 		opt->socket_prio = (uint32_t)res;
 		if (opt->socket_mode == MODE_AFXDP)
 		  exit_with_error("AF_XDP does not support setting socket priority.");
