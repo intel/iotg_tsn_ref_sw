@@ -252,6 +252,13 @@ install_generic_packages() {
     package="xterm"
     package_installation
 
+    # Check for linuxptp
+    package="linuxptp"
+    package_installation
+
+    # Check for iperf3
+    package="iperf3"
+    package_installation
 }
 
 package_installation() {
