@@ -130,7 +130,7 @@ static struct argp_option options[] = {
 	{"launchtime",	'T',	0,	0, "enable time-based per-packet tx scheduling (TBS)"},
 	{"polling",	'p',	0,	0, "enable polling mode"},
 	{"wakeup",	'w',	0,	0, "enable need_wakeup"},
-	{"vlan-prio",	'q',	"NUM",	0, "packet vlan priority, also socket priority\n"
+	{"vlan-prio",	'q',	"NUM",	0, "packet vlan priority\n"
 					   "	Def: 0 | Min: 0 | Max: 7"},
 	{"socket-prio",	'g',	"NUM",	0, "packet socket priority\n"
 					   "	Def: 0 | Min: 0 | Max: 15"},
