@@ -58,6 +58,8 @@
 #define DEFAULT_EARLY_OFFSET 100000
 #define DEFAULT_XDP_FRAMES_PER_RING 4096 //Minimum is 4096
 #define DEFAULT_XDP_FRAMES_SIZE 4096
+#define MIN_SOCKET_PRIORITY 0
+#define MAX_SOCKET_PRIORITY 3
 
 /* Globals */
 unsigned char src_mac_addr[] = { 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00};
@@ -131,7 +133,7 @@ static struct argp_option options[] = {
 	{"polling",	'p',	0,	0, "enable polling mode"},
 	{"wakeup",	'w',	0,	0, "enable need_wakeup"},
 	{"vlan-prio",	'q',	"NUM",	0, "packet vlan priority, also socket priority\n"
-					   "	Def: 0 | Min: 0 | Max: 7"},
+					   "	Def: 0 | Min: 0 | Max: 3"},
 	/* Reserved: u / w */
 
 	{0,0,0,0, "TX control:" },
@@ -180,7 +182,7 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 	case 'q':
 		len = strlen(arg);
 		res = strtol((const char *)arg, &str_end, 10);
-		if (errno || res < 0 || res >= 7 || str_end != &arg[len])
+		if (errno || res < MIN_SOCKET_PRIORITY || res > MAX_SOCKET_PRIORITY || str_end != &arg[len])
 			exit_with_error("Invalid queue number/socket priority. Check --help");
 		opt->socket_prio = (uint32_t)res;
 #ifdef WITH_XDP
@@ -326,6 +328,8 @@ int main(int argc, char *argv[])
 {
 	struct user_opt opt;
 	int ret = 0;
+
+	memset(&opt, 0, sizeof(opt));
 
 	/* Defaults */
 	opt.socket_mode = MODE_INVALID;
