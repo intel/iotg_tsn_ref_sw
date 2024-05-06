@@ -130,8 +130,10 @@ static struct argp_option options[] = {
 	{"launchtime",	'T',	0,	0, "enable time-based per-packet tx scheduling (TBS)"},
 	{"polling",	'p',	0,	0, "enable polling mode"},
 	{"wakeup",	'w',	0,	0, "enable need_wakeup"},
-	{"vlan-prio",	'q',	"NUM",	0, "packet vlan priority, also socket priority\n"
+	{"vlan-prio",	'q',	"NUM",	0, "packet vlan priority\n"
 					   "	Def: 0 | Min: 0 | Max: 7"},
+	{"socket-prio",	'g',	"NUM",	0, "packet socket priority\n"
+					   "	Def: 0 | Min: 0 | Max: 15"},
 	/* Reserved: u / w */
 
 	{0,0,0,0, "TX control:" },
@@ -181,12 +183,20 @@ static error_t parser(int key, char *arg, struct argp_state *state)
 		len = strlen(arg);
 		res = strtol((const char *)arg, &str_end, 10);
 		if (errno || res < 0 || res >= 7 || str_end != &arg[len])
-			exit_with_error("Invalid queue number/socket priority. Check --help");
-		opt->socket_prio = (uint32_t)res;
+			exit_with_error("Invalid queue number. Check --help");
 #ifdef WITH_XDP
-		opt->x_opt.queue = opt->socket_prio;
+		opt->x_opt.queue = (uint32_t)res;
 #endif
-		opt->vlan_prio = opt->socket_prio * 32;
+		opt->vlan_prio = (uint32_t)res * 32;
+		break;
+	case 'g':
+		len = strlen(arg);
+		res = strtol((const char *)arg, &str_end, 10);
+		if (errno || res < 0 || res >= 15 || str_end != &arg[len])
+			exit_with_error("Invalid socket priority. Check --help");
+		opt->socket_prio = (uint32_t)res;
+		if (opt->socket_mode == MODE_AFXDP)
+		  exit_with_error("AF_XDP does not support setting socket priority.");
 		break;
 	case 'X':
 		opt->socket_mode = MODE_AFXDP;
