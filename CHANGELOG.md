@@ -121,3 +121,11 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Automate core configuration settings for ASL platform
 - Add Intel security policy and guideline
 - Mount temp_file_dir directory to tmpfs
+
+## [0.9.14] - 2024-08-26
+- Change vlan socket priority value to be limited to 4 for both stmmac and i226
+- Added support for proxy server input via command line option
+- Fixed description of board information in OPCUA json script runner
+- Add iperf3 and linuxptp debian packages as dependencies on package_installer.sh
+- Added ethtool, iproute2 and ubuntu RT dependencies with links to required patches in README.md
+- Added note clarifying the usage of <PLAT> command line argument in README_json.md
