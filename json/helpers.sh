@@ -157,7 +157,7 @@ init_interface(){
         ethtool -K $IFACE rxvlan off
 
         # Disable EEE - off by default
-        # ethtool --set-eee $IFACE eee off &> /dev/null
+        ethtool --set-eee $IFACE eee off &> /dev/null
 
         # Set irq affinity
         set_irq_smp_affinity $IFACE $DIR/../common/$IRQ_AFFINITY_FILE
