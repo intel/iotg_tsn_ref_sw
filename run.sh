@@ -169,7 +169,7 @@ main() {
     cd $LOCAL_DIR
 
     # Check for number of cores available
-    NUM_CORE=$(lscpu | grep "^CPU(s)" | awk '{print $2}')
+    NUM_CORE=$(nproc --all)
 
     # Execute: redirect to opcua if opcua config, otherwise execute shell scripts
     CHECK=$(echo $CONFIG | cut -c -5 )
