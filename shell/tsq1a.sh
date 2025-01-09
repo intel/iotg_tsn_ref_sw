@@ -85,7 +85,7 @@ else
 	# Start the liveplot
 	if [[ $DISPLAY ]]; then
 		echo "Starting plotting"
-		gnuplot -e "PLOT_TITLE='$PLAT: $IFACE: Time sync Quality Measurement';YMAX=50; filename='tsq-listener-data.txt'" $DIR/../common/liveplot.gnu &
+		gnuplot -persist -e "PLOT_TITLE='$PLAT: $IFACE: Time sync Quality Measurement';YMAX=50; filename='tsq-listener-data.txt'" $DIR/../common/liveplot.gnu &
 	fi
 fi
 
