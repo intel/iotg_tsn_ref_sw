@@ -36,6 +36,10 @@ set ylabel "PHC difference (ns)"
 set xlabel "t(s)"
 
 plot filename using ($3) with lines title "nano-seconds"
-pause 1
-reread
+
+do for [i=0:100] {
+        pause 1
+        replot
+    }
+
 set autoscale
