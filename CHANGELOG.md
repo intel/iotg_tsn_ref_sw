@@ -129,3 +129,9 @@ For prior version, please refer to the tag commit message. Sorry guys.
 - Add iperf3 and linuxptp debian packages as dependencies on package_installer.sh
 - Added ethtool, iproute2 and ubuntu RT dependencies with links to required patches in README.md
 - Added note clarifying the usage of <PLAT> command line argument in README_json.md
+
+## [0.9.15] - 2025-01-10
+- Enable feature that disable EEE before test execution
+- Change command from lscpu to nproc to get CPU count
+- Make plot persist after tsq1a exits
+- Update liveplot to use replot
