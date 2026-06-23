@@ -24,7 +24,7 @@ Please refer to [TODO.md](TODO.md) for list of potential area to contribute on.
 
 3. Ensure commits messages are signed off.
 
-4. Submit pull request to the staging branch.
+4. Submit pull request to the main branch.
     * title
     * objective
     * tested on hardware/software
