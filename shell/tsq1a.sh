@@ -40,7 +40,7 @@ if [ $# -eq 0 ]; then
 fi
 
 IFACE=$1
-CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
+CLK=`ethtool -T $IFACE | grep -Po "(?<=Hardware timestamp provider index: |PTP Hardware Clock: )[\d+]"`
 
 pkill gnuplot
 if pgrep -x tsq > /dev/null; then

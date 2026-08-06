@@ -40,7 +40,7 @@ if [ $# -eq 0 ]; then
 fi
 
 IFACE=$1
-CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
+CLK=`ethtool -T $IFACE | grep -Po "(?<=Hardware timestamp provider index: |PTP Hardware Clock: )[\d+]"`
 
 if pgrep -x tsq > /dev/null; then
 	kill -9 $( pgrep -x tsq ) > /dev/null

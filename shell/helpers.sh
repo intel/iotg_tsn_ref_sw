@@ -374,7 +374,7 @@ enable_extts(){
                 echo "Please enter interface: ./enable_extts.sh iface"; exit 1;
         fi
 
-        CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
+        CLK=`ethtool -T $IFACE | grep -Po "(?<=Hardware timestamp provider index: |PTP Hardware Clock: )[\d+]"`
         PCLK=ptp$CLK
         echo "Enabling extts on $IFACE ($PCLK)"
 
@@ -395,7 +395,7 @@ enable_pps(){
 
         IFACE=$1
 
-        CLK=`ethtool -T $IFACE | grep -Po "(?<=PTP Hardware Clock: )[\d+]"`
+        CLK=`ethtool -T $IFACE | grep -Po "(?<=Hardware timestamp provider index: |PTP Hardware Clock: )[\d+]"`
         PCLK=ptp$CLK
         echo "Enabling pps on $IFACE ($PCLK)"
 
